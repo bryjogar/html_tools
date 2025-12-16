@@ -3,425 +3,389 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cron Schedule Parser & Generator</title>
+    <title>Cron Parser & Generator - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        :root {
-            --primary: #6366f1;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --border: #e2e8f0;
-            --success: #10b981;
-            --error: #ef4444;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
         }
-
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            justify-content: center;
-            padding: 2rem;
-            margin: 0;
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
         }
-
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 5px;
         }
-
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .tab {
-            flex: 1;
-            padding: 1rem;
-            text-align: center;
-            cursor: pointer;
-            font-weight: 600;
-            background: #f1f5f9;
-            transition: all 0.2s;
-        }
-
-        .tab.active {
-            background: var(--card-bg);
-            color: var(--primary);
-            border-top: 3px solid var(--primary);
-        }
-
-        .content {
-            padding: 2rem;
-            display: none;
-        }
-
-        .content.active {
-            display: block;
-        }
-
-        h2 { margin-top: 0; font-size: 1.25rem; }
-
-        /* Input Styles */
-        .input-group {
-            margin-bottom: 1.5rem;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 12px;
-            font-family: monospace;
-            font-size: 1.1rem;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            box-sizing: border-box;
-            transition: border-color 0.2s;
-        }
-
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        /* Results Area */
-        .result-box {
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
-        }
-
-        .human-readable {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .next-dates {
-            font-size: 0.9rem;
-            color: #64748b;
-            font-family: monospace;
-        }
-
-        .error-msg {
-            color: var(--error);
-            font-size: 0.9rem;
-            display: none;
-            margin-top: 0.5rem;
-        }
-
-        /* Generator Styles */
-        .generator-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .gen-col label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: #64748b;
-        }
-
-        select {
-            width: 100%;
-            padding: 8px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-        }
-
-        .generated-display {
-            background: #1e293b;
-            color: #fff;
-            padding: 1.5rem;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 1.5rem;
-            text-align: center;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .generated-display:hover {
-            background: #334155;
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b4b4b; 
         }
         
-        .copy-hint {
-            font-size: 0.75rem;
-            color: #94a3b8;
-            display: block;
-            margin-top: 0.5rem;
-            text-align: center;
+        /* Select styling override for dark mode */
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
         }
-
     </style>
 </head>
-<body>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
 
-<div class="container">
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('parser')">Parser (Read)</div>
-        <div class="tab" onclick="switchTab('generator')">Generator (Create)</div>
-    </div>
-
-    <div id="parser" class="content active">
-        <div class="input-group">
-            <label for="cronInput" style="display:block; margin-bottom:0.5rem; font-weight:600;">Paste Cron Schedule</label>
-            <input type="text" id="cronInput" placeholder="* * * * *" value="*/15 * * * *" oninput="parseInput()">
-            <div id="parseError" class="error-msg">Invalid cron format</div>
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-6 shrink-0 justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-clock text-obsidian-accent"></i>
+            <h1 class="font-semibold text-lg tracking-wide">Cron Schedule Tool</h1>
         </div>
+        <div class="text-xs text-gray-500 font-mono hidden sm:block">v2.0.0</div>
+    </header>
 
-        <div class="result-box">
-            <div class="human-readable" id="humanOutput">Runs every 15 minutes</div>
-            <div style="margin-top: 10px; font-weight: 600; font-size: 0.85rem;">Next 3 executions:</div>
-            <div class="next-dates" id="nextRuns"></div>
+    <main class="flex-grow overflow-y-auto p-6 flex flex-col items-center">
+        <div class="w-full max-w-4xl flex flex-col gap-6">
+
+            <div class="flex border-b border-obsidian-border">
+                <button onclick="switchTab('parser')" id="tab-parser" class="px-6 py-3 text-sm font-medium border-b-2 border-obsidian-accent text-white focus:outline-none transition-colors">
+                    <i class="fa-solid fa-glasses mr-2"></i>Parser
+                </button>
+                <button onclick="switchTab('generator')" id="tab-generator" class="px-6 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300 focus:outline-none transition-colors">
+                    <i class="fa-solid fa-sliders mr-2"></i>Generator
+                </button>
+            </div>
+
+            <div id="view-parser" class="block animate-fade-in">
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 shadow-sm space-y-6">
+                    
+                    <div>
+                        <label for="cronInput" class="block text-sm font-medium text-gray-400 mb-2">Paste Cron Schedule</label>
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="cronInput" 
+                                class="w-full bg-[#111827] border border-obsidian-border rounded p-4 font-mono text-xl text-white placeholder-gray-700 focus:outline-none focus:border-obsidian-accent transition-colors"
+                                placeholder="* * * * *" 
+                                value="*/15 * * * *" 
+                                oninput="parseInput()"
+                                spellcheck="false"
+                            >
+                            <div id="parseStatusIcon" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                        </div>
+                        <div id="parseError" class="text-red-400 text-xs mt-2 hidden font-mono">Invalid cron format</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-[#1e1e1e] rounded border border-obsidian-border p-4">
+                            <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Interpretation</div>
+                            <div id="humanOutput" class="text-obsidian-accent font-medium text-lg leading-relaxed">
+                                Runs every 15 minutes
+                            </div>
+                        </div>
+
+                        <div class="bg-[#1e1e1e] rounded border border-obsidian-border p-4">
+                            <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-2">Next 3 Executions</div>
+                            <div id="nextRuns" class="font-mono text-sm text-gray-300 space-y-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-generator" class="hidden">
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 shadow-sm space-y-8">
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Minute</label>
+                            <select id="genMin" onchange="updateGenerator()" class="w-full bg-[#111827] border border-obsidian-border rounded p-2 text-sm text-white focus:outline-none focus:border-obsidian-accent cursor-pointer">
+                                <option value="*">Every (*)</option>
+                                <option value="0">:00</option>
+                                <option value="30">:30</option>
+                                <option value="*/5">Every 5m</option>
+                                <option value="*/15">Every 15m</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Hour</label>
+                            <select id="genHour" onchange="updateGenerator()" class="w-full bg-[#111827] border border-obsidian-border rounded p-2 text-sm text-white focus:outline-none focus:border-obsidian-accent cursor-pointer">
+                                <option value="*">Every (*)</option>
+                                <option value="0">Midnight (0)</option>
+                                <option value="9">9 AM</option>
+                                <option value="12">Noon (12)</option>
+                                <option value="17">5 PM (17)</option>
+                                <option value="*/2">Every 2h</option>
+                                <option value="9-17">9-5 Work</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Day</label>
+                            <select id="genDay" onchange="updateGenerator()" class="w-full bg-[#111827] border border-obsidian-border rounded p-2 text-sm text-white focus:outline-none focus:border-obsidian-accent cursor-pointer">
+                                <option value="*">Every (*)</option>
+                                <option value="1">1st</option>
+                                <option value="15">15th</option>
+                                <option value="*/2">Every 2d</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Month</label>
+                            <select id="genMonth" onchange="updateGenerator()" class="w-full bg-[#111827] border border-obsidian-border rounded p-2 text-sm text-white focus:outline-none focus:border-obsidian-accent cursor-pointer">
+                                <option value="*">Every (*)</option>
+                                <option value="*/3">Quarterly</option>
+                                <option value="1">Jan</option>
+                                <option value="6">Jun</option>
+                                <option value="12">Dec</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-gray-500 uppercase">Week Day</label>
+                            <select id="genWeek" onchange="updateGenerator()" class="w-full bg-[#111827] border border-obsidian-border rounded p-2 text-sm text-white focus:outline-none focus:border-obsidian-accent cursor-pointer">
+                                <option value="*">Every (*)</option>
+                                <option value="1-5">Mon-Fri</option>
+                                <option value="0">Sunday</option>
+                                <option value="6">Saturday</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col items-center space-y-3 pt-4 border-t border-obsidian-border">
+                        <div class="text-gray-500 text-xs font-mono">Generated Cron String</div>
+                        
+                        <button id="genOutputBtn" onclick="copyToClipboard()" class="group relative w-full max-w-md bg-[#111827] hover:bg-[#0f1523] border border-obsidian-border rounded-lg py-6 text-center transition-all cursor-pointer">
+                            <span id="genOutputText" class="font-mono text-3xl text-obsidian-accent group-hover:text-white transition-colors">* * * * *</span>
+                            
+                            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
+                                <span class="bg-obsidian-accent text-white text-xs px-2 py-1 rounded shadow">Click to Copy</span>
+                            </div>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
         </div>
-    </div>
+    </main>
 
-    <div id="generator" class="content">
-        <div class="generator-grid">
-            <div class="gen-col">
-                <label>Minutes</label>
-                <select id="genMin" onchange="updateGenerator()">
-                    <option value="*">Every Minute (*)</option>
-                    <option value="0">At :00</option>
-                    <option value="30">At :30</option>
-                    <option value="*/5">Every 5m</option>
-                    <option value="*/15">Every 15m</option>
-                </select>
-            </div>
-            <div class="gen-col">
-                <label>Hours</label>
-                <select id="genHour" onchange="updateGenerator()">
-                    <option value="*">Every Hour (*)</option>
-                    <option value="0">Midnight (0)</option>
-                    <option value="9">9 AM</option>
-                    <option value="12">Noon (12)</option>
-                    <option value="17">5 PM (17)</option>
-                    <option value="*/2">Every 2h</option>
-                    <option value="9-17">9-5 Work hours</option>
-                </select>
-            </div>
-            <div class="gen-col">
-                <label>Day of Month</label>
-                <select id="genDay" onchange="updateGenerator()">
-                    <option value="*">Every Day (*)</option>
-                    <option value="1">1st of month</option>
-                    <option value="15">15th of month</option>
-                    <option value="*/2">Every 2 days</option>
-                </select>
-            </div>
-            <div class="gen-col">
-                <label>Month</label>
-                <select id="genMonth" onchange="updateGenerator()">
-                    <option value="*">Every Month (*)</option>
-                    <option value="*/3">Quarterly (*/3)</option>
-                    <option value="1">January</option>
-                    <option value="6">June</option>
-                    <option value="12">December</option>
-                </select>
-            </div>
-            <div class="gen-col">
-                <label>Day of Week</label>
-                <select id="genWeek" onchange="updateGenerator()">
-                    <option value="*">Every Day (*)</option>
-                    <option value="1-5">Mon-Fri</option>
-                    <option value="0">Sunday</option>
-                    <option value="6">Saturday</option>
-                </select>
-            </div>
-        </div>
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-obsidian-accent text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
 
-        <div class="generated-display" id="genOutput" onclick="copyToClipboard()">
-            * * * * *
-        </div>
-        <span class="copy-hint">Click to copy to clipboard</span>
-    </div>
-</div>
-
-<script>
-    // --- UTILITY: Dictionary ---
-    const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const monthMap = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-    // --- LOGIC: Parser ---
-    function parseInput() {
-        const input = document.getElementById('cronInput').value.trim();
-        const errorDiv = document.getElementById('parseError');
-        const outputDiv = document.getElementById('humanOutput');
-        const nextRunsDiv = document.getElementById('nextRuns');
-        
-        const parts = input.split(/\s+/);
-        
-        if (parts.length < 5) {
-            errorDiv.style.display = 'block';
-            outputDiv.textContent = '...';
-            nextRunsDiv.innerHTML = '';
-            return;
-        }
-
-        errorDiv.style.display = 'none';
-        
-        // 1. Human Readable Description
-        outputDiv.textContent = describeCron(parts);
-
-        // 2. Calculate Next Runs (Simplified heuristic for demo)
-        // Note: A full cron date parser in vanilla JS is very heavy. 
-        // We will simulate the next run logic for common patterns.
-        try {
-            const dates = calculateNextRuns(input, 3);
-            nextRunsDiv.innerHTML = dates.map(d => d.toLocaleString()).join('<br>');
-        } catch (e) {
-            nextRunsDiv.textContent = "Complex math required for precise next dates.";
-        }
-    }
-
-    function describeCron(parts) {
-        const [min, hour, dom, mon, dow] = parts;
-        let desc = "Runs ";
-
-        // Special Presets
-        if (min==='*' && hour==='*' && dom==='*' && mon==='*' && dow==='*') return "Runs every minute";
-        if (min==='0' && hour==='0' && dom==='*' && mon==='*' && dow==='*') return "Runs every day at midnight";
-
-        // Time
-        if (min.includes('/') || min === '*') {
-            desc += `at minute ${min} `;
-        } else {
-            desc += `at minute ${min} `;
-        }
-
-        if (hour !== '*') {
-            desc += `past hour ${hour} `;
-        } else {
-            desc += `of every hour `;
-        }
-
-        // Date
-        if (dom !== '*') desc += `on day ${dom} of the month `;
-        if (mon !== '*') desc += `in ${mon} `;
-        if (dow !== '*') desc += `on ${dow} `;
-        
-        return desc
-            .replace(/\*/g, "every")
-            .replace(/every\//g, "every ");
-    }
-
-    // A lightweight "Next Run" calculator
-    // This handles standard cron features. It loops forward in time to find matches.
-    function calculateNextRuns(cronStr, count) {
-        const parts = cronStr.split(/\s+/);
-        let now = new Date();
-        // Advance 1 minute so we don't show "now"
-        now.setMinutes(now.getMinutes() + 1);
-        now.setSeconds(0);
-        
-        const results = [];
-        let iterations = 0;
-
-        // Safety break to prevent infinite loops on bad cron strings
-        while (results.length < count && iterations < 20000) {
-            if (matches(now, parts)) {
-                results.push(new Date(now));
-                // Move forward significantly to avoid finding the same slot if seconds were involved
-                // But here we are minute precision, so just add a minute after finding one isn't enough
-                // if we want distinct events. Actually for cron, usually next run is fine.
+    <script>
+        // --- LOGIC: Parser ---
+        function parseInput() {
+            const input = document.getElementById('cronInput').value.trim();
+            const errorDiv = document.getElementById('parseError');
+            const outputDiv = document.getElementById('humanOutput');
+            const nextRunsDiv = document.getElementById('nextRuns');
+            const statusIcon = document.getElementById('parseStatusIcon');
+            
+            const parts = input.split(/\s+/);
+            
+            if (parts.length < 5) {
+                errorDiv.classList.remove('hidden');
+                outputDiv.textContent = '...';
+                nextRunsDiv.innerHTML = '<span class="text-gray-600 italic">Waiting for complete expression...</span>';
+                statusIcon.innerHTML = '<i class="fa-solid fa-pen text-yellow-500"></i>';
+                return;
             }
-            // Increment by 1 minute
+
+            errorDiv.classList.add('hidden');
+            statusIcon.innerHTML = '<i class="fa-solid fa-check text-green-500"></i>';
+            
+            // 1. Human Readable Description
+            outputDiv.textContent = describeCron(parts);
+
+            // 2. Calculate Next Runs
+            try {
+                const dates = calculateNextRuns(input, 3);
+                nextRunsDiv.innerHTML = dates.map(d => 
+                    `<div class="flex justify-between items-center border-b border-white/5 py-1 last:border-0">
+                        <span>${d.toLocaleDateString()}</span>
+                        <span class="text-gray-500">${d.toLocaleTimeString()}</span>
+                    </div>`
+                ).join('');
+            } catch (e) {
+                nextRunsDiv.textContent = "Unable to calculate next dates.";
+            }
+        }
+
+        function describeCron(parts) {
+            const [min, hour, dom, mon, dow] = parts;
+            
+            // Simple heuristics for demo description
+            if (min==='*' && hour==='*' && dom==='*' && mon==='*' && dow==='*') return "Runs every minute";
+            if (min==='0' && hour==='0' && dom==='*' && mon==='*' && dow==='*') return "Runs every day at midnight";
+            
+            let desc = "Runs ";
+            
+            // Minute
+            if (min.includes('/')) desc += `every ${min.split('/')[1]} minutes `;
+            else if (min === '0') desc += `at minute 0 `;
+            else if (min !== '*') desc += `at minute ${min} `;
+            
+            // Hour
+            if (hour === '*') {} // implies every hour
+            else if (hour.includes('-')) desc += `between hours ${hour} `;
+            else if (hour.includes('/')) desc += `every ${hour.split('/')[1]} hours `;
+            else desc += `past hour ${hour} `;
+
+            // Date
+            if (dom !== '*') desc += `on day ${dom} of the month `;
+            if (mon !== '*') desc += `in month ${mon} `;
+            if (dow !== '*') desc += `on day-of-week ${dow} `;
+
+            if (desc === "Runs ") desc = "Runs every minute (default)";
+            
+            return desc;
+        }
+
+        // Lightweight "Next Run" calculator
+        function calculateNextRuns(cronStr, count) {
+            const parts = cronStr.split(/\s+/);
+            let now = new Date();
             now.setMinutes(now.getMinutes() + 1);
-            iterations++;
-        }
-        return results;
-    }
+            now.setSeconds(0);
+            
+            const results = [];
+            let iterations = 0;
 
-    function matches(date, parts) {
-        const [min, hour, dom, mon, dow] = parts;
-        
-        if (!checkField(date.getMinutes(), min)) return false;
-        if (!checkField(date.getHours(), hour)) return false;
-        if (!checkField(date.getDate(), dom)) return false;
-        if (!checkField(date.getMonth() + 1, mon)) return false;
-        if (!checkField(date.getDay(), dow)) return false; // 0-6
-
-        return true;
-    }
-
-    function checkField(value, constraints) {
-        if (constraints === '*') return true;
-        
-        // Handling comma lists: 1,2,5
-        if (constraints.includes(',')) {
-            const list = constraints.split(',');
-            return list.some(c => checkField(value, c));
+            while (results.length < count && iterations < 5000) {
+                if (matches(now, parts)) {
+                    results.push(new Date(now));
+                }
+                now.setMinutes(now.getMinutes() + 1);
+                iterations++;
+            }
+            return results;
         }
 
-        // Handling steps: */5 or 0-30/5
-        if (constraints.includes('/')) {
-            const [range, step] = constraints.split('/');
-            if (range !== '*' && !checkField(value, range)) return false;
-            return value % parseInt(step) === 0;
+        function matches(date, parts) {
+            const [min, hour, dom, mon, dow] = parts;
+            if (!checkField(date.getMinutes(), min)) return false;
+            if (!checkField(date.getHours(), hour)) return false;
+            if (!checkField(date.getDate(), dom)) return false;
+            if (!checkField(date.getMonth() + 1, mon)) return false;
+            if (!checkField(date.getDay(), dow)) return false; // 0-6
+            return true;
         }
 
-        // Handling ranges: 1-5
-        if (constraints.includes('-')) {
-            const [start, end] = constraints.split('-').map(Number);
-            return value >= start && value <= end;
+        function checkField(value, constraints) {
+            if (constraints === '*') return true;
+            if (constraints.includes(',')) return constraints.split(',').some(c => checkField(value, c));
+            if (constraints.includes('/')) {
+                const [range, step] = constraints.split('/');
+                if (range !== '*' && !checkField(value, range)) return false;
+                return value % parseInt(step) === 0;
+            }
+            if (constraints.includes('-')) {
+                const [start, end] = constraints.split('-').map(Number);
+                return value >= start && value <= end;
+            }
+            return parseInt(constraints) === value;
         }
 
-        return parseInt(constraints) === value;
-    }
+        // --- LOGIC: Generator ---
+        function updateGenerator() {
+            const m = document.getElementById('genMin').value;
+            const h = document.getElementById('genHour').value;
+            const d = document.getElementById('genDay').value;
+            const mo = document.getElementById('genMonth').value;
+            const w = document.getElementById('genWeek').value;
 
+            const cron = `${m} ${h} ${d} ${mo} ${w}`;
+            const display = document.getElementById('genOutputText');
+            
+            display.textContent = cron;
+        }
 
-    // --- LOGIC: Generator ---
-    function updateGenerator() {
-        const m = document.getElementById('genMin').value;
-        const h = document.getElementById('genHour').value;
-        const d = document.getElementById('genDay').value;
-        const mo = document.getElementById('genMonth').value;
-        const w = document.getElementById('genWeek').value;
+        function copyToClipboard() {
+            const text = document.getElementById('genOutputText').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('genOutputBtn');
+                const originalBorder = btn.className;
+                
+                // Visual feedback
+                btn.classList.add('border-green-500', 'bg-green-500/10');
+                const overlay = btn.querySelector('span.bg-obsidian-accent');
+                if(overlay) {
+                    overlay.classList.remove('bg-obsidian-accent');
+                    overlay.classList.add('bg-green-600');
+                    overlay.textContent = "Copied!";
+                }
 
-        const cron = `${m} ${h} ${d} ${mo} ${w}`;
-        const display = document.getElementById('genOutput');
-        
-        display.textContent = cron;
-        
-        // Pulse animation effect
-        display.style.transform = "scale(1.02)";
-        setTimeout(() => display.style.transform = "scale(1)", 150);
-    }
+                setTimeout(() => {
+                    btn.classList.remove('border-green-500', 'bg-green-500/10');
+                    if(overlay) {
+                        overlay.classList.add('bg-obsidian-accent');
+                        overlay.classList.remove('bg-green-600');
+                        overlay.textContent = "Click to Copy";
+                    }
+                }, 1500);
+            });
+        }
 
-    function copyToClipboard() {
-        const text = document.getElementById('genOutput').innerText;
-        navigator.clipboard.writeText(text);
-        alert("Copied to clipboard: " + text);
-    }
+        // --- UI: Tabs ---
+        function switchTab(tabId) {
+            // Content
+            document.getElementById('view-parser').classList.add('hidden');
+            document.getElementById('view-generator').classList.add('hidden');
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
 
-    // --- UI: Tabs ---
-    function switchTab(tabId) {
-        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        
-        document.getElementById(tabId).classList.add('active');
-        // Find the tab button that triggered this? Or just use index logic.
-        // Simple way:
-        const index = tabId === 'parser' ? 0 : 1;
-        document.querySelectorAll('.tab')[index].classList.add('active');
-    }
+            // Tabs Styling
+            const btnParser = document.getElementById('tab-parser');
+            const btnGenerator = document.getElementById('tab-generator');
+            
+            // Reset base classes
+            const activeClass = ['border-obsidian-accent', 'text-white'];
+            const inactiveClass = ['border-transparent', 'text-gray-500'];
 
-    // Initialize
-    parseInput();
-</script>
+            if(tabId === 'parser') {
+                btnParser.classList.add(...activeClass);
+                btnParser.classList.remove(...inactiveClass);
+                
+                btnGenerator.classList.add(...inactiveClass);
+                btnGenerator.classList.remove(...activeClass);
+            } else {
+                btnGenerator.classList.add(...activeClass);
+                btnGenerator.classList.remove(...inactiveClass);
+                
+                btnParser.classList.add(...inactiveClass);
+                btnParser.classList.remove(...activeClass);
+            }
+        }
 
+        // Initialize
+        parseInput();
+    </script>
 </body>
 </html>

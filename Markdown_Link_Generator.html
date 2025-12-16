@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Readme Link Generator</title>
+    <style>
+        :root {
+            --primary-color: #2da44e; /* GitHub Green */
+            --bg-color: #f6f8fa;
+            --text-color: #24292f;
+            --border-color: #d0d7de;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column; /* Changed from default (row) to column */
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 6px;
+            box-shadow: 0 3px 6px rgba(140, 149, 159, 0.15);
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid var(--border-color);
+            /* This centers the container vertically and horizontally in the available space */
+            margin: auto; 
+        }
+
+        h2 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #0969da;
+            box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid rgba(27, 31, 36, 0.15);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: rgba(27, 31, 36, 0.15);
+        }
+
+        .btn-primary:hover {
+            background-color: #2c974b;
+        }
+
+        .btn-secondary {
+            background-color: #f6f8fa;
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #f3f4f6;
+        }
+
+        .output-area {
+            margin-top: 20px;
+            background: #f6f8fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .preview {
+            font-family: monospace;
+            background: white;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #24292f;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+        
+        footer {
+            margin-top: 20px;
+            padding: 20px; 
+            text-align: center; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            width: 100%;
+        }
+
+        footer a {
+            color: #6b7280; 
+            text-decoration: none; 
+            font-size: 14px; 
+            transition: color 0.2s ease;
+        }
+        
+        footer a:hover {
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Markdown Link Generator</h2>
+    
+    <div class="form-group">
+        <label for="urlInput">Tool URL</label>
+        <input type="text" id="urlInput" placeholder="https://tools.yourdomain.com/subnet-calculator.html" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+        <label for="titleInput">Link Title (Auto-generated)</label>
+        <input type="text" id="titleInput" placeholder="Subnet Calculator">
+    </div>
+
+    <div class="output-area hidden" id="outputArea">
+        <label>Result</label>
+        <div class="preview" id="resultText"></div>
+        
+        <div class="actions">
+            <button class="btn-primary" id="copyBtn">Copy Markdown</button>
+            <button class="btn-secondary" id="resetBtn">Reset</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard!</div>
+
+<footer>
+    <a href="https://homelabplayground.com">HomeLab Playground</a>
+</footer>
+
+<script>
+    const urlInput = document.getElementById('urlInput');
+    const titleInput = document.getElementById('titleInput');
+    const resultText = document.getElementById('resultText');
+    const outputArea = document.getElementById('outputArea');
+    const copyBtn = document.getElementById('copyBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const toast = document.getElementById('toast');
+
+    // Logic to format strings to Title Case
+    function toTitleCase(str) {
+        return str.replace(
+            /\w\S*/g,
+            function(txt) {
+                return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+            }
+        );
+    }
+
+    // Attempt to extract a pretty title from the URL
+    function generateTitleFromUrl(url) {
+        try {
+            // Remove protocol and domain, get the last segment
+            let segment = url.split('/').filter(Boolean).pop();
+            
+            // Remove file extension if present
+            if (segment.includes('.')) {
+                segment = segment.split('.').slice(0, -1).join('.');
+            }
+            
+            // Replace hyphens/underscores with spaces
+            segment = segment.replace(/[-_]/g, ' ');
+            
+            return toTitleCase(segment);
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function updateResult() {
+        const url = urlInput.value.trim();
+        const title = titleInput.value.trim();
+
+        if (url && title) {
+            outputArea.classList.remove('hidden');
+            resultText.textContent = `- [${title}](${url})`;
+        } else {
+            outputArea.classList.add('hidden');
+        }
+    }
+
+    // Event Listeners
+    urlInput.addEventListener('input', () => {
+        const url = urlInput.value.trim();
+        // Only auto-fill title if the title input is currently empty or user hasn't manually edited it much
+        if (url) {
+            const generatedTitle = generateTitleFromUrl(url);
+            if (titleInput.value === '' || titleInput.dataset.auto === 'true') {
+                titleInput.value = generatedTitle;
+                titleInput.dataset.auto = 'true'; // mark as auto-generated
+            }
+        } else {
+            titleInput.value = '';
+        }
+        updateResult();
+    });
+
+    // If user manually types in title, stop auto-updating it
+    titleInput.addEventListener('input', () => {
+        titleInput.dataset.auto = 'false';
+        updateResult();
+    });
+
+    copyBtn.addEventListener('click', () => {
+        const text = resultText.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast();
+        });
+    });
+
+    resetBtn.addEventListener('click', () => {
+        urlInput.value = '';
+        titleInput.value = '';
+        updateResult();
+        urlInput.focus();
+    });
+
+    function showToast() {
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
+</script>
+
+</body>
+</html>

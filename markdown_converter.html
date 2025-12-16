@@ -5,18 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown <-> HTML Converter</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Marked.js (MD to HTML) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    <!-- Turndown.js (HTML to MD) -->
     <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
-    <!-- Turndown GFM Plugin (For Tables/Tasks) -->
     <script src="https://unpkg.com/turndown-plugin-gfm/dist/turndown-plugin-gfm.js"></script>
 
     <script>
@@ -89,7 +84,6 @@
 </head>
 <body class="bg-obsidian-bg text-obsidian-text h-screen flex flex-col overflow-hidden font-sans">
 
-    <!-- Toolbar -->
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 shadow-md z-10">
         <div class="flex items-center gap-3">
             <i class="fa-brands fa-markdown text-2xl text-violet-500"></i>
@@ -107,10 +101,8 @@
         </div>
     </header>
 
-    <!-- Main Workspace -->
     <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         
-        <!-- PANE 1: Markdown Input -->
         <div class="flex-1 flex flex-col border-r border-obsidian-border min-w-0">
             <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0">
                 <span class="text-xs font-bold text-gray-400 uppercase tracking-wider"><i class="fa-brands fa-markdown mr-1"></i> Markdown</span>
@@ -122,7 +114,6 @@
                 class="flex-1 w-full bg-[#1e1e1e] text-gray-300 p-4 font-mono text-sm resize-none focus:outline-none focus:ring-1 focus:ring-violet-500/50 leading-relaxed"></textarea>
         </div>
 
-        <!-- PANE 2: HTML Input/Output -->
         <div class="flex-1 flex flex-col border-r border-obsidian-border min-w-0">
             <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0">
                 <span class="text-xs font-bold text-gray-400 uppercase tracking-wider"><i class="fa-solid fa-code mr-1"></i> HTML</span>
@@ -130,25 +121,28 @@
                     <i class="fa-regular fa-copy mr-1"></i> Copy
                 </button>
             </div>
-            <textarea id="htmlInput" spellcheck="false" placeholder="<!-- Or paste HTML here to reverse convert -->" 
+            <textarea id="htmlInput" spellcheck="false" placeholder="" 
                 class="flex-1 w-full bg-[#1e1e1e] text-blue-200 p-4 font-mono text-sm resize-none focus:outline-none focus:ring-1 focus:ring-green-500/50 leading-relaxed"></textarea>
         </div>
 
-        <!-- PANE 3: Preview -->
         <div class="flex-1 flex flex-col min-w-0 bg-[#1a1a1a]">
             <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0">
                 <span class="text-xs font-bold text-gray-400 uppercase tracking-wider"><i class="fa-solid fa-eye mr-1"></i> Preview</span>
                 <span class="text-[10px] text-gray-600">Read Only</span>
             </div>
             <div id="previewPane" class="flex-1 w-full p-6 overflow-y-auto prose-preview">
-                <!-- Content injected here -->
-            </div>
+                </div>
         </div>
 
     </main>
 
-    <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-violet-600 text-white px-4 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 z-50">
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <div id="toast" class="fixed bottom-12 right-5 bg-violet-600 text-white px-4 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 z-50">
         <i class="fa-solid fa-circle-check"></i>
         <span id="toastMsg" class="font-medium text-sm">Copied to clipboard!</span>
     </div>
@@ -291,7 +285,7 @@ def hello_world():
             toastMsg.innerText = message;
             const bgClass = isError ? 'bg-red-600' : 'bg-violet-600';
             
-            toast.className = `fixed bottom-5 right-5 ${bgClass} text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 flex items-center gap-3 z-50 translate-y-0 opacity-100`;
+            toast.className = `fixed bottom-12 right-5 ${bgClass} text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 flex items-center gap-3 z-50 translate-y-0 opacity-100`;
 
             setTimeout(() => {
                 toast.classList.add('translate-y-20', 'opacity-0');

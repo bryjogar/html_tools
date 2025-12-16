@@ -3,214 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAC Address Formatter</title>
+    <title>MAC Address Formatter - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        :root {
-            --primary: #2563eb;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --border: #e2e8f0;
-            --success: #22c55e;
-            --error: #ef4444;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b4b4b; 
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            display: flex;
-            justify-content: center;
-            padding: 40px 20px;
-            margin: 0;
-            line-height: 1.5;
+        /* Utility for input autofill styling reset */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px #252526 inset !important;
+            -webkit-text-fill-color: #cccccc !important;
         }
-
-        .container {
-            width: 100%;
-            max-width: 600px;
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        h1 {
-            margin-top: 0;
-            font-size: 1.5rem;
-            color: var(--text);
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .input-group {
-            margin-bottom: 30px;
-        }
-
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 12px 16px;
-            font-size: 1.1rem;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-            box-sizing: border-box;
-            transition: border-color 0.2s;
-        }
-
-        input[type="text"]:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .status-msg {
-            font-size: 0.85rem;
-            margin-top: 8px;
-            height: 20px;
-        }
-        
-        .status-error { color: var(--error); }
-        .status-valid { color: var(--success); }
-
-        .results {
-            display: grid;
-            gap: 16px;
-        }
-
-        .result-card {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .result-info {
-            flex-grow: 1;
-        }
-
-        .result-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #64748b;
-            margin-bottom: 4px;
-        }
-
-        .result-value {
-            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-            font-size: 1.1rem;
-            font-weight: 500;
-            word-break: break-all;
-        }
-
-        .copy-btn {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-left: 15px;
-            transition: all 0.2s;
-            min-width: 70px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .copy-btn:hover {
-            background: #f1f5f9;
-            border-color: #cbd5e1;
-        }
-
-        .copy-btn:active {
-            transform: translateY(1px);
-        }
-
-        .empty-state {
-            text-align: center;
-            color: #94a3b8;
-            padding: 20px;
-            font-style: italic;
-        }
-
-        .hidden { display: none; }
     </style>
 </head>
-<body>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
 
-    <div class="container">
-        <h1>MAC Address Formatter</h1>
-
-        <div class="input-group">
-            <label for="macInput">Enter MAC Address</label>
-            <input type="text" id="macInput" placeholder="e.g. 001A2B3C4D5E" autofocus>
-            <div id="statusMsg" class="status-msg"></div>
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-6 shrink-0 justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-network-wired text-obsidian-accent"></i>
+            <h1 class="font-semibold text-lg tracking-wide">MAC Address Formatter</h1>
         </div>
+        <div class="text-xs text-gray-500 font-mono hidden sm:block">v1.0.0</div>
+    </header>
 
-        <div id="resultsArea" class="results hidden">
-            <div class="result-card">
-                <div class="result-info">
-                    <div class="result-label">Colon Separated (aa:bb:cc:dd:ee:ff)</div>
-                    <div class="result-value" id="outColon"></div>
+    <main class="flex-grow overflow-y-auto p-6 flex flex-col items-center">
+        <div class="w-full max-w-3xl space-y-6">
+
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 shadow-sm">
+                <label for="macInput" class="block text-sm font-medium text-gray-400 mb-2">Enter MAC Address</label>
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="macInput" 
+                        class="w-full bg-[#111827] border border-obsidian-border rounded p-4 font-mono text-lg text-white placeholder-gray-600 focus:outline-none focus:border-obsidian-accent transition-colors"
+                        placeholder="e.g. 001A2B3C4D5E" 
+                        autofocus
+                    >
+                    <div id="statusIcon" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600">
+                        <i class="fa-solid fa-keyboard"></i>
+                    </div>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard('outColon', this)">Copy</button>
+                <div id="statusMsg" class="h-6 mt-2 text-xs font-mono transition-colors duration-200"></div>
             </div>
 
-            <div class="result-card">
-                <div class="result-info">
-                    <div class="result-label">Dash Separated (aa-bb-cc-dd-ee-ff)</div>
-                    <div class="result-value" id="outDash"></div>
-                </div>
-                <button class="copy-btn" onclick="copyToClipboard('outDash', this)">Copy</button>
+            <div id="emptyState" class="text-center py-12 text-gray-600">
+                <i class="fa-solid fa-arrow-up text-2xl mb-3 animate-bounce"></i>
+                <p>Start typing a MAC address above to generate formats.</p>
             </div>
 
-            <div class="result-card">
-                <div class="result-info">
-                    <div class="result-label">Dot Separated (aaaa.bbbb.cccc)</div>
-                    <div class="result-value" id="outDot"></div>
+            <div id="resultsArea" class="hidden space-y-4">
+                
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex items-center justify-between group hover:border-gray-600 transition-colors">
+                    <div class="overflow-hidden">
+                        <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Colon Separated</div>
+                        <div class="font-mono text-xl text-obsidian-accent truncate" id="outColon"></div>
+                    </div>
+                    <button class="ml-4 p-2 rounded hover:bg-white/5 text-gray-400 hover:text-white transition-all shrink-0 w-10 h-10 flex items-center justify-center" onclick="copyToClipboard('outColon', this)">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard('outDot', this)">Copy</button>
-            </div>
 
-            <div class="result-card">
-                <div class="result-info">
-                    <div class="result-label">Half Split (aaaaaa-bbbbbb)</div>
-                    <div class="result-value" id="outHalf"></div>
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex items-center justify-between group hover:border-gray-600 transition-colors">
+                    <div class="overflow-hidden">
+                        <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Dash Separated</div>
+                        <div class="font-mono text-xl text-white truncate" id="outDash"></div>
+                    </div>
+                    <button class="ml-4 p-2 rounded hover:bg-white/5 text-gray-400 hover:text-white transition-all shrink-0 w-10 h-10 flex items-center justify-center" onclick="copyToClipboard('outDash', this)">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard('outHalf', this)">Copy</button>
-            </div>
 
-            <div class="result-card">
-                <div class="result-info">
-                    <div class="result-label">Raw (aaaabbbbcccc)</div>
-                    <div class="result-value" id="outRaw"></div>
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex items-center justify-between group hover:border-gray-600 transition-colors">
+                    <div class="overflow-hidden">
+                        <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Cisco / Dot Separated</div>
+                        <div class="font-mono text-xl text-white truncate" id="outDot"></div>
+                    </div>
+                    <button class="ml-4 p-2 rounded hover:bg-white/5 text-gray-400 hover:text-white transition-all shrink-0 w-10 h-10 flex items-center justify-center" onclick="copyToClipboard('outDot', this)">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
                 </div>
-                <button class="copy-btn" onclick="copyToClipboard('outRaw', this)">Copy</button>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex items-center justify-between group hover:border-gray-600 transition-colors">
+                        <div class="overflow-hidden">
+                            <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Half Split</div>
+                            <div class="font-mono text-lg text-white truncate" id="outHalf"></div>
+                        </div>
+                        <button class="ml-2 p-2 rounded hover:bg-white/5 text-gray-400 hover:text-white transition-all shrink-0 w-10 h-10 flex items-center justify-center" onclick="copyToClipboard('outHalf', this)">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex items-center justify-between group hover:border-gray-600 transition-colors">
+                        <div class="overflow-hidden">
+                            <div class="text-[10px] uppercase tracking-wider text-gray-500 font-bold mb-1">Raw / Hex</div>
+                            <div class="font-mono text-lg text-white truncate" id="outRaw"></div>
+                        </div>
+                        <button class="ml-2 p-2 rounded hover:bg-white/5 text-gray-400 hover:text-white transition-all shrink-0 w-10 h-10 flex items-center justify-center" onclick="copyToClipboard('outRaw', this)">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
+    </main>
 
-        <div id="emptyState" class="empty-state">
-            Start typing to see formats...
-        </div>
-    </div>
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-obsidian-accent text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
 
     <script>
         const macInput = document.getElementById('macInput');
         const resultsArea = document.getElementById('resultsArea');
         const emptyState = document.getElementById('emptyState');
         const statusMsg = document.getElementById('statusMsg');
+        const statusIcon = document.getElementById('statusIcon');
 
         // Output elements
         const outColon = document.getElementById('outColon');
@@ -232,17 +184,17 @@
 
             // 2. Validation Logic
             if (clean.length > 12) {
-                setStatus("Too many characters", "error");
+                updateStatus("Too many characters", "error");
                 resultsArea.classList.add('hidden');
                 emptyState.classList.remove('hidden');
                 return;
             } else if (clean.length < 12) {
-                setStatus(`Incomplete (${clean.length}/12 characters)`, "valid"); 
+                updateStatus(`Incomplete (${clean.length}/12 characters)`, "pending"); 
                 resultsArea.classList.add('hidden');
                 emptyState.classList.remove('hidden');
                 return;
             } else {
-                setStatus("Valid MAC Address", "valid");
+                updateStatus("Valid MAC Address", "valid");
             }
 
             // 3. Generate Formats
@@ -275,15 +227,28 @@
             emptyState.classList.add('hidden');
         });
 
-        function setStatus(text, type) {
+        function updateStatus(text, type) {
             statusMsg.textContent = text;
-            statusMsg.className = 'status-msg'; // reset
-            if (type === 'error') statusMsg.classList.add('status-error');
-            if (type === 'valid') statusMsg.classList.add('status-valid');
+            
+            // Reset base classes
+            statusMsg.className = 'h-6 mt-2 text-xs font-mono transition-colors duration-200';
+            statusIcon.innerHTML = ''; // clear icon
+
+            if (type === 'error') {
+                statusMsg.classList.add('text-red-400');
+                statusIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>';
+            } else if (type === 'valid') {
+                statusMsg.classList.add('text-green-400');
+                statusIcon.innerHTML = '<i class="fa-solid fa-circle-check text-green-400"></i>';
+            } else if (type === 'pending') {
+                statusMsg.classList.add('text-yellow-500');
+                statusIcon.innerHTML = '<i class="fa-solid fa-pen text-yellow-500"></i>';
+            }
         }
 
         function resetUI() {
             statusMsg.textContent = '';
+            statusIcon.innerHTML = '<i class="fa-solid fa-keyboard"></i>';
             resultsArea.classList.add('hidden');
             emptyState.classList.remove('hidden');
         }
@@ -292,15 +257,17 @@
             const text = document.getElementById(elementId).textContent;
             
             navigator.clipboard.writeText(text).then(() => {
-                const originalText = btnElement.textContent;
-                btnElement.textContent = 'Copied!';
-                btnElement.style.background = '#dcfce7';
-                btnElement.style.color = '#166534';
+                const icon = btnElement.querySelector('i');
+                
+                // Visual feedback
+                btnElement.classList.add('text-green-400', 'bg-green-400/10');
+                icon.classList.remove('fa-regular', 'fa-copy');
+                icon.classList.add('fa-solid', 'fa-check');
                 
                 setTimeout(() => {
-                    btnElement.textContent = originalText;
-                    btnElement.style.background = 'white';
-                    btnElement.style.color = 'var(--text)';
+                    btnElement.classList.remove('text-green-400', 'bg-green-400/10');
+                    icon.classList.remove('fa-solid', 'fa-check');
+                    icon.classList.add('fa-regular', 'fa-copy');
                 }, 1500);
             }).catch(err => {
                 console.error('Failed to copy: ', err);
