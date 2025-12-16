@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cron Schedule Parser & Generator</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            background: #f1f5f9;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--card-bg);
+            color: var(--primary);
+            border-top: 3px solid var(--primary);
+        }
+
+        .content {
+            padding: 2rem;
+            display: none;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        h2 { margin-top: 0; font-size: 1.25rem; }
+
+        /* Input Styles */
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Results Area */
+        .result-box {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .human-readable {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .next-dates {
+            font-size: 0.9rem;
+            color: #64748b;
+            font-family: monospace;
+        }
+
+        .error-msg {
+            color: var(--error);
+            font-size: 0.9rem;
+            display: none;
+            margin-top: 0.5rem;
+        }
+
+        /* Generator Styles */
+        .generator-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .gen-col label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #64748b;
+        }
+
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .generated-display {
+            background: #1e293b;
+            color: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .generated-display:hover {
+            background: #334155;
+        }
+        
+        .copy-hint {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            display: block;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('parser')">Parser (Read)</div>
+        <div class="tab" onclick="switchTab('generator')">Generator (Create)</div>
+    </div>
+
+    <div id="parser" class="content active">
+        <div class="input-group">
+            <label for="cronInput" style="display:block; margin-bottom:0.5rem; font-weight:600;">Paste Cron Schedule</label>
+            <input type="text" id="cronInput" placeholder="* * * * *" value="*/15 * * * *" oninput="parseInput()">
+            <div id="parseError" class="error-msg">Invalid cron format</div>
+        </div>
+
+        <div class="result-box">
+            <div class="human-readable" id="humanOutput">Runs every 15 minutes</div>
+            <div style="margin-top: 10px; font-weight: 600; font-size: 0.85rem;">Next 3 executions:</div>
+            <div class="next-dates" id="nextRuns"></div>
+        </div>
+    </div>
+
+    <div id="generator" class="content">
+        <div class="generator-grid">
+            <div class="gen-col">
+                <label>Minutes</label>
+                <select id="genMin" onchange="updateGenerator()">
+                    <option value="*">Every Minute (*)</option>
+                    <option value="0">At :00</option>
+                    <option value="30">At :30</option>
+                    <option value="*/5">Every 5m</option>
+                    <option value="*/15">Every 15m</option>
+                </select>
+            </div>
+            <div class="gen-col">
+                <label>Hours</label>
+                <select id="genHour" onchange="updateGenerator()">
+                    <option value="*">Every Hour (*)</option>
+                    <option value="0">Midnight (0)</option>
+                    <option value="9">9 AM</option>
+                    <option value="12">Noon (12)</option>
+                    <option value="17">5 PM (17)</option>
+                    <option value="*/2">Every 2h</option>
+                    <option value="9-17">9-5 Work hours</option>
+                </select>
+            </div>
+            <div class="gen-col">
+                <label>Day of Month</label>
+                <select id="genDay" onchange="updateGenerator()">
+                    <option value="*">Every Day (*)</option>
+                    <option value="1">1st of month</option>
+                    <option value="15">15th of month</option>
+                    <option value="*/2">Every 2 days</option>
+                </select>
+            </div>
+            <div class="gen-col">
+                <label>Month</label>
+                <select id="genMonth" onchange="updateGenerator()">
+                    <option value="*">Every Month (*)</option>
+                    <option value="*/3">Quarterly (*/3)</option>
+                    <option value="1">January</option>
+                    <option value="6">June</option>
+                    <option value="12">December</option>
+                </select>
+            </div>
+            <div class="gen-col">
+                <label>Day of Week</label>
+                <select id="genWeek" onchange="updateGenerator()">
+                    <option value="*">Every Day (*)</option>
+                    <option value="1-5">Mon-Fri</option>
+                    <option value="0">Sunday</option>
+                    <option value="6">Saturday</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="generated-display" id="genOutput" onclick="copyToClipboard()">
+            * * * * *
+        </div>
+        <span class="copy-hint">Click to copy to clipboard</span>
+    </div>
+</div>
+
+<script>
+    // --- UTILITY: Dictionary ---
+    const dayMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const monthMap = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // --- LOGIC: Parser ---
+    function parseInput() {
+        const input = document.getElementById('cronInput').value.trim();
+        const errorDiv = document.getElementById('parseError');
+        const outputDiv = document.getElementById('humanOutput');
+        const nextRunsDiv = document.getElementById('nextRuns');
+        
+        const parts = input.split(/\s+/);
+        
+        if (parts.length < 5) {
+            errorDiv.style.display = 'block';
+            outputDiv.textContent = '...';
+            nextRunsDiv.innerHTML = '';
+            return;
+        }
+
+        errorDiv.style.display = 'none';
+        
+        // 1. Human Readable Description
+        outputDiv.textContent = describeCron(parts);
+
+        // 2. Calculate Next Runs (Simplified heuristic for demo)
+        // Note: A full cron date parser in vanilla JS is very heavy. 
+        // We will simulate the next run logic for common patterns.
+        try {
+            const dates = calculateNextRuns(input, 3);
+            nextRunsDiv.innerHTML = dates.map(d => d.toLocaleString()).join('<br>');
+        } catch (e) {
+            nextRunsDiv.textContent = "Complex math required for precise next dates.";
+        }
+    }
+
+    function describeCron(parts) {
+        const [min, hour, dom, mon, dow] = parts;
+        let desc = "Runs ";
+
+        // Special Presets
+        if (min==='*' && hour==='*' && dom==='*' && mon==='*' && dow==='*') return "Runs every minute";
+        if (min==='0' && hour==='0' && dom==='*' && mon==='*' && dow==='*') return "Runs every day at midnight";
+
+        // Time
+        if (min.includes('/') || min === '*') {
+            desc += `at minute ${min} `;
+        } else {
+            desc += `at minute ${min} `;
+        }
+
+        if (hour !== '*') {
+            desc += `past hour ${hour} `;
+        } else {
+            desc += `of every hour `;
+        }
+
+        // Date
+        if (dom !== '*') desc += `on day ${dom} of the month `;
+        if (mon !== '*') desc += `in ${mon} `;
+        if (dow !== '*') desc += `on ${dow} `;
+        
+        return desc
+            .replace(/\*/g, "every")
+            .replace(/every\//g, "every ");
+    }
+
+    // A lightweight "Next Run" calculator
+    // This handles standard cron features. It loops forward in time to find matches.
+    function calculateNextRuns(cronStr, count) {
+        const parts = cronStr.split(/\s+/);
+        let now = new Date();
+        // Advance 1 minute so we don't show "now"
+        now.setMinutes(now.getMinutes() + 1);
+        now.setSeconds(0);
+        
+        const results = [];
+        let iterations = 0;
+
+        // Safety break to prevent infinite loops on bad cron strings
+        while (results.length < count && iterations < 20000) {
+            if (matches(now, parts)) {
+                results.push(new Date(now));
+                // Move forward significantly to avoid finding the same slot if seconds were involved
+                // But here we are minute precision, so just add a minute after finding one isn't enough
+                // if we want distinct events. Actually for cron, usually next run is fine.
+            }
+            // Increment by 1 minute
+            now.setMinutes(now.getMinutes() + 1);
+            iterations++;
+        }
+        return results;
+    }
+
+    function matches(date, parts) {
+        const [min, hour, dom, mon, dow] = parts;
+        
+        if (!checkField(date.getMinutes(), min)) return false;
+        if (!checkField(date.getHours(), hour)) return false;
+        if (!checkField(date.getDate(), dom)) return false;
+        if (!checkField(date.getMonth() + 1, mon)) return false;
+        if (!checkField(date.getDay(), dow)) return false; // 0-6
+
+        return true;
+    }
+
+    function checkField(value, constraints) {
+        if (constraints === '*') return true;
+        
+        // Handling comma lists: 1,2,5
+        if (constraints.includes(',')) {
+            const list = constraints.split(',');
+            return list.some(c => checkField(value, c));
+        }
+
+        // Handling steps: */5 or 0-30/5
+        if (constraints.includes('/')) {
+            const [range, step] = constraints.split('/');
+            if (range !== '*' && !checkField(value, range)) return false;
+            return value % parseInt(step) === 0;
+        }
+
+        // Handling ranges: 1-5
+        if (constraints.includes('-')) {
+            const [start, end] = constraints.split('-').map(Number);
+            return value >= start && value <= end;
+        }
+
+        return parseInt(constraints) === value;
+    }
+
+
+    // --- LOGIC: Generator ---
+    function updateGenerator() {
+        const m = document.getElementById('genMin').value;
+        const h = document.getElementById('genHour').value;
+        const d = document.getElementById('genDay').value;
+        const mo = document.getElementById('genMonth').value;
+        const w = document.getElementById('genWeek').value;
+
+        const cron = `${m} ${h} ${d} ${mo} ${w}`;
+        const display = document.getElementById('genOutput');
+        
+        display.textContent = cron;
+        
+        // Pulse animation effect
+        display.style.transform = "scale(1.02)";
+        setTimeout(() => display.style.transform = "scale(1)", 150);
+    }
+
+    function copyToClipboard() {
+        const text = document.getElementById('genOutput').innerText;
+        navigator.clipboard.writeText(text);
+        alert("Copied to clipboard: " + text);
+    }
+
+    // --- UI: Tabs ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        // Find the tab button that triggered this? Or just use index logic.
+        // Simple way:
+        const index = tabId === 'parser' ? 0 : 1;
+        document.querySelectorAll('.tab')[index].classList.add('active');
+    }
+
+    // Initialize
+    parseInput();
+</script>
+
+</body>
+</html>

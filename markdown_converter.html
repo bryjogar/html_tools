@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown <-> HTML Converter</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Marked.js (MD to HTML) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Turndown.js (HTML to MD) -->
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <!-- Turndown GFM Plugin (For Tables/Tasks) -->
+    <script src="https://unpkg.com/turndown-plugin-gfm/dist/turndown-plugin-gfm.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e', // VS Code/Obsidian dark
+                            pane: '#252526',
+                            border: '#3c3c3c',
+                            accent: '#7c3aed', // Violet accent
+                            text: '#cccccc'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar for that IDE feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; 
+        }
+
+        /* Preview Area Typography */
+        .prose-preview {
+            color: #d1d5db;
+            line-height: 1.6;
+        }
+        .prose-preview h1, .prose-preview h2, .prose-preview h3 {
+            color: #f3f4f6;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 700;
+        }
+        .prose-preview h1 { font-size: 2em; border-bottom: 1px solid #374151; padding-bottom: 0.3em; }
+        .prose-preview h2 { font-size: 1.5em; }
+        .prose-preview p { margin-bottom: 1em; }
+        .prose-preview ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .prose-preview ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
+        .prose-preview blockquote { border-left: 4px solid #7c3aed; padding-left: 1em; color: #9ca3af; font-style: italic; }
+        .prose-preview code { background-color: #374151; padding: 0.2em 0.4em; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+        .prose-preview pre { background-color: #111827; padding: 1em; border-radius: 6px; overflow-x: auto; margin-bottom: 1em; }
+        .prose-preview pre code { background-color: transparent; padding: 0; }
+        .prose-preview a { color: #8b5cf6; text-decoration: underline; }
+        .prose-preview table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+        .prose-preview th, .prose-preview td { border: 1px solid #4b5563; padding: 0.5em; text-align: left; }
+        .prose-preview th { background-color: #374151; }
+        .prose-preview img { max-width: 100%; height: auto; border-radius: 4px; }
+        .prose-preview hr { border: 0; border-top: 1px solid #4b5563; margin: 2em 0; }
+        .prose-preview input[type="checkbox"] { margin-right: 0.5em; }
+    </style>
+</head>
+<body class="bg-obsidian-bg text-obsidian-text h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Toolbar -->
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 shadow-md z-10">
+        <div class="flex items-center gap-3">
+            <i class="fa-brands fa-markdown text-2xl text-violet-500"></i>
+            <h1 class="font-bold text-lg text-white tracking-wide">MD <i class="fa-solid fa-arrow-right-arrow-left text-xs mx-1 text-gray-500"></i> HTML</h1>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <button onclick="clearAll()" class="text-xs font-semibold text-red-400 hover:text-red-300 transition-colors flex items-center gap-2 px-3 py-1.5 rounded hover:bg-white/5">
+                <i class="fa-solid fa-trash-can"></i> CLEAR
+            </button>
+            <div class="h-4 w-px bg-obsidian-border"></div>
+            <a href="#" class="text-gray-400 hover:text-white transition-colors" title="Settings">
+                <i class="fa-solid fa-gear"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        <!-- PANE 1: Markdown Input -->
+        <div class="flex-1 flex flex-col border-r border-obsidian-border min-w-0">
+            <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider"><i class="fa-brands fa-markdown mr-1"></i> Markdown</span>
+                <button onclick="copyToClipboard('mdInput')" class="text-xs text-violet-400 hover:text-violet-300 px-2 py-1 rounded hover:bg-violet-500/10 transition">
+                    <i class="fa-regular fa-copy mr-1"></i> Copy
+                </button>
+            </div>
+            <textarea id="mdInput" spellcheck="false" placeholder="# Start typing Markdown here..." 
+                class="flex-1 w-full bg-[#1e1e1e] text-gray-300 p-4 font-mono text-sm resize-none focus:outline-none focus:ring-1 focus:ring-violet-500/50 leading-relaxed"></textarea>
+        </div>
+
+        <!-- PANE 2: HTML Input/Output -->
+        <div class="flex-1 flex flex-col border-r border-obsidian-border min-w-0">
+            <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider"><i class="fa-solid fa-code mr-1"></i> HTML</span>
+                <button onclick="copyToClipboard('htmlInput')" class="text-xs text-green-400 hover:text-green-300 px-2 py-1 rounded hover:bg-green-500/10 transition">
+                    <i class="fa-regular fa-copy mr-1"></i> Copy
+                </button>
+            </div>
+            <textarea id="htmlInput" spellcheck="false" placeholder="<!-- Or paste HTML here to reverse convert -->" 
+                class="flex-1 w-full bg-[#1e1e1e] text-blue-200 p-4 font-mono text-sm resize-none focus:outline-none focus:ring-1 focus:ring-green-500/50 leading-relaxed"></textarea>
+        </div>
+
+        <!-- PANE 3: Preview -->
+        <div class="flex-1 flex flex-col min-w-0 bg-[#1a1a1a]">
+            <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider"><i class="fa-solid fa-eye mr-1"></i> Preview</span>
+                <span class="text-[10px] text-gray-600">Read Only</span>
+            </div>
+            <div id="previewPane" class="flex-1 w-full p-6 overflow-y-auto prose-preview">
+                <!-- Content injected here -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-violet-600 text-white px-4 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3 z-50">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toastMsg" class="font-medium text-sm">Copied to clipboard!</span>
+    </div>
+
+    <script>
+        // DOM Elements
+        const mdInput = document.getElementById('mdInput');
+        const htmlInput = document.getElementById('htmlInput');
+        const previewPane = document.getElementById('previewPane');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+
+        // Initialize Libraries
+        
+        // 1. Turndown (HTML -> MD)
+        const turndownService = new TurndownService({
+            headingStyle: 'atx',
+            codeBlockStyle: 'fenced',
+            emDelimiter: '*'
+        });
+        // Enable GFM (GitHub Flavored Markdown) plugin if available (tables, task lists)
+        if (typeof turndownPluginGfm !== 'undefined') {
+            turndownService.use(turndownPluginGfm.gfm);
+        }
+
+        // 2. Marked (MD -> HTML)
+        marked.setOptions({
+            breaks: true, // Enable line breaks
+            gfm: true,    // GitHub Flavored Markdown
+            headerIds: false,
+            mangle: false
+        });
+
+        // State to prevent infinite loops when updating programmatically
+        let isUpdating = false;
+
+        // Default Content
+        const defaultMD = `# Welcome to the Converter
+Type on the **left** to generate HTML.
+Type in the **middle** to reverse-convert to Markdown.
+
+## Features
+- [x] Bidirectional conversion
+- [x] Live Preview
+- [x] Dark Mode UI
+
+### Sample Code
+\`\`\`python
+def hello_world():
+    print("Hello, World!")
+\`\`\`
+`;
+
+        // Initialize with default content
+        mdInput.value = defaultMD;
+        updateFromMarkdown();
+
+        // --- Event Listeners ---
+
+        // 1. Markdown Input Listener
+        mdInput.addEventListener('input', () => {
+            if (isUpdating) return;
+            isUpdating = true;
+            updateFromMarkdown();
+            isUpdating = false;
+        });
+
+        // 2. HTML Input Listener
+        htmlInput.addEventListener('input', () => {
+            if (isUpdating) return;
+            isUpdating = true;
+            updateFromHtml();
+            isUpdating = false;
+        });
+
+        // --- Core Logic ---
+
+        function updateFromMarkdown() {
+            const mdText = mdInput.value;
+            
+            // Convert MD -> HTML
+            try {
+                const html = marked.parse(mdText);
+                htmlInput.value = html; // Update HTML pane source
+                previewPane.innerHTML = html; // Update Visual Preview
+            } catch (e) {
+                console.error("Markdown parsing error:", e);
+            }
+        }
+
+        function updateFromHtml() {
+            const htmlText = htmlInput.value;
+
+            // Update Visual Preview directly from HTML input
+            previewPane.innerHTML = htmlText;
+
+            // Convert HTML -> MD
+            try {
+                // Turndown works best on DOM nodes or strings. 
+                // We convert the string to MD.
+                const md = turndownService.turndown(htmlText);
+                mdInput.value = md;
+            } catch (e) {
+                console.error("HTML parsing error:", e);
+            }
+        }
+
+        // --- Utilities ---
+
+        function clearAll() {
+            if(confirm("Are you sure you want to clear all contents?")) {
+                mdInput.value = "";
+                htmlInput.value = "";
+                previewPane.innerHTML = "";
+            }
+        }
+
+        function copyToClipboard(elementId) {
+            const el = document.getElementById(elementId);
+            el.select();
+            el.setSelectionRange(0, 99999); // Mobile fallback
+
+            try {
+                document.execCommand('copy'); // Legacy but reliable in iframes
+                showToast("Copied to clipboard!");
+            } catch (err) {
+                // Modern API fallback (might be blocked by iframe permissions)
+                navigator.clipboard.writeText(el.value).then(() => {
+                    showToast("Copied to clipboard!");
+                }).catch(err => {
+                    showToast("Failed to copy", true);
+                });
+            }
+            
+            // Deselect
+            window.getSelection().removeAllRanges();
+        }
+
+        function showToast(message, isError = false) {
+            toastMsg.innerText = message;
+            const bgClass = isError ? 'bg-red-600' : 'bg-violet-600';
+            
+            toast.className = `fixed bottom-5 right-5 ${bgClass} text-white px-4 py-3 rounded shadow-lg transform transition-all duration-300 flex items-center gap-3 z-50 translate-y-0 opacity-100`;
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 2000);
+        }
+
+        // Handle Tab key in textareas to insert tab character instead of changing focus
+        [mdInput, htmlInput].forEach(textarea => {
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+
+                    // Insert tab (2 spaces)
+                    this.value = this.value.substring(0, start) + "  " + this.value.substring(end);
+
+                    // Put caret at right position
+                    this.selectionStart = this.selectionEnd = start + 2;
+                    
+                    // Trigger input event manually to update other panes
+                    this.dispatchEvent(new Event('input'));
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>

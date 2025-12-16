@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid.js Live Editor</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #252526;
+            --text-color: #d4d4d4;
+            --accent-color: #3b82f6;
+            --border-color: #3e3e42;
+            --error-bg: #5a1d1d;
+            --success-color: #4caf50;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--panel-bg);
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+        .logo { color: #ff79c6; }
+
+        .controls { display: flex; gap: 10px; }
+
+        button, select {
+            background-color: #3c3c3c;
+            color: white;
+            border: 1px solid var(--border-color);
+            padding: 5px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        button:hover, select:hover { background-color: #505050; }
+        button.primary { background-color: var(--accent-color); border-color: var(--accent-color); }
+        button.primary:hover { background-color: #2563eb; }
+
+        /* Main Layout */
+        main {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 50px);
+        }
+
+        .pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0; /* Prevents flex overflow issues */
+            position: relative;
+        }
+
+        .pane-header {
+            background: #2d2d2d;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* Editor Pane */
+        #editor-container { border-right: 1px solid var(--border-color); }
+
+        textarea {
+            flex: 1;
+            background-color: var(--bg-color);
+            color: #dcdcaa; /* Monokai-ish yellow for text */
+            border: none;
+            resize: none;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            outline: none;
+        }
+
+        /* Preview Pane */
+        #preview-container {
+            background-color: #ffffff; /* White bg for diagram visibility */
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: radial-gradient(#e5e5e5 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        #graph-output {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Error Message */
+        #error-log {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--error-bg);
+            color: #ffcccc;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            display: none;
+            max-height: 100px;
+            overflow-y: auto;
+            border-top: 2px solid #ff4444;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><span class="logo">🧜‍♀️</span> Mermaid Editor</h1>
+        <div class="controls">
+            <select id="template-select">
+                <option value="" disabled selected>Load Template...</option>
+                <option value="flowchart">Flowchart</option>
+                <option value="sequence">Sequence Diagram</option>
+                <option value="class">Class Diagram</option>
+                <option value="state">State Diagram</option>
+                <option value="gantt">Gantt Chart</option>
+                <option value="er">Entity Relationship</option>
+                <option value="mindmap">Mindmap</option>
+            </select>
+            <button onclick="copyCode()">Copy Code</button>
+            <button class="primary" onclick="downloadSVG()">Download SVG</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="pane" id="editor-container">
+            <div class="pane-header">Code Input</div>
+            <textarea id="code-input" spellcheck="false" placeholder="Enter Mermaid code here..."></textarea>
+            <div id="error-log"></div>
+        </div>
+
+        <div class="pane">
+            <div class="pane-header">Live Preview</div>
+            <div id="preview-container">
+                <div class="spinner" id="loading"></div>
+                <div id="graph-output"></div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+        mermaid.initialize({ 
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+        });
+
+        const codeInput = document.getElementById('code-input');
+        const graphOutput = document.getElementById('graph-output');
+        const errorLog = document.getElementById('error-log');
+        const templateSelect = document.getElementById('template-select');
+        const loading = document.getElementById('loading');
+
+        // Initial render
+        const initialCode = `graph TD
+    A[Start] --> B{Is it working?}
+    B -- Yes --> C[Great!]
+    B -- No --> D[Debug]
+    D --> B`;
+        
+        codeInput.value = initialCode;
+        renderDiagram();
+
+        // Event Listeners
+        codeInput.addEventListener('input', debounce(renderDiagram, 500));
+        templateSelect.addEventListener('change', loadTemplate);
+
+        // Core Render Function
+        async function renderDiagram() {
+            const code = codeInput.value;
+            errorLog.style.display = 'none';
+            loading.style.display = 'block';
+
+            try {
+                // Check for syntax errors before rendering
+                await mermaid.parse(code);
+
+                // Render
+                const { svg } = await mermaid.render('mermaid-svg', code);
+                graphOutput.innerHTML = svg;
+                
+                // Hack to ensure SVG fits nicely
+                const svgElement = graphOutput.querySelector('svg');
+                if(svgElement) {
+                    svgElement.style.height = 'auto';
+                    svgElement.style.maxWidth = '100%';
+                }
+            } catch (error) {
+                console.error(error);
+                errorLog.style.display = 'block';
+                errorLog.innerText = `Syntax Error:\n${error.message}`;
+                // We keep the old diagram visible if there is an error, or you can clear it:
+                // graphOutput.innerHTML = ''; 
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // Templates
+        function loadTemplate(e) {
+            const type = e.target.value;
+            let snippet = '';
+
+            switch(type) {
+                case 'flowchart':
+                    snippet = `graph TD\n    A[Start] --> B{Decision}\n    B -- Yes --> C[Result 1]\n    B -- No --> D[Result 2]`;
+                    break;
+                case 'sequence':
+                    snippet = `sequenceDiagram\n    Alice->>John: Hello John, how are you?\n    John-->>Alice: Great!\n    Alice-)John: See you later!`;
+                    break;
+                case 'class':
+                    snippet = `classDiagram\n    Animal <|-- Duck\n    Animal <|-- Fish\n    Animal : +int age\n    Animal : +String gender\n    class Duck{\n        +String beakColor\n        +swim()\n        +quack()\n    }`;
+                    break;
+                case 'state':
+                    snippet = `stateDiagram-v2\n    [*] --> Still\n    Still --> [*]\n    Still --> Moving\n    Moving --> Still\n    Moving --> Crash\n    Crash --> [*]`;
+                    break;
+                case 'gantt':
+                    snippet = `gantt\n    title A Gantt Diagram\n    dateFormat  YYYY-MM-DD\n    section Section\n    A task           :a1, 2014-01-01, 30d\n    Another task     :after a1  , 20d`;
+                    break;
+                case 'er':
+                    snippet = `erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses`;
+                    break;
+                 case 'mindmap':
+                    snippet = `mindmap\n  root((Mindmap))\n    Origins\n      Long history\n      ::icon(fa fa-book)\n      Popularisation\n        British popular psychology author Tony Buzan`;
+                    break;
+            }
+
+            codeInput.value = snippet;
+            renderDiagram();
+            // Reset select so you can click the same one again if needed
+            e.target.value = "";
+        }
+
+        // Utility: Debounce to prevent rendering on every single keystroke
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Expose functions to global scope for HTML buttons
+        window.copyCode = () => {
+            navigator.clipboard.writeText(codeInput.value);
+            alert('Code copied to clipboard!');
+        };
+
+        window.downloadSVG = () => {
+            const svgData = graphOutput.innerHTML;
+            if (!svgData.includes('<svg')) {
+                alert('No diagram to download!');
+                return;
+            }
+            const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'mermaid-diagram.svg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
+</body>
+</html>

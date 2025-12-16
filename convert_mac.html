@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAC Address Formatter</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            color: var(--text);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 1.1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .status-msg {
+            font-size: 0.85rem;
+            margin-top: 8px;
+            height: 20px;
+        }
+        
+        .status-error { color: var(--error); }
+        .status-valid { color: var(--success); }
+
+        .results {
+            display: grid;
+            gap: 16px;
+        }
+
+        .result-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .result-info {
+            flex-grow: 1;
+        }
+
+        .result-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .result-value {
+            font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+            font-size: 1.1rem;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-left: 15px;
+            transition: all 0.2s;
+            min-width: 70px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .copy-btn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .copy-btn:active {
+            transform: translateY(1px);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #94a3b8;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>MAC Address Formatter</h1>
+
+        <div class="input-group">
+            <label for="macInput">Enter MAC Address</label>
+            <input type="text" id="macInput" placeholder="e.g. 001A2B3C4D5E" autofocus>
+            <div id="statusMsg" class="status-msg"></div>
+        </div>
+
+        <div id="resultsArea" class="results hidden">
+            <div class="result-card">
+                <div class="result-info">
+                    <div class="result-label">Colon Separated (aa:bb:cc:dd:ee:ff)</div>
+                    <div class="result-value" id="outColon"></div>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard('outColon', this)">Copy</button>
+            </div>
+
+            <div class="result-card">
+                <div class="result-info">
+                    <div class="result-label">Dash Separated (aa-bb-cc-dd-ee-ff)</div>
+                    <div class="result-value" id="outDash"></div>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard('outDash', this)">Copy</button>
+            </div>
+
+            <div class="result-card">
+                <div class="result-info">
+                    <div class="result-label">Dot Separated (aaaa.bbbb.cccc)</div>
+                    <div class="result-value" id="outDot"></div>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard('outDot', this)">Copy</button>
+            </div>
+
+            <div class="result-card">
+                <div class="result-info">
+                    <div class="result-label">Half Split (aaaaaa-bbbbbb)</div>
+                    <div class="result-value" id="outHalf"></div>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard('outHalf', this)">Copy</button>
+            </div>
+
+            <div class="result-card">
+                <div class="result-info">
+                    <div class="result-label">Raw (aaaabbbbcccc)</div>
+                    <div class="result-value" id="outRaw"></div>
+                </div>
+                <button class="copy-btn" onclick="copyToClipboard('outRaw', this)">Copy</button>
+            </div>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+            Start typing to see formats...
+        </div>
+    </div>
+
+    <script>
+        const macInput = document.getElementById('macInput');
+        const resultsArea = document.getElementById('resultsArea');
+        const emptyState = document.getElementById('emptyState');
+        const statusMsg = document.getElementById('statusMsg');
+
+        // Output elements
+        const outColon = document.getElementById('outColon');
+        const outDash = document.getElementById('outDash');
+        const outDot = document.getElementById('outDot');
+        const outHalf = document.getElementById('outHalf');
+        const outRaw = document.getElementById('outRaw');
+
+        macInput.addEventListener('input', (e) => {
+            const input = e.target.value;
+            
+            // 1. Strip everything that isn't a hex char
+            const clean = input.replace(/[^a-fA-F0-9]/g, '');
+
+            if (clean.length === 0) {
+                resetUI();
+                return;
+            }
+
+            // 2. Validation Logic
+            if (clean.length > 12) {
+                setStatus("Too many characters", "error");
+                resultsArea.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            } else if (clean.length < 12) {
+                setStatus(`Incomplete (${clean.length}/12 characters)`, "valid"); 
+                resultsArea.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                setStatus("Valid MAC Address", "valid");
+            }
+
+            // 3. Generate Formats
+            const upper = clean.toUpperCase();
+            const lower = clean.toLowerCase();
+
+            // Format: AA:BB:CC:DD:EE:FF
+            const colon = upper.match(/.{1,2}/g).join(':');
+            
+            // Format: AA-BB-CC-DD-EE-FF
+            const dash = upper.match(/.{1,2}/g).join('-');
+
+            // Format: aaaa.bbbb.cccc
+            const dot = lower.match(/.{1,4}/g).join('.');
+
+            // Format: aaaaaa-bbbbbb (New)
+            const half = lower.slice(0, 6) + '-' + lower.slice(6);
+
+            // Format: aaaabbbbcccc
+            const raw = lower;
+
+            // 4. Update DOM
+            outColon.textContent = colon;
+            outDash.textContent = dash;
+            outDot.textContent = dot;
+            outHalf.textContent = half;
+            outRaw.textContent = raw;
+
+            resultsArea.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+        });
+
+        function setStatus(text, type) {
+            statusMsg.textContent = text;
+            statusMsg.className = 'status-msg'; // reset
+            if (type === 'error') statusMsg.classList.add('status-error');
+            if (type === 'valid') statusMsg.classList.add('status-valid');
+        }
+
+        function resetUI() {
+            statusMsg.textContent = '';
+            resultsArea.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+        }
+
+        function copyToClipboard(elementId, btnElement) {
+            const text = document.getElementById(elementId).textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btnElement.textContent;
+                btnElement.textContent = 'Copied!';
+                btnElement.style.background = '#dcfce7';
+                btnElement.style.color = '#166534';
+                
+                setTimeout(() => {
+                    btnElement.textContent = originalText;
+                    btnElement.style.background = 'white';
+                    btnElement.style.color = 'var(--text)';
+                }, 1500);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+    </script>
+</body>
+</html>
