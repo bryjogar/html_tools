@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIDR Subnet Calculator - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            accentHover: '#6d28d9',
+                            text: '#cccccc',     // Standard Text
+                            textMuted: '#9ca3af',
+                            success: '#10b981',
+                            warning: '#f59e0b'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Global Styles */
+        body {
+            background-color: #1e1e1e;
+            color: #cccccc;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563; 
+        }
+
+        /* Input styling overrides */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        
+        .bit-cell {
+            width: 20px;
+            text-align: center;
+            font-size: 0.75rem;
+            border-bottom: 2px solid transparent;
+        }
+        .bit-net { border-color: #7c3aed; color: #a78bfa; }
+        .bit-host { border-color: #3c3c3c; color: #6b7280; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-6 shrink-0 justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-network-wired text-obsidian-accent text-lg"></i>
+            <h1 class="font-semibold text-white tracking-wide">CIDR / Subnet Calculator</h1>
+        </div>
+        <button onclick="resetTool()" class="text-xs bg-white/5 hover:bg-obsidian-accent/20 hover:text-white text-obsidian-text px-3 py-1.5 rounded transition-all">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+        </button>
+    </header>
+
+    <main class="flex-grow overflow-auto p-4 md:p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
+        
+        <section class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 shadow-lg">
+            <div class="flex flex-col md:flex-row gap-6 items-end">
+                
+                <div class="flex-grow w-full">
+                    <label class="block text-xs font-medium text-obsidian-textMuted uppercase mb-2 tracking-wider">IP Address</label>
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-laptop-code text-gray-500 group-focus-within:text-obsidian-accent transition-colors"></i>
+                        </div>
+                        <input type="text" id="ipInput" placeholder="192.168.1.1" value="192.168.1.1"
+                            class="w-full bg-[#111827] text-white border border-obsidian-border focus:border-obsidian-accent rounded pl-10 pr-3 py-2.5 outline-none font-mono transition-colors"
+                            oninput="calculate()">
+                    </div>
+                </div>
+
+                <div class="w-full md:w-1/3">
+                    <label class="block text-xs font-medium text-obsidian-textMuted uppercase mb-2 tracking-wider">CIDR Prefix</label>
+                    <div class="flex items-center gap-3 bg-[#111827] border border-obsidian-border rounded px-3 py-2">
+                        <span class="text-obsidian-textMuted font-mono">/</span>
+                        <input type="number" id="cidrInput" min="0" max="32" value="24"
+                            class="bg-transparent text-white outline-none w-12 font-mono text-center"
+                            oninput="updateSlider(this.value); calculate()">
+                        <input type="range" id="cidrSlider" min="0" max="32" value="24"
+                            class="flex-grow h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-obsidian-accent"
+                            oninput="updateNumber(this.value); calculate()">
+                    </div>
+                </div>
+            </div>
+            
+            <div id="errorMsg" class="hidden mt-4 text-red-400 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>Invalid IP Address</span>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <i class="fa-solid fa-sitemap text-4xl"></i>
+                </div>
+                <h3 class="text-xs text-obsidian-textMuted uppercase tracking-wider mb-1">Network Address</h3>
+                <p id="resNetwork" class="font-mono text-lg text-white font-medium">Loading...</p>
+                <p class="text-xs text-obsidian-accent mt-1">ID of the subnet</p>
+            </div>
+
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <i class="fa-solid fa-tower-broadcast text-4xl"></i>
+                </div>
+                <h3 class="text-xs text-obsidian-textMuted uppercase tracking-wider mb-1">Broadcast Address</h3>
+                <p id="resBroadcast" class="font-mono text-lg text-white font-medium">Loading...</p>
+                <p class="text-xs text-obsidian-textMuted mt-1">Last IP in range</p>
+            </div>
+
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <i class="fa-solid fa-mask text-4xl"></i>
+                </div>
+                <h3 class="text-xs text-obsidian-textMuted uppercase tracking-wider mb-1">Subnet Mask</h3>
+                <p id="resMask" class="font-mono text-lg text-white font-medium">Loading...</p>
+                <p class="text-xs text-obsidian-textMuted mt-1" id="resWildcard">Wildcard: 0.0.0.255</p>
+            </div>
+
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <i class="fa-solid fa-users text-4xl"></i>
+                </div>
+                <h3 class="text-xs text-obsidian-textMuted uppercase tracking-wider mb-1">Usable Hosts</h3>
+                <p id="resHosts" class="font-mono text-lg text-obsidian-accent font-medium">Loading...</p>
+                <p class="text-xs text-obsidian-textMuted mt-1" id="resTotalHosts">Total: 256</p>
+            </div>
+
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
+            
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5 col-span-1 flex flex-col justify-center">
+                <h3 class="text-sm font-semibold text-white mb-4 border-b border-obsidian-border pb-2">Host Range</h3>
+                
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm text-obsidian-textMuted">First Usable</span>
+                    <span id="resFirst" class="font-mono text-obsidian-success bg-green-900/20 px-2 py-1 rounded text-sm">...</span>
+                </div>
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-sm text-obsidian-textMuted">Last Usable</span>
+                    <span id="resLast" class="font-mono text-obsidian-warning bg-yellow-900/20 px-2 py-1 rounded text-sm">...</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-obsidian-textMuted">IP Class</span>
+                    <span id="resClass" class="font-mono text-white text-sm">...</span>
+                </div>
+            </div>
+
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5 col-span-1 lg:col-span-2 overflow-x-auto">
+                <h3 class="text-sm font-semibold text-white mb-4 border-b border-obsidian-border pb-2">Binary Visualization</h3>
+                
+                <div class="flex flex-col gap-4 min-w-[500px]">
+                    <div class="flex justify-between text-xs text-obsidian-textMuted px-1">
+                        <span>IP Address (Binary)</span>
+                        <div class="flex gap-4">
+                            <span class="flex items-center gap-1"><div class="w-2 h-2 bg-obsidian-accent rounded-full"></div> Network Bits</span>
+                            <span class="flex items-center gap-1"><div class="w-2 h-2 bg-gray-600 rounded-full"></div> Host Bits</span>
+                        </div>
+                    </div>
+
+                    <div id="binaryDisplay" class="font-mono flex flex-wrap gap-y-2 select-none">
+                        </div>
+
+                    <div class="mt-2">
+                        <span class="text-xs text-obsidian-textMuted block mb-1">Subnet Mask (Binary)</span>
+                        <div id="maskBinaryDisplay" class="font-mono text-gray-500 text-sm tracking-[0.2em]"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const ipInput = document.getElementById('ipInput');
+        const cidrInput = document.getElementById('cidrInput');
+        const cidrSlider = document.getElementById('cidrSlider');
+        const errorMsg = document.getElementById('errorMsg');
+
+        // Output Elements
+        const els = {
+            network: document.getElementById('resNetwork'),
+            broadcast: document.getElementById('resBroadcast'),
+            mask: document.getElementById('resMask'),
+            wildcard: document.getElementById('resWildcard'),
+            hosts: document.getElementById('resHosts'),
+            totalHosts: document.getElementById('resTotalHosts'),
+            first: document.getElementById('resFirst'),
+            last: document.getElementById('resLast'),
+            class: document.getElementById('resClass'),
+            binary: document.getElementById('binaryDisplay'),
+            maskBinary: document.getElementById('maskBinaryDisplay')
+        };
+
+        function updateSlider(val) { cidrSlider.value = val; }
+        function updateNumber(val) { cidrInput.value = val; }
+
+        function int2ip(int) {
+            return [
+                (int >>> 24) & 0xFF,
+                (int >>> 16) & 0xFF,
+                (int >>> 8) & 0xFF,
+                int & 0xFF
+            ].join('.');
+        }
+
+        function ip2int(ip) {
+            return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+        }
+
+        function validateIP(ip) {
+            const pattern = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            return pattern.test(ip);
+        }
+
+        function getIpClass(firstOctet) {
+            if (firstOctet >= 1 && firstOctet <= 126) return "Class A";
+            if (firstOctet >= 128 && firstOctet <= 191) return "Class B";
+            if (firstOctet >= 192 && firstOctet <= 223) return "Class C";
+            if (firstOctet >= 224 && firstOctet <= 239) return "Class D (Multicast)";
+            if (firstOctet >= 240 && firstOctet <= 254) return "Class E (Experimental)";
+            return "Unknown";
+        }
+
+        function toBinaryString(int) {
+            let bin = (int >>> 0).toString(2);
+            while (bin.length < 32) bin = "0" + bin;
+            return bin;
+        }
+
+        function renderBinary(ipInt, cidr) {
+            const binStr = toBinaryString(ipInt);
+            let html = '<div class="flex gap-1">';
+            
+            for (let i = 0; i < 32; i++) {
+                // Add dot separator every 8 bits
+                if (i > 0 && i % 8 === 0) {
+                    html += `</div><span class="text-gray-600 px-1 pt-1">.</span><div class="flex gap-1">`;
+                }
+
+                const isNet = i < cidr;
+                const colorClass = isNet ? 'text-obsidian-accent border-obsidian-accent' : 'text-gray-500 border-gray-600';
+                // Highlight the bit if it's 1
+                const bitVal = binStr[i];
+                const opacity = bitVal === '1' ? 'font-bold' : 'opacity-70';
+
+                html += `<div class="w-5 text-center text-sm border-b-2 ${colorClass} ${opacity}">${bitVal}</div>`;
+            }
+            html += '</div>';
+            els.binary.innerHTML = html;
+
+            // Mask Binary visualization
+            const maskInt = ~((1 << (32 - cidr)) - 1);
+            const maskBinStr = toBinaryString(maskInt);
+            // Format mask binary with dots
+            els.maskBinary.innerText = maskBinStr.match(/.{1,8}/g).join('.');
+        }
+
+        function calculate() {
+            let ipVal = ipInput.value.trim();
+            let cidrVal = parseInt(cidrInput.value);
+
+            // Quick check if user pasted CIDR notation into IP field
+            if (ipVal.includes('/')) {
+                const parts = ipVal.split('/');
+                ipVal = parts[0];
+                const cidrPart = parseInt(parts[1]);
+                if (!isNaN(cidrPart) && cidrPart >= 0 && cidrPart <= 32) {
+                    cidrVal = cidrPart;
+                    updateSlider(cidrVal);
+                    updateNumber(cidrVal);
+                    // Update input value to just IP to prevent loop or confusion, 
+                    // or leave it and clean it. Let's clean it for UX.
+                    // ipInput.value = ipVal; // Optional: auto-clean input
+                }
+            }
+
+            if (!validateIP(ipVal)) {
+                errorMsg.classList.remove('hidden');
+                // Don't clear data immediately, just show error
+                return;
+            } else {
+                errorMsg.classList.add('hidden');
+            }
+
+            const ipInt = ip2int(ipVal);
+            const maskInt = ~((1 << (32 - cidrVal)) - 1);
+            const networkInt = ipInt & maskInt;
+            const broadcastInt = networkInt | (~maskInt);
+            const wildcardInt = ~maskInt;
+
+            // Outputs
+            els.network.innerText = int2ip(networkInt) + ` /${cidrVal}`;
+            els.broadcast.innerText = int2ip(broadcastInt);
+            els.mask.innerText = int2ip(maskInt);
+            els.wildcard.innerText = `Wildcard: ${int2ip(wildcardInt)}`;
+            
+            // Hosts Calculation
+            let totalHosts = Math.pow(2, 32 - cidrVal);
+            let usableHosts = totalHosts - 2;
+            
+            // Edge cases
+            if (cidrVal === 32) {
+                usableHosts = 0;
+                totalHosts = 1;
+                els.first.innerText = "N/A";
+                els.last.innerText = "N/A";
+            } else if (cidrVal === 31) {
+                usableHosts = 0; // Usually point-to-point links treated differently, but standard RFC is 0 usable in strict sense or 2 for p2p
+                totalHosts = 2;
+                els.first.innerText = int2ip(networkInt);
+                els.last.innerText = int2ip(broadcastInt);
+            } else {
+                els.first.innerText = int2ip(networkInt + 1);
+                els.last.innerText = int2ip(broadcastInt - 1);
+            }
+
+            // Format numbers
+            els.hosts.innerText = usableHosts.toLocaleString();
+            els.totalHosts.innerText = `Total IPs: ${totalHosts.toLocaleString()}`;
+            
+            // Class
+            els.class.innerText = getIpClass(parseInt(ipVal.split('.')[0]));
+
+            // Render Visualization
+            renderBinary(ipInt, cidrVal);
+        }
+
+        function resetTool() {
+            ipInput.value = '192.168.1.1';
+            updateSlider(24);
+            updateNumber(24);
+            calculate();
+        }
+
+        // Initialize
+        calculate();
+
+    </script>
+</body>
+</html>
