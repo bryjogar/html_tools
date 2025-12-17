@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoE Power Budget Tool | Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc',     // Standard Text
+                            danger: '#ef4444',   // Red
+                            warning: '#f59e0b',  // Amber
+                            success: '#10b981'   // Emerald
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; 
+        }
+        
+        /* Input Reset */
+        input:focus, select:focus {
+            outline: none;
+            border-color: #7c3aed;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-plug-circle-bolt text-obsidian-accent text-xl"></i>
+            <h1 class="font-semibold text-lg tracking-tight text-white">PoE Budget Calculator</h1>
+        </div>
+        <button onclick="resetTool()" class="text-xs bg-obsidian-border hover:bg-white/10 px-3 py-1.5 rounded transition-colors text-white">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 w-full max-w-6xl mx-auto">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5 shadow-lg">
+                    <h2 class="text-white font-medium mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-server text-gray-400"></i> Switch Configuration
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-mono text-gray-500 mb-1 uppercase">Switch Name (Optional)</label>
+                            <input type="text" id="switchName" placeholder="e.g. Core Switch 01" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded focus:border-obsidian-accent transition-colors font-mono text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono text-gray-500 mb-1 uppercase">Total Power Budget (Watts)</label>
+                            <div class="relative">
+                                <input type="number" id="switchBudget" value="370" min="0" step="5"
+                                    class="w-full bg-obsidian-bg border border-obsidian-border text-white pl-3 pr-10 py-2 rounded focus:border-obsidian-accent transition-colors font-mono text-sm">
+                                <span class="absolute right-3 top-2 text-gray-500 text-sm">W</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5 shadow-lg">
+                    <h2 class="text-white font-medium mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle text-gray-400"></i> Add Device
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                        <div class="md:col-span-4">
+                            <label class="block text-xs font-mono text-gray-500 mb-1 uppercase">Device Name</label>
+                            <input type="text" id="deviceName" placeholder="e.g. Ruckus R710" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded font-mono text-sm">
+                        </div>
+
+                        <div class="md:col-span-4">
+                            <label class="block text-xs font-mono text-gray-500 mb-1 uppercase">PoE Class / Standard</label>
+                            <select id="deviceClass" class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded font-mono text-sm appearance-none cursor-pointer" onchange="toggleCustomWattage()">
+                                <option value="15.4">802.3af (PoE) - 15.4W</option>
+                                <option value="30" selected>802.3at (PoE+) - 30W</option>
+                                <option value="60">802.3bt (Type 3) - 60W</option>
+                                <option value="90">802.3bt (Type 4) - 90W</option>
+                                <option value="custom">Custom Wattage</option>
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-2 hidden" id="customWattageContainer">
+                            <label class="block text-xs font-mono text-gray-500 mb-1 uppercase">Watts</label>
+                            <input type="number" id="customWattage" value="10" min="1"
+                                class="w-full bg-obsidian-bg border border-obsidian-border text-white px-2 py-2 rounded font-mono text-sm text-center">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-mono text-gray-500 mb-1 uppercase">Qty</label>
+                            <input type="number" id="deviceQty" value="1" min="1" max="48"
+                                class="w-full bg-obsidian-bg border border-obsidian-border text-white px-2 py-2 rounded font-mono text-sm text-center">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <button onclick="addDevice()" class="w-full bg-obsidian-accent hover:bg-violet-600 text-white font-medium py-2 rounded transition-colors flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-check"></i> Add
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-lg flex flex-col overflow-hidden">
+                    <div class="p-4 border-b border-obsidian-border bg-white/5 flex justify-between items-center">
+                        <h2 class="text-white font-medium text-sm">Connected Devices</h2>
+                        <span id="deviceCountBadge" class="text-xs bg-obsidian-bg px-2 py-1 rounded text-gray-400 font-mono">0 Devices</span>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-xs font-mono text-gray-500 border-b border-obsidian-border">
+                                    <th class="p-4 font-normal uppercase">Device</th>
+                                    <th class="p-4 font-normal uppercase">Standard</th>
+                                    <th class="p-4 font-normal text-center uppercase">Watts/Unit</th>
+                                    <th class="p-4 font-normal text-center uppercase">Qty</th>
+                                    <th class="p-4 font-normal text-right uppercase">Total</th>
+                                    <th class="p-4 font-normal text-center uppercase">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deviceTableBody" class="text-sm font-mono">
+                                <tr id="emptyState">
+                                    <td colspan="6" class="p-8 text-center text-gray-600 italic">
+                                        No devices added yet.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                
+                <div class="lg:sticky lg:top-4 flex flex-col gap-6">
+                    
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 shadow-lg relative overflow-hidden group">
+                        <div id="statusGlow" class="absolute top-0 right-0 w-24 h-24 bg-green-500/10 rounded-full blur-2xl -mr-10 -mt-10 transition-colors duration-500"></div>
+
+                        <h3 class="text-gray-400 text-xs font-mono uppercase mb-2">Power Utilization</h3>
+                        
+                        <div class="flex items-baseline gap-1 mb-4">
+                            <span id="totalUsedDisplay" class="text-4xl font-bold text-white tracking-tighter">0</span>
+                            <span class="text-gray-500 text-lg">/</span>
+                            <span id="totalBudgetDisplay" class="text-xl text-gray-500">370</span>
+                            <span class="text-sm text-gray-500 ml-1">Watts</span>
+                        </div>
+
+                        <div class="w-full bg-obsidian-bg h-4 rounded-full overflow-hidden border border-obsidian-border mb-2">
+                            <div id="progressBar" class="h-full bg-obsidian-success transition-all duration-500 ease-out" style="width: 0%"></div>
+                        </div>
+                        
+                        <div class="flex justify-between text-xs font-mono mt-1">
+                            <span id="percentDisplay" class="text-gray-400">0% Used</span>
+                            <span id="remainingDisplay" class="text-gray-400">370W Remaining</span>
+                        </div>
+
+                        <div id="alertBox" class="mt-4 p-3 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-sm hidden flex items-start gap-2">
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                            <div>
+                                <span class="font-bold">Overload Warning</span>
+                                <p class="text-xs opacity-80 mt-1">Total draw exceeds switch budget. Remove devices or upgrade switch.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5 shadow-lg">
+                        <h3 class="text-white font-medium text-sm mb-3 border-b border-obsidian-border pb-2">PoE Standards Reference</h3>
+                        <ul class="space-y-3 text-xs text-gray-400 font-mono">
+                            <li class="flex justify-between items-center">
+                                <span><i class="fa-solid fa-circle text-blue-400 text-[6px] mr-2"></i>802.3af (PoE)</span>
+                                <span class="text-gray-500">15.4W</span>
+                            </li>
+                            <li class="flex justify-between items-center">
+                                <span><i class="fa-solid fa-circle text-green-400 text-[6px] mr-2"></i>802.3at (PoE+)</span>
+                                <span class="text-gray-500">30.0W</span>
+                            </li>
+                            <li class="flex justify-between items-center">
+                                <span><i class="fa-solid fa-circle text-yellow-400 text-[6px] mr-2"></i>802.3bt (Type 3)</span>
+                                <span class="text-gray-500">60.0W</span>
+                            </li>
+                            <li class="flex justify-between items-center">
+                                <span><i class="fa-solid fa-circle text-red-400 text-[6px] mr-2"></i>802.3bt (Type 4)</span>
+                                <span class="text-gray-500">90.0W</span>
+                            </li>
+                        </ul>
+                        <div class="mt-4 p-3 bg-obsidian-bg rounded border border-obsidian-border">
+                            <p class="text-[10px] text-gray-500 leading-relaxed">
+                                <i class="fa-solid fa-info-circle mr-1"></i>
+                                Note: Values represent PSE (Power Sourcing Equipment) budget allocation, not necessarily real-time device draw. Switches reserve max power per port unless LLDP negotiates otherwise.
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // State
+        let devices = [];
+        let switchBudget = 370;
+        let idCounter = 0;
+
+        // DOM Elements
+        const elBudgetInput = document.getElementById('switchBudget');
+        const elDeviceTable = document.getElementById('deviceTableBody');
+        const elEmptyState = document.getElementById('emptyState');
+        const elTotalUsed = document.getElementById('totalUsedDisplay');
+        const elTotalBudget = document.getElementById('totalBudgetDisplay');
+        const elProgressBar = document.getElementById('progressBar');
+        const elPercent = document.getElementById('percentDisplay');
+        const elRemaining = document.getElementById('remainingDisplay');
+        const elAlertBox = document.getElementById('alertBox');
+        const elStatusGlow = document.getElementById('statusGlow');
+        const elDeviceCount = document.getElementById('deviceCountBadge');
+        
+        // Input Elements
+        const inpName = document.getElementById('deviceName');
+        const inpClass = document.getElementById('deviceClass');
+        const inpQty = document.getElementById('deviceQty');
+        const inpCustom = document.getElementById('customWattage');
+        const conCustom = document.getElementById('customWattageContainer');
+
+        // Initial Setup
+        elBudgetInput.addEventListener('input', updateCalculations);
+        
+        // Toggle Custom Input
+        function toggleCustomWattage() {
+            if (inpClass.value === 'custom') {
+                conCustom.classList.remove('hidden');
+                // Adjust grid span for responsiveness
+                inpClass.parentElement.classList.remove('md:col-span-4');
+                inpClass.parentElement.classList.add('md:col-span-2');
+            } else {
+                conCustom.classList.add('hidden');
+                inpClass.parentElement.classList.remove('md:col-span-2');
+                inpClass.parentElement.classList.add('md:col-span-4');
+            }
+        }
+
+        // Add Device
+        function addDevice() {
+            const name = inpName.value.trim() || `Device ${idCounter + 1}`;
+            let watts = 0;
+            let typeLabel = "";
+
+            if (inpClass.value === 'custom') {
+                watts = parseFloat(inpCustom.value);
+                typeLabel = "Custom";
+                if (isNaN(watts) || watts <= 0) {
+                    alert("Please enter a valid wattage.");
+                    return;
+                }
+            } else {
+                watts = parseFloat(inpClass.value);
+                const opt = inpClass.options[inpClass.selectedIndex];
+                typeLabel = opt.text.split(' - ')[0]; // Extract Name part
+            }
+
+            const qty = parseInt(inpQty.value);
+            if (isNaN(qty) || qty < 1) {
+                alert("Please enter a valid quantity.");
+                return;
+            }
+
+            const device = {
+                id: idCounter++,
+                name: name,
+                type: typeLabel,
+                watts: watts,
+                qty: qty
+            };
+
+            devices.push(device);
+            renderTable();
+            updateCalculations();
+            
+            // Reset inputs slightly for UX
+            inpName.value = "";
+            inpQty.value = "1";
+            inpName.focus();
+        }
+
+        // Remove Device
+        function removeDevice(id) {
+            devices = devices.filter(d => d.id !== id);
+            renderTable();
+            updateCalculations();
+        }
+
+        // Render Table
+        function renderTable() {
+            // Clear current rows except empty state
+            elDeviceTable.innerHTML = '';
+            
+            if (devices.length === 0) {
+                elDeviceTable.appendChild(elEmptyState);
+                elDeviceCount.innerText = "0 Devices";
+                elEmptyState.style.display = 'table-row';
+                return;
+            } else {
+                elEmptyState.style.display = 'none';
+            }
+
+            elDeviceCount.innerText = `${devices.reduce((acc, curr) => acc + curr.qty, 0)} Devices`;
+
+            devices.forEach(dev => {
+                const totalDevWatts = (dev.watts * dev.qty).toFixed(1);
+                
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-obsidian-border hover:bg-white/5 transition-colors group";
+                
+                tr.innerHTML = `
+                    <td class="p-4 text-white">${dev.name}</td>
+                    <td class="p-4 text-gray-400 text-xs">${dev.type}</td>
+                    <td class="p-4 text-center text-gray-400">${dev.watts}W</td>
+                    <td class="p-4 text-center text-white font-bold">${dev.qty}</td>
+                    <td class="p-4 text-right text-obsidian-accent font-bold">${totalDevWatts}W</td>
+                    <td class="p-4 text-center">
+                        <button onclick="removeDevice(${dev.id})" class="text-gray-600 hover:text-obsidian-danger transition-colors p-2 rounded hover:bg-white/5">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                elDeviceTable.appendChild(tr);
+            });
+        }
+
+        // Core Calculation
+        function updateCalculations() {
+            // Get Budget
+            switchBudget = parseFloat(elBudgetInput.value) || 0;
+            elTotalBudget.innerText = switchBudget;
+
+            // Calculate Used
+            const totalUsed = devices.reduce((sum, d) => sum + (d.watts * d.qty), 0);
+            
+            // Update Displays
+            elTotalUsed.innerText = totalUsed.toFixed(1);
+            
+            const remaining = switchBudget - totalUsed;
+            elRemaining.innerText = `${remaining.toFixed(1)}W Remaining`;
+            
+            // Percentage
+            let percent = 0;
+            if (switchBudget > 0) {
+                percent = (totalUsed / switchBudget) * 100;
+            }
+            
+            // Cap visual bar at 100%
+            const visualPercent = Math.min(percent, 100);
+            elProgressBar.style.width = `${visualPercent}%`;
+            elPercent.innerText = `${percent.toFixed(1)}% Used`;
+
+            // State Styling
+            updateVisualState(totalUsed, switchBudget, percent);
+        }
+
+        function updateVisualState(used, budget, percent) {
+            // Reset Classes
+            elProgressBar.classList.remove('bg-obsidian-success', 'bg-obsidian-warning', 'bg-obsidian-danger');
+            elStatusGlow.classList.remove('bg-green-500/10', 'bg-yellow-500/10', 'bg-red-500/10');
+            elAlertBox.classList.add('hidden');
+
+            if (used > budget) {
+                // Overload
+                elProgressBar.classList.add('bg-obsidian-danger');
+                elStatusGlow.classList.add('bg-red-500/10');
+                elAlertBox.classList.remove('hidden');
+                elTotalUsed.classList.add('text-obsidian-danger');
+                elTotalUsed.classList.remove('text-white');
+            } else if (percent >= 80) {
+                // Warning
+                elProgressBar.classList.add('bg-obsidian-warning');
+                elStatusGlow.classList.add('bg-yellow-500/10');
+                elTotalUsed.classList.remove('text-obsidian-danger');
+                elTotalUsed.classList.add('text-white');
+            } else {
+                // Good
+                elProgressBar.classList.add('bg-obsidian-success');
+                elStatusGlow.classList.add('bg-green-500/10');
+                elTotalUsed.classList.remove('text-obsidian-danger');
+                elTotalUsed.classList.add('text-white');
+            }
+        }
+
+        function resetTool() {
+            if(confirm('Clear all devices and reset budget?')) {
+                devices = [];
+                elBudgetInput.value = 370;
+                renderTable();
+                updateCalculations();
+            }
+        }
+
+        // Initialize
+        renderTable();
+        updateCalculations();
+
+    </script>
+</body>
+</html>
