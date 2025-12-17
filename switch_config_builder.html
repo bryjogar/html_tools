@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Switch Designer v9 (LAGs + Netgear) | Homelab Playground</title>
+    <title>Switch Designer v11 (BPDU Protect) | Homelab Playground</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -108,7 +108,7 @@
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-network-wired text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Designer <span class="text-obsidian-accent font-light">v9 (LAG + Netgear)</span></h1>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Designer <span class="text-obsidian-accent font-light">v11 (BPDU)</span></h1>
         </div>
         <div class="flex items-center gap-2">
             <button onclick="cycleSwitchSize()" id="size-btn" class="text-xs bg-obsidian-border hover:bg-white/10 text-white px-3 py-1.5 rounded transition font-mono border border-transparent hover:border-gray-500">
@@ -377,7 +377,6 @@
             wrapper.className = "flex flex-col items-center gap-1 group relative";
             const inputHtml = `<input type="text" value="${portData.customLabel || portNum}" class="w-8 text-[9px] text-center bg-transparent border-none text-gray-500 font-mono focus:text-white focus:bg-obsidian-pane rounded port-label-input z-20" onchange="updateLabel(${portNum}, this.value)" readonly>`;
             
-            // Visual logic
             const commonClasses = `w-8 h-8 rounded-sm relative overflow-hidden border ${portData.lagId ? 'border-blue-500' : 'border-[#444]'}`;
             const bgStyle = `background-color: ${portData.nativeVlanId ? baseColor : (isSfp?'#1a1a1a':'#0d0d0d')}`;
             const overlay = `<div class="absolute inset-0 opacity-40" style="${portData.nativeVlanId ? 'background-color:'+baseColor : ''}"></div>`;
@@ -405,7 +404,6 @@
             }
             else if (state.currentTool === 'poe') p.isPoe = !p.isPoe;
             else if (state.currentTool === 'lag') {
-                // Toggle LAG membership
                 if (state.activeLagId) {
                     p.lagId = (p.lagId === state.activeLagId) ? null : state.activeLagId;
                 }
@@ -511,7 +509,7 @@
         }
         function closeExportModal() { document.getElementById('export-modal').classList.add('hidden'); }
 
-        // --- CLI GENERATION (LAG AWARE) ---
+        // --- CLI GENERATION (LAG AWARE + BPDU COPPER ONLY) ---
         function openCliModal() { document.getElementById('cli-modal').classList.remove('hidden'); generateCli(); }
         function closeCliModal() { document.getElementById('cli-modal').classList.add('hidden'); }
         function getVid(vlanId) { const v = state.vlans.find(x => x.id === vlanId); return v ? (v.vid || v.id.replace('vlan-', '')) : 1; }
@@ -524,32 +522,28 @@
             
             // NETGEAR M-SERIES
             if (brand === 'netgear_m') {
-                out += `hostname "${g.hostname}"\nip name-server ${g.dns}\nsntp server ${g.ntp}\nsnmp-server community "${g.snmp}"\n`;
-                // VLANs
+                out += `hostname "${g.hostname}"\n! Enable RSTP\nspanning-tree\nspanning-tree mode rstp\n!\nip name-server ${g.dns}\nsntp server ${g.ntp}\nsnmp-server community "${g.snmp}"\n`;
                 state.vlans.forEach(v => { if(v.vid) out += `vlan ${v.vid}\n name "${v.name}"\n exit\n`; });
-                // LAG Creation
                 state.lags.forEach(l => {
                     out += `interface lag ${l.id}\n description "${l.name}"\n`;
                     if(l.type==='lacp') out += ` no port-channel static\n`;
                     out += ` exit\n`;
                 });
-                // Physical Ports
                 ports.forEach(p => {
                     const port = state.ports[p];
                     const desc = port.customLabel || `Port ${p}`;
                     out += `interface 1/0/${p}\n description "${desc}"\n`;
-                    if(port.lagId) {
-                        out += ` addport 1/0/${p} lag ${port.lagId}\n`; // M4300 syntax often uses addport inside interface or lag context
-                    } else if(port.nativeVlanId) {
+                    if(port.lagId) out += ` addport 1/0/${p} lag ${port.lagId}\n`; 
+                    else if(port.nativeVlanId) {
                          const n = getVid(port.nativeVlanId);
                          out += ` switchport mode access\n switchport access vlan ${n}\n`;
                     }
                     if(port.isPoe===false) out += ` poe admin-mode disable\n`;
+                    // BPDU Guard on Copper only (<= portCount)
+                    if(p <= state.portCount) out += ` spanning-tree bpdu-guard\n`;
                     out += ` exit\n`;
                 });
-                // LAG Configuration (VLANs)
                 state.lags.forEach(l => {
-                    // Find a member port to get config (assuming LAG members identical)
                     const memberId = ports.find(p => state.ports[p].lagId === l.id);
                     if(memberId) {
                         const port = state.ports[memberId];
@@ -561,7 +555,6 @@
                         out += ` exit\n`;
                     }
                 });
-                // Mgmt
                 out += `interface vlan 1\n ip address ${g.ip.split('/')[0]} ${ipMask(g.ip.split('/')[1])}\n exit\n`;
                 out += `ip route 0.0.0.0 0.0.0.0 ${g.gateway}\n`;
             }
@@ -579,15 +572,12 @@
                 state.vlans.forEach(v => {
                     if(!v.vid) return;
                     out += `vlan ${v.vid} name "${v.name}" by port\n`;
-                    // Untagged
                     let u = [], t = [];
-                    // Check physical non-lag ports
                     ports.filter(p=>!state.ports[p].lagId).forEach(p => {
                         const port = state.ports[p];
                         if(getVid(port.nativeVlanId)===v.vid) u.push(`1/1/${p}`);
                         if(port.taggedVlans.map(getVid).includes(v.vid)) t.push(`1/1/${p}`);
                     });
-                    // Check LAGs
                     state.lags.forEach(l => {
                         const memberId = ports.find(p => state.ports[p].lagId === l.id);
                         if(memberId) {
@@ -598,30 +588,33 @@
                     });
                     if(u.length) out += ` untagged ethe ${u.join(' ')}\n`;
                     if(t.length) out += ` tagged ethe ${t.join(' ')}\n`;
-                    out += `!\n`;
+                    out += ` spanning-tree 802-1w\n spanning-tree 802-1w priority 0\n!\n`;
+                });
+                // BPDU Guard for Copper
+                out += `! BPDU Guard on Copper\n`;
+                ports.forEach(p => {
+                    if(p <= state.portCount) {
+                        out += `interface ethernet 1/1/${p}\n stp-bpdu-guard\n!\n`;
+                    }
                 });
                 out += `interface ve 1\n ip address ${g.ip}\n!\nip route 0.0.0.0/0 ${g.gateway}\n`;
             }
 
             // ARUBA
             else if (brand === 'aruba') {
-                out += `hostname "${g.hostname}"\n`;
-                // LAGs
+                out += `hostname "${g.hostname}"\n! Enable RSTP\nspanning-tree force-version rstp-operation\n`;
                 state.lags.forEach(l => {
                     const members = ports.filter(p => state.ports[p].lagId === l.id);
                     if(members.length) out += `trunk ${members.join(',')} trk${l.id} ${l.type}\n`;
                 });
-                // VLANs
                 state.vlans.forEach(v => {
                     if(!v.vid) return;
                     out += `vlan ${v.vid}\n name "${v.name}"\n`;
                     let u = [], t = [];
-                    // Physical
                     ports.filter(p=>!state.ports[p].lagId).forEach(p => {
                         if(getVid(state.ports[p].nativeVlanId)===v.vid) u.push(p);
                         if(state.ports[p].taggedVlans.map(getVid).includes(v.vid)) t.push(p);
                     });
-                    // LAGs
                     state.lags.forEach(l => {
                         const mem = ports.find(p => state.ports[p].lagId === l.id);
                         if(mem) {
@@ -634,7 +627,33 @@
                     if(v.vid === 1) out += ` ip address ${g.ip.split('/')[0]} ${ipMask(g.ip.split('/')[1])}\n`;
                     out += ` exit\n`;
                 });
+                // Loop Protect / BPDU Protect Copper Only
+                // Assuming copper starts at 1 and ends at state.portCount
+                if(state.portCount > 0) {
+                    out += `loop-protect 1-${state.portCount}\n`;
+                    out += `spanning-tree 1-${state.portCount} bpdu-protection\n`;
+                }
                 out += `ip default-gateway ${g.gateway}\n`;
+            }
+
+            // CISCO
+            else if (brand === 'cisco') {
+                out += `hostname ${g.hostname}\n! Enable Rapid-PVST\nspanning-tree mode rapid-pvst\nspanning-tree portfast default\n!\n`;
+                state.vlans.forEach(v => { if(v.vid) out += `vlan ${v.vid}\n name "${v.name}"\n!\n`; });
+                ports.forEach(pNum => {
+                    const p = state.ports[pNum];
+                    if(!p.nativeVlanId) return;
+                    const nativeVid = getVid(p.nativeVlanId);
+                    const taggedVids = p.taggedVlans ? p.taggedVlans.map(getVid).join(',') : '';
+                    const desc = p.customLabel || `Port ${pNum}`;
+                    out += `interface Gi1/0/${pNum}\n description ${desc}\n`;
+                    if(taggedVids) out += ` switchport mode trunk\n switchport trunk native vlan ${nativeVid}\n switchport trunk allowed vlan ${nativeVid},${taggedVids}\n`;
+                    else out += ` switchport mode access\n switchport access vlan ${nativeVid}\n`;
+                    if(!p.isPoe) out += ` power inline never\n`;
+                    // BPDU Guard on Copper
+                    if(pNum <= state.portCount) out += ` spanning-tree bpduguard enable\n`;
+                    out += `!\n`;
+                });
             }
 
             cliOutput.textContent = out;
