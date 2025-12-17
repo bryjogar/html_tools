@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Switch Faceplate Designer v4 | Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',
+                            pane: '#252526',
+                            border: '#3c3c3c',
+                            accent: '#7c3aed',
+                            text: '#cccccc'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* RJ45 Port Styling */
+        .rj45-port {
+            position: relative;
+            background-color: #0d0d0d;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.9);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        /* RJ45 Pins */
+        .rj45-port::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 4px;
+            background: repeating-linear-gradient(90deg, #b8860b, #b8860b 2px, #000 2px, #000 4px);
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* SFP Port Styling */
+        .sfp-port {
+            position: relative;
+            background-color: #1a1a1a;
+            box-shadow: inset 0 0 5px rgba(0,0,0,1);
+            border: 1px solid #444;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* SFP Handle Visual */
+        .sfp-port::before {
+            content: '';
+            width: 40%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+        }
+
+        /* Input Styling */
+        .port-label-input:focus { outline: none; background: #3c3c3c; color: white; }
+
+        /* Tag Pips Container */
+        .tag-container {
+            position: absolute;
+            bottom: 2px;
+            left: 2px;
+            right: 2px;
+            display: flex;
+            gap: 2px;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .tag-pip {
+            height: 4px;
+            flex: 1;
+            border-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            border: 0.5px solid rgba(255,255,255,0.2);
+        }
+
+        /* Print/Export Fixes */
+        @media print {
+            body * { visibility: hidden; }
+            #export-area, #export-area * { visibility: visible; }
+            #export-area { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; padding: 20px; }
+            .rj45-port, .sfp-port { border: 1px solid #ccc; }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-network-wired text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Faceplate <span class="text-obsidian-accent font-light">Designer</span></h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="cycleSwitchSize()" id="size-btn" class="text-xs bg-obsidian-border hover:bg-white/10 text-white px-3 py-1.5 rounded transition font-mono border border-transparent hover:border-gray-500">
+                Size: 24 Ports
+            </button>
+            <button onclick="openExportModal()" class="text-xs bg-obsidian-accent hover:bg-violet-600 text-white px-3 py-1.5 rounded transition shadow-lg shadow-violet-900/20">
+                <i class="fa-solid fa-camera mr-1"></i> PNG Export
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <aside class="w-full md:w-72 bg-obsidian-pane border-b md:border-b-0 md:border-r border-obsidian-border flex flex-col shrink-0 overflow-y-auto z-10">
+            
+            <div class="p-4 border-b border-obsidian-border bg-black/10">
+                <h2 class="text-xs font-bold uppercase text-gray-500 mb-2 tracking-wider">Configuration File</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="downloadJson()" class="bg-obsidian-bg hover:bg-white/5 border border-obsidian-border text-gray-300 text-xs py-2 rounded flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-download text-green-500"></i> Save JSON
+                    </button>
+                    <button onclick="triggerImport()" class="bg-obsidian-bg hover:bg-white/5 border border-obsidian-border text-gray-300 text-xs py-2 rounded flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-upload text-blue-500"></i> Load JSON
+                    </button>
+                    <input type="file" id="json-input" class="hidden" accept=".json" onchange="importJson(this)">
+                </div>
+            </div>
+
+            <div class="p-4 border-b border-obsidian-border">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xs font-bold uppercase text-gray-500 tracking-wider">VLAN Palette</h2>
+                    <span class="text-[10px] text-gray-600 cursor-pointer hover:text-white" onclick="resetVlans()">Reset Default</span>
+                </div>
+                
+                <div id="vlan-list" class="space-y-2 mb-4">
+                    </div>
+
+                <div class="flex gap-2 items-center bg-obsidian-bg p-2 rounded border border-obsidian-border">
+                    <input type="color" id="new-vlan-color" value="#10b981" class="bg-transparent border-none h-6 w-8 cursor-pointer p-0">
+                    <input type="text" id="new-vlan-name" placeholder="New VLAN..." class="bg-transparent border-none text-xs text-white w-full focus:outline-none font-mono">
+                    <button onclick="addVlan()" class="text-obsidian-accent hover:text-white px-2">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <h2 class="text-xs font-bold uppercase text-gray-500 mb-3 tracking-wider">Tools</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="setTool('paint')" id="tool-paint" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-paintbrush"></i> Native (Untagged)
+                    </button>
+                    
+                    <button onclick="setTool('tag')" id="tool-tag" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-tags"></i> Add Tag
+                    </button>
+
+                    <button onclick="setTool('poe')" id="tool-poe" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-bolt"></i> PoE
+                    </button>
+
+                    <button onclick="setTool('label')" id="tool-label" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-tag"></i> Label
+                    </button>
+                </div>
+                
+                <button onclick="setTool('erase')" id="tool-erase" class="tool-btn w-full mt-2 p-2 rounded flex items-center justify-center gap-2 text-xs border border-red-900/30 text-red-400 hover:bg-red-900/20">
+                    <i class="fa-solid fa-eraser"></i> Erase / Reset Port
+                </button>
+
+                <div class="mt-4 p-3 bg-blue-900/10 border border-blue-900/30 rounded text-[10px] text-blue-200">
+                    <p class="mb-1"><strong class="text-blue-400">AP Configuration Workflow:</strong></p>
+                    <ol class="list-decimal pl-3 space-y-1">
+                        <li>Select <strong>Native</strong> tool & Mgmt VLAN. Click port (sets background).</li>
+                        <li>Select <strong>Add Tag</strong> tool & Guest/Media VLANs. Click port (adds colored bars).</li>
+                    </ol>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-auto bg-obsidian-bg relative flex flex-col items-center justify-center p-4 md:p-10">
+            
+            <div id="export-area" class="w-full max-w-6xl">
+                
+                <div class="bg-[#2a2a2e] rounded-sm border border-[#444] shadow-2xl relative mx-auto">
+                    
+                    <div class="absolute top-0 bottom-0 -left-4 w-4 bg-[#202021] border border-[#444] rounded-l flex flex-col justify-between py-2 items-center">
+                        <div class="w-2 h-3 rounded-full bg-black/60 border border-gray-600"></div>
+                        <div class="w-2 h-3 rounded-full bg-black/60 border border-gray-600"></div>
+                    </div>
+                    <div class="absolute top-0 bottom-0 -right-4 w-4 bg-[#202021] border border-[#444] rounded-r flex flex-col justify-between py-2 items-center">
+                        <div class="w-2 h-3 rounded-full bg-black/60 border border-gray-600"></div>
+                        <div class="w-2 h-3 rounded-full bg-black/60 border border-gray-600"></div>
+                    </div>
+
+                    <div class="p-3 md:p-5 flex flex-col lg:flex-row items-center gap-4 lg:gap-8">
+                        
+                        <div class="flex lg:flex-col items-center lg:items-start gap-4 lg:gap-2 shrink-0 min-w-[80px]">
+                            <div class="text-gray-400 font-bold font-mono tracking-widest text-sm uppercase">
+                                SW-<span id="model-label">24</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-x-2 gap-y-1">
+                                <div class="flex items-center gap-1">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_#22c55e]"></div>
+                                    <span class="text-[9px] text-gray-500 font-mono">SYS</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_#22c55e]"></div>
+                                    <span class="text-[9px] text-gray-500 font-mono">PWR</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="rj45-container" class="grid gap-x-1 gap-y-5">
+                            </div>
+
+                        <div class="flex flex-col items-center gap-1 border-l border-white/5 pl-4 lg:ml-auto">
+                            <span class="text-[9px] text-gray-500 font-mono uppercase mb-1">SFP+ Uplinks</span>
+                            <div id="sfp-container" class="grid grid-cols-2 gap-2 p-1.5 bg-black/30 rounded border border-white/5">
+                                </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div id="export-legend" class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 hidden bg-white p-4 text-black border border-gray-300">
+                    </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="export-modal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl max-w-7xl w-full h-[90vh] flex flex-col animate-fade-in">
+            <div class="flex justify-between items-center p-4 border-b border-obsidian-border bg-obsidian-bg">
+                <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-image"></i> Export Preview</h3>
+                <button onclick="closeExportModal()" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-xmark fa-xl"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-auto p-8 bg-white flex items-center justify-center" id="modal-content">
+                </div>
+            
+            <div class="p-4 bg-obsidian-pane border-t border-obsidian-border flex flex-col md:flex-row justify-between items-center gap-4">
+                <span class="text-xs text-gray-500"><i class="fa-solid fa-circle-info mr-1"></i> Right-click image to "Copy Image" or use your screenshot tool.</span>
+                <button onclick="closeExportModal()" class="bg-obsidian-border hover:bg-white/10 text-white px-6 py-2 rounded text-sm transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // --- Configuration ---
+        const SFP_COUNT = 4;
+        const PORT_OPTIONS = [8, 10, 16, 24, 48];
+
+        // State now supports nativeVlan (string) and taggedVlans (array)
+        let state = {
+            portCount: 24,
+            activeVlanId: 'vlan-1',
+            currentTool: 'paint', 
+            vlans: [
+                { id: 'vlan-1', name: 'Default', color: '#64748b' }, // Slate
+                { id: 'vlan-10', name: 'Voice', color: '#ef4444' }, // Red
+                { id: 'vlan-20', name: 'Data', color: '#3b82f6' }, // Blue
+                { id: 'vlan-30', name: 'Guest', color: '#eab308' }, // Yellow
+                { id: 'vlan-50', name: 'IoT', color: '#22c55e' }, // Green
+                { id: 'vlan-99', name: 'Mgmt', color: '#a855f7' }, // Purple
+                { id: 'vlan-666', name: 'WAN', color: '#f97316' }  // Orange
+            ],
+            // Key: portId. Value: { nativeVlanId: str, taggedVlans: [str], customLabel: str, isPoe: bool }
+            ports: {} 
+        };
+
+        // --- DOM Elements ---
+        const rj45Container = document.getElementById('rj45-container');
+        const sfpContainer = document.getElementById('sfp-container');
+        const vlanList = document.getElementById('vlan-list');
+        const sizeBtn = document.getElementById('size-btn');
+        const modelLabel = document.getElementById('model-label');
+
+        // --- Init ---
+        function init() {
+            setTool('paint'); // Default tool
+            renderVlanList();
+            renderAllPorts();
+            updateSizeBtnLabel();
+        }
+
+        // --- Rendering Core ---
+        
+        function renderVlanList() {
+            vlanList.innerHTML = '';
+            state.vlans.forEach(vlan => {
+                const isActive = state.activeVlanId === vlan.id;
+                const div = document.createElement('div');
+                div.className = `flex items-center justify-between p-2 rounded cursor-pointer transition border mb-1 ${isActive ? 'bg-white/5 border-obsidian-accent' : 'border-transparent hover:bg-white/5'}`;
+                div.onclick = () => selectVlan(vlan.id);
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded shadow-sm" style="background-color: ${vlan.color};"></div>
+                        <span class="text-xs font-mono text-gray-300">${vlan.name}</span>
+                    </div>
+                    ${isActive ? '<i class="fa-solid fa-check text-obsidian-accent text-xs"></i>' : ''}
+                `;
+                vlanList.appendChild(div);
+            });
+        }
+
+        function renderAllPorts() {
+            renderRJ45();
+            renderSFP();
+            modelLabel.innerText = state.portCount;
+        }
+
+        function renderRJ45() {
+            const columns = state.portCount / 2;
+            rj45Container.style.gridTemplateColumns = `repeat(${columns}, minmax(34px, 1fr))`; // Slightly wider for tag pips
+            rj45Container.innerHTML = '';
+
+            for (let col = 0; col < columns; col++) {
+                const topPort = (col * 2) + 1;
+                const botPort = (col * 2) + 2;
+
+                const colDiv = document.createElement('div');
+                colDiv.className = "flex flex-col gap-1 items-center";
+                colDiv.appendChild(createPortNode(topPort, 'top', false));
+                colDiv.appendChild(createPortNode(botPort, 'bottom', false));
+                rj45Container.appendChild(colDiv);
+            }
+        }
+
+        function renderSFP() {
+            sfpContainer.innerHTML = '';
+            const startNum = state.portCount + 1;
+            for (let i = 0; i < SFP_COUNT; i++) {
+                const portNum = startNum + i;
+                sfpContainer.appendChild(createPortNode(portNum, 'single', true));
+            }
+        }
+
+        function createPortNode(portNum, position, isSfp) {
+            // Ensure data structure exists
+            const portData = state.ports[portNum] || { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: false };
+            
+            let baseColor = isSfp ? '#1a1a1a' : '#0d0d0d';
+            let vlanName = 'Unassigned';
+            
+            // 1. Determine Native Color (Background)
+            if (portData.nativeVlanId) {
+                const vlan = state.vlans.find(v => v.id === portData.nativeVlanId);
+                if (vlan) {
+                    baseColor = vlan.color;
+                    vlanName = vlan.name;
+                }
+            }
+
+            // 2. Build Tag Pips HTML
+            let tagsHtml = '';
+            if (portData.taggedVlans && portData.taggedVlans.length > 0) {
+                tagsHtml = '<div class="tag-container">';
+                portData.taggedVlans.forEach(tagId => {
+                    const tagVlan = state.vlans.find(v => v.id === tagId);
+                    if(tagVlan) {
+                        tagsHtml += `<div class="tag-pip" style="background-color: ${tagVlan.color};" title="Tagged: ${tagVlan.name}"></div>`;
+                    }
+                });
+                tagsHtml += '</div>';
+            }
+
+            // Wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = "flex flex-col items-center gap-1 group relative";
+
+            // Label Input
+            const labelVal = portData.customLabel || portNum;
+            const inputHtml = `<input 
+                type="text" 
+                value="${labelVal}" 
+                class="w-8 text-[9px] text-center bg-transparent border-none text-gray-500 font-mono focus:text-white focus:bg-obsidian-pane rounded port-label-input z-20"
+                onchange="updateLabel(${portNum}, this.value)"
+                readonly
+            >`;
+
+            // Port Visuals
+            let portHtml = '';
+            
+            if (isSfp) {
+                // SFP Style
+                portHtml = `
+                    <div class="sfp-port w-8 h-8 rounded-sm relative overflow-hidden"
+                         style="border-color: ${portData.nativeVlanId ? baseColor : '#444'}"
+                         onclick="handlePortClick(${portNum})"
+                         title="Port ${portNum}: Native ${vlanName}">
+                         <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
+                         <div class="absolute inset-0 opacity-40" style="background-color: ${portData.nativeVlanId ? baseColor : 'transparent'}"></div>
+                         
+                         ${tagsHtml}
+
+                         <div class="z-10 w-3 h-4 bg-black/50 rounded-sm border border-white/10"></div>
+                         ${portData.isPoe ? '<i class="fa-solid fa-bolt text-yellow-400 absolute top-0.5 right-0.5 text-[8px] z-20 drop-shadow-md"></i>' : ''}
+                    </div>
+                `;
+            } else {
+                // RJ45 Style
+                portHtml = `
+                    <div class="rj45-port w-8 h-8 rounded-sm border border-[#444] flex items-center justify-center relative overflow-hidden"
+                         style="border-color: ${portData.nativeVlanId ? baseColor : '#444'}"
+                         onclick="handlePortClick(${portNum})"
+                         title="Port ${portNum}: Native ${vlanName}">
+                        
+                        <div class="absolute inset-0 bg-gradient-to-b from-black/80 to-transparent pointer-events-none"></div>
+                        <div class="absolute inset-0 opacity-40" style="background-color: ${portData.nativeVlanId ? baseColor : 'transparent'}"></div>
+                        
+                        ${tagsHtml}
+
+                        <div class="absolute top-1 right-1 w-1 h-1 rounded-full ${portData.nativeVlanId ? 'bg-green-500 shadow-[0_0_4px_#22c55e]' : 'bg-gray-800'}"></div>
+                        ${portData.isPoe ? '<i class="fa-solid fa-bolt text-yellow-400 absolute bottom-0.5 left-1 text-[9px] z-20 drop-shadow-md"></i>' : ''}
+                    </div>
+                `;
+            }
+
+            if (position === 'top') {
+                wrapper.innerHTML = inputHtml + portHtml;
+            } else if (position === 'bottom') {
+                wrapper.innerHTML = portHtml + inputHtml;
+            } else {
+                wrapper.innerHTML = portHtml + `<div class="mt-1">${inputHtml}</div>`;
+            }
+
+            return wrapper;
+        }
+
+        // --- Interactions ---
+
+        function handlePortClick(portNum) {
+            // Ensure object structure
+            if (!state.ports[portNum]) {
+                state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: false };
+            }
+            const p = state.ports[portNum];
+
+            if (state.currentTool === 'paint') {
+                // Set Native VLAN
+                p.nativeVlanId = state.activeVlanId;
+            } 
+            else if (state.currentTool === 'tag') {
+                // Toggle Tagged VLAN
+                if (!p.taggedVlans) p.taggedVlans = [];
+                
+                const idx = p.taggedVlans.indexOf(state.activeVlanId);
+                if (idx > -1) {
+                    // Remove if exists
+                    p.taggedVlans.splice(idx, 1);
+                } else {
+                    // Add if not exists (and not same as native? Optional check)
+                    if (p.nativeVlanId !== state.activeVlanId) {
+                        p.taggedVlans.push(state.activeVlanId);
+                    }
+                }
+            }
+            else if (state.currentTool === 'poe') {
+                p.isPoe = !p.isPoe;
+            } 
+            else if (state.currentTool === 'erase') {
+                p.nativeVlanId = null;
+                p.taggedVlans = [];
+                p.isPoe = false;
+                p.customLabel = null;
+            } 
+            else if (state.currentTool === 'label') {
+                const currentLabel = p.customLabel || portNum;
+                const newLabel = prompt(`Enter Label for Port ${portNum}:`, currentLabel);
+                if (newLabel !== null) {
+                    p.customLabel = (newLabel === '' || newLabel == portNum) ? null : newLabel;
+                }
+            }
+            renderAllPorts();
+        }
+
+        function updateLabel(portNum, text) {
+            if (!state.ports[portNum]) state.ports[portNum] = {};
+            state.ports[portNum].customLabel = (text == portNum || text === '') ? null : text;
+            renderAllPorts();
+        }
+
+        function cycleSwitchSize() {
+            let idx = PORT_OPTIONS.indexOf(state.portCount);
+            idx = (idx + 1) % PORT_OPTIONS.length;
+            state.portCount = PORT_OPTIONS[idx];
+            updateSizeBtnLabel();
+            renderAllPorts();
+        }
+
+        function updateSizeBtnLabel() {
+            sizeBtn.innerText = `Size: ${state.portCount} Ports`;
+        }
+
+        function setTool(tool) {
+            state.currentTool = tool;
+            
+            const baseClasses = ['tool-btn', 'p-2', 'rounded', 'flex', 'items-center', 'justify-center', 'gap-2', 'text-xs'];
+            const activeClasses = ['bg-obsidian-accent', 'text-white', 'border-transparent', 'shadow-md', 'shadow-violet-900/20'];
+            const inactiveClasses = ['bg-obsidian-bg', 'text-gray-400', 'border', 'border-obsidian-border', 'hover:bg-white/5'];
+
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.className = ''; 
+                btn.classList.add(...baseClasses);
+                if(btn.id === `tool-${tool}`) {
+                     btn.classList.add(...activeClasses);
+                } else {
+                     if(btn.id !== 'tool-erase') btn.classList.add(...inactiveClasses);
+                     else btn.classList.add('border', 'border-red-900/30', 'text-red-400', 'hover:bg-red-900/20', 'w-full', 'mt-2');
+                }
+            });
+        }
+
+        function selectVlan(id) {
+            state.activeVlanId = id;
+            // Auto switch to Paint if in Erase/PoE/Label mode
+            // If in Tag mode, stay in Tag mode so user can pick color then tag
+            if(['erase', 'poe', 'label'].includes(state.currentTool)) {
+                setTool('paint');
+            }
+            renderVlanList();
+        }
+
+        function addVlan() {
+            const name = document.getElementById('new-vlan-name').value.trim();
+            const color = document.getElementById('new-vlan-color').value;
+            if(!name) return;
+
+            const id = 'vlan-' + Date.now();
+            state.vlans.push({ id, name, color });
+            
+            document.getElementById('new-vlan-name').value = '';
+            selectVlan(id);
+        }
+
+        function resetAll() {
+            if(confirm("Clear all port configurations?")) {
+                state.ports = {};
+                renderAllPorts();
+            }
+        }
+        
+        function resetVlans() {
+             if(confirm("Reset VLAN palette to defaults?")) {
+                location.reload(); 
+            }
+        }
+
+        // --- JSON Import/Export ---
+        function downloadJson() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `switch_config_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(dlAnchorElem);
+            dlAnchorElem.click();
+            dlAnchorElem.remove();
+        }
+
+        function triggerImport() { document.getElementById('json-input').click(); }
+
+        function importJson(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const loadedState = JSON.parse(e.target.result);
+                    if (loadedState.vlans && loadedState.ports && loadedState.portCount) {
+                        state = loadedState;
+                        init();
+                        alert('Loaded!');
+                    } else { throw new Error("Invalid structure"); }
+                } catch (err) { alert('Error loading JSON.'); }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        // --- Export Logic ---
+        function openExportModal() {
+            const modal = document.getElementById('export-modal');
+            const content = document.getElementById('modal-content');
+            const source = document.getElementById('export-area');
+            const legend = source.querySelector('#export-legend');
+
+            legend.innerHTML = '';
+            legend.classList.remove('hidden');
+            
+            // Build Legend
+            state.vlans.forEach(v => {
+                const item = document.createElement('div');
+                item.className = "flex items-center gap-2";
+                item.innerHTML = `
+                    <div class="w-4 h-4 rounded border border-gray-400" style="background-color: ${v.color}"></div>
+                    <span class="text-sm font-semibold">${v.name}</span>
+                `;
+                legend.appendChild(item);
+            });
+
+            const clone = source.cloneNode(true);
+            clone.classList.remove('text-obsidian-text');
+            clone.classList.add('text-black');
+            
+            legend.classList.add('hidden');
+            
+            content.innerHTML = '';
+            content.appendChild(clone);
+            clone.querySelector('#export-legend').classList.remove('hidden');
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.add('hidden');
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
