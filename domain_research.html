@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DomainSentry | Homelab Playground</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #505050; }
+
+        /* Utility Classes */
+        .glass-panel { background-color: rgba(37, 37, 38, 0.95); backdrop-filter: blur(4px); }
+        .code-block {
+            background-color: #151515;
+            border: 1px solid #3c3c3c;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #a3a3a3;
+        }
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .ttl-badge {
+            font-size: 0.65rem;
+            color: #6b7280;
+            background: #2a2a2b;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            margin-left: 8px;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 flex-shrink-0 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 md:px-6 z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-gradient-to-br from-obsidian-accent to-violet-900 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                <i class="fa-solid fa-shield-halved text-sm"></i>
+            </div>
+            <div>
+                <h1 class="text-white font-bold text-lg leading-none tracking-tight">DomainSentry</h1>
+                <p class="text-xs text-gray-500 font-mono tracking-wide mt-0.5">RECONNAISSANCE TOOL</p>
+            </div>
+        </div>
+        <div class="hidden md:block text-xs text-gray-500 border border-obsidian-border px-2 py-1 rounded bg-obsidian-bg">
+            v2.1-extended
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto relative">
+        <div class="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+
+            <div class="flex flex-col md:flex-row gap-4 items-end bg-obsidian-pane p-6 rounded-lg border border-obsidian-border shadow-xl">
+                <div class="flex-1 w-full space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Target Domain</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-globe absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                        <input type="text" id="domainInput" placeholder="e.g., www.google.com" 
+                            class="w-full h-12 pl-12 pr-4 bg-obsidian-bg border border-obsidian-border rounded-md text-white font-mono focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all">
+                    </div>
+                </div>
+                <button onclick="runAnalysis()" class="w-full md:w-auto h-12 px-8 bg-obsidian-accent hover:bg-violet-600 text-white font-bold rounded-md transition-colors shadow-lg hover:shadow-violet-900/20 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-radar"></i>
+                    <span>Live Scan</span>
+                </button>
+            </div>
+
+            <div id="statusContainer" class="hidden flex items-center justify-between bg-blue-900/10 border border-blue-500/20 text-blue-400 px-4 py-3 rounded text-sm animate-pulse">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <span id="statusText">Querying Live APIs...</span>
+                </div>
+            </div>
+
+            <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6 opacity-50 pointer-events-none transition-opacity duration-500">
+                
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg overflow-hidden flex flex-col">
+                    <div class="bg-obsidian-bg/50 px-4 py-3 border-b border-obsidian-border flex items-center justify-between">
+                        <h2 class="font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-id-card text-blue-400"></i> Identity & SOA
+                        </h2>
+                    </div>
+                    <div class="p-4 space-y-4 flex-1">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-xs text-gray-500 mb-1">Registrar</div>
+                                <div id="registrarData" class="text-sm text-white font-mono truncate">--</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500 mb-1">Creation Date</div>
+                                <div id="creationData" class="text-sm text-white font-mono">--</div>
+                            </div>
+                        </div>
+
+                        <div class="h-px bg-obsidian-border"></div>
+
+                        <div>
+                            <div class="text-xs text-gray-500 mb-2 uppercase font-bold">Start of Authority (SOA)</div>
+                            <div id="soaData" class="text-xs font-mono text-gray-400 space-y-1">
+                                <div>--</div>
+                            </div>
+                        </div>
+
+                        <div class="h-px bg-obsidian-border"></div>
+
+                        <div>
+                            <div class="text-xs text-gray-500 mb-2 uppercase font-bold">Name Servers (NS)</div>
+                            <div id="nsData" class="space-y-1">
+                                <div class="text-gray-600 text-sm italic">Waiting for input...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg overflow-hidden flex flex-col">
+                    <div class="bg-obsidian-bg/50 px-4 py-3 border-b border-obsidian-border flex items-center justify-between">
+                        <h2 class="font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-envelope-circle-check text-green-400"></i> Mail Hygiene
+                        </h2>
+                    </div>
+                    <div class="p-4 space-y-4 flex-1">
+                        <div>
+                            <div class="text-xs text-gray-500 mb-2 uppercase font-bold">MX Records</div>
+                            <div id="mxData" class="space-y-1">
+                                <div class="text-gray-600 text-sm italic">Waiting for input...</div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-xs text-gray-400 font-bold">SPF Record</span>
+                                <span id="spfStatus" class="status-badge bg-gray-800 text-gray-500">Pending</span>
+                            </div>
+                            <code id="spfRaw" class="block text-xs text-gray-300 break-all mb-2 font-mono">--</code>
+                        </div>
+
+                        <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-xs text-gray-400 font-bold">DMARC Policy</span>
+                                <span id="dmarcStatus" class="status-badge bg-gray-800 text-gray-500">Pending</span>
+                            </div>
+                            <code id="dmarcRaw" class="block text-xs text-gray-300 break-all font-mono">--</code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg overflow-hidden flex flex-col">
+                    <div class="bg-obsidian-bg/50 px-4 py-3 border-b border-obsidian-border flex items-center justify-between">
+                        <h2 class="font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-server text-orange-400"></i> DNS Internals
+                        </h2>
+                    </div>
+                    <div class="p-4 space-y-4 flex-1">
+                        
+                        <div id="cnameContainer" class="hidden">
+                            <div class="text-xs text-orange-400 mb-2 uppercase font-bold"><i class="fa-solid fa-share mr-1"></i> CNAME Alias</div>
+                            <div id="cnameData" class="code-block p-2 rounded border-orange-500/20 text-orange-300">
+                                --
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-xs text-gray-500 mb-2 uppercase font-bold">A (IPv4)</div>
+                                <div id="aData" class="code-block p-2 rounded max-h-32 overflow-y-auto">--</div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500 mb-2 uppercase font-bold">AAAA (IPv6)</div>
+                                <div id="aaaaData" class="code-block p-2 rounded max-h-32 overflow-y-auto">--</div>
+                            </div>
+                        </div>
+
+                        <div id="geoContainer" class="hidden">
+                            <div class="text-xs text-gray-500 mb-2 uppercase font-bold">Network Intelligence</div>
+                            <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border grid grid-cols-2 gap-2">
+                                <div>
+                                    <div class="text-[10px] text-gray-500">Hosting / ISP</div>
+                                    <div id="ispData" class="text-xs text-white font-bold truncate">Loading...</div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-gray-500">Location</div>
+                                    <div id="locData" class="text-xs text-white font-bold truncate">Loading...</div>
+                                </div>
+                                <div class="col-span-2">
+                                    <div class="text-[10px] text-gray-500">ASN</div>
+                                    <div id="asnData" class="text-xs text-obsidian-accent font-mono">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg overflow-hidden flex flex-col">
+                    <div class="bg-obsidian-bg/50 px-4 py-3 border-b border-obsidian-border flex items-center justify-between">
+                        <h2 class="font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-lock text-red-400"></i> SSL & TXT
+                        </h2>
+                    </div>
+                    <div class="p-4 space-y-4 flex-1">
+                        <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                <i class="fa-solid fa-certificate"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <div class="text-xs text-gray-500">Latest Logged Issuer</div>
+                                <div id="certIssuer" class="text-sm font-bold text-white truncate">Scanning...</div>
+                                <div id="certDate" class="text-xs text-gray-500">--</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-xs text-gray-500 mb-2 uppercase font-bold flex justify-between">
+                                <span>All TXT Records</span>
+                                <span class="text-[10px] normal-case opacity-50">Verification tokens, keys, etc.</span>
+                            </div>
+                            <div id="txtData" class="code-block p-2 rounded max-h-40 overflow-y-auto space-y-2 text-[10px]">
+                                <div class="text-gray-600 italic">Waiting for scan...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        const DNS_API = 'https://dns.google/resolve';
+        const RDAP_API = 'https://rdap.org/domain/'; 
+        const IP_API = 'https://ipapi.co/'; 
+        const CRT_API = 'https://crt.sh/?output=json&q='; 
+
+        async function resolveDNS(domain, type) {
+            try {
+                const response = await fetch(`${DNS_API}?name=${domain}&type=${type}`);
+                const data = await response.json();
+                return data.Answer || [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        async function fetchRDAP(domain) {
+            try {
+                const response = await fetch(`${RDAP_API}${domain}`);
+                if (!response.ok) throw new Error('RDAP failed');
+                return await response.json();
+            } catch (e) { return null; }
+        }
+
+        async function fetchGeo(ip) {
+            try {
+                const response = await fetch(`${IP_API}${ip}/json/`);
+                return await response.json();
+            } catch (e) { return null; }
+        }
+
+        async function fetchCertHistory(domain) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                const response = await fetch(`${CRT_API}${domain}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                const data = await response.json();
+                if(data && data.length > 0) return data[0]; 
+                return null;
+            } catch (e) { return null; }
+        }
+
+        // --- Helper to format TTL ---
+        function formatTTL(ttl) {
+            return `<span class="ttl-badge" title="Time To Live: ${ttl}s">${ttl}s</span>`;
+        }
+
+        async function runAnalysis() {
+            const domain = document.getElementById('domainInput').value.trim();
+            if (!domain) return;
+
+            // UI Reset
+            const grid = document.getElementById('resultsGrid');
+            const status = document.getElementById('statusContainer');
+            const statusText = document.getElementById('statusText');
+            
+            grid.classList.add('opacity-50', 'pointer-events-none');
+            status.classList.remove('hidden');
+            statusText.innerText = `Analyzing ${domain} via Live APIs...`;
+
+            // Reset Fields
+            document.getElementById('nsData').innerHTML = 'Scanning...';
+            document.getElementById('mxData').innerHTML = 'Scanning...';
+            document.getElementById('txtData').innerHTML = 'Scanning...';
+            document.getElementById('aData').innerText = '...';
+            document.getElementById('soaData').innerText = '...';
+            document.getElementById('cnameContainer').classList.add('hidden');
+            document.getElementById('geoContainer').classList.add('hidden');
+            document.getElementById('certIssuer').innerText = 'Querying crt.sh...';
+            
+            // --- 1. DNS Phase ---
+            const [ns, mx, txt, a, aaaa, cname, soa, dmarc] = await Promise.all([
+                resolveDNS(domain, 'NS'),
+                resolveDNS(domain, 'MX'),
+                resolveDNS(domain, 'TXT'),
+                resolveDNS(domain, 'A'),
+                resolveDNS(domain, 'AAAA'),
+                resolveDNS(domain, 'CNAME'),
+                resolveDNS(domain, 'SOA'),
+                resolveDNS(`_dmarc.${domain}`, 'TXT')
+            ]);
+
+            renderDNS(ns, mx, txt, a, aaaa, cname, soa, dmarc);
+
+            // --- 2. Infrastructure Phase ---
+            if (a.length > 0) {
+                const ip = a[0].data;
+                statusText.innerText = `Geolocating Server (${ip})...`;
+                const geo = await fetchGeo(ip);
+                if (geo) {
+                    document.getElementById('geoContainer').classList.remove('hidden');
+                    document.getElementById('ispData').innerText = geo.org || geo.asn_org || 'Unknown';
+                    document.getElementById('locData').innerText = `${geo.city}, ${geo.country_code}`;
+                    document.getElementById('asnData').innerText = geo.asn || '--';
+                }
+            }
+
+            // --- 3. Identity Phase ---
+            statusText.innerText = `Fetching Registration Data...`;
+            const rdap = await fetchRDAP(domain);
+            if (rdap) {
+                let registrar = "Unknown";
+                if (rdap.entities) {
+                    const registrarEntity = rdap.entities.find(e => e.roles && e.roles.includes('registrar'));
+                    if (registrarEntity && registrarEntity.vcardArray) {
+                        const vcard = JSON.stringify(registrarEntity.vcardArray);
+                        const match = vcard.match(/"fn"\s*,\s*{}?\s*,\s*"text"\s*,\s*"([^"]+)"/);
+                        if (match) registrar = match[1];
+                    }
+                }
+                document.getElementById('registrarData').innerText = registrar;
+                let created = "--";
+                if (rdap.events) {
+                    const regEvent = rdap.events.find(e => e.eventAction === 'registration');
+                    if (regEvent) created = regEvent.eventDate.split('T')[0];
+                }
+                document.getElementById('creationData').innerText = created;
+            } else {
+                document.getElementById('registrarData').innerText = "RDAP Restricted";
+                document.getElementById('creationData').innerText = "--";
+            }
+
+            // --- 4. SSL Phase ---
+            statusText.innerText = `Checking CT Logs...`;
+            const cert = await fetchCertHistory(domain);
+            if (cert) {
+                document.getElementById('certIssuer').innerText = cert.issuer_name.split(',')[0].replace('O=', '') || "Unknown";
+                document.getElementById('certDate').innerText = "Logged: " + cert.entry_timestamp.split('T')[0];
+            } else {
+                document.getElementById('certIssuer').innerText = "No Log Found";
+                document.getElementById('certDate').innerText = "";
+            }
+
+            // Cleanup
+            status.classList.add('hidden');
+            grid.classList.remove('opacity-50', 'pointer-events-none');
+        }
+
+        function renderDNS(ns, mx, txt, a, aaaa, cname, soa, dmarc) {
+            // CNAME
+            const cnameEl = document.getElementById('cnameData');
+            const cnameCont = document.getElementById('cnameContainer');
+            if (cname && cname.length > 0) {
+                cnameCont.classList.remove('hidden');
+                cnameEl.innerHTML = cname.map(r => `<div>${r.data} ${formatTTL(r.TTL)}</div>`).join('');
+            }
+
+            // SOA
+            const soaEl = document.getElementById('soaData');
+            if (soa && soa.length > 0) {
+                const parts = soa[0].data.split(' ');
+                // Simple parse of SOA (MNAME RNAME SERIAL...)
+                soaEl.innerHTML = `
+                    <div class="flex justify-between"><span>Primary NS:</span> <span class="text-white">${parts[0]}</span></div>
+                    <div class="flex justify-between"><span>Admin:</span> <span class="text-white">${parts[1]}</span></div>
+                    <div class="flex justify-between"><span>Serial:</span> <span class="text-white">${parts[2]}</span> ${formatTTL(soa[0].TTL)}</div>
+                `;
+            } else {
+                soaEl.innerHTML = '<span class="italic">No SOA record found.</span>';
+            }
+
+            // NS
+            const nsContainer = document.getElementById('nsData');
+            nsContainer.innerHTML = ns.length ? ns.map(r => 
+                `<div class="flex items-center gap-2 justify-between">
+                    <div class="flex items-center gap-2"><i class="fa-solid fa-network-wired text-xs text-obsidian-accent"></i><span class="text-sm text-gray-300 font-mono">${r.data}</span></div>
+                    ${formatTTL(r.TTL)}
+                 </div>`
+            ).join('') : `<span class="text-red-500 text-xs">No NS records found.</span>`;
+
+            // MX
+            const mxContainer = document.getElementById('mxData');
+            mxContainer.innerHTML = mx.length ? mx.sort((a,b) => parseInt(a.data)-parseInt(b.data)).map(r => 
+                `<div class="flex items-center justify-between border-l-2 border-obsidian-accent pl-2">
+                    <span class="text-sm text-gray-300 font-mono text-xs break-all">${r.data}</span>
+                    ${formatTTL(r.TTL)}
+                 </div>`
+            ).join('') : `<span class="text-yellow-500 text-xs">No MX records.</span>`;
+
+            // A & AAAA
+            document.getElementById('aData').innerHTML = a.length ? a.map(r => `<div class="flex justify-between"><span>${r.data}</span>${formatTTL(r.TTL)}</div>`).join('') : '<span class="text-gray-600">No A Records</span>';
+            document.getElementById('aaaaData').innerHTML = aaaa.length ? aaaa.map(r => `<div class="flex justify-between"><span>${r.data}</span>${formatTTL(r.TTL)}</div>`).join('') : '<span class="text-gray-600">No AAAA Records</span>';
+
+            // Raw TXT (Filtered for display)
+            const txtEl = document.getElementById('txtData');
+            if(txt.length > 0) {
+                txtEl.innerHTML = txt.map(r => {
+                    const clean = r.data.replace(/"/g, '');
+                    return `<div class="border-b border-white/5 pb-1 mb-1 last:border-0">
+                        <span class="break-all text-gray-400">${clean}</span>
+                        ${formatTTL(r.TTL)}
+                    </div>`;
+                }).join('');
+            } else {
+                txtEl.innerHTML = '<span class="text-gray-600">No TXT records.</span>';
+            }
+
+            // SPF
+            const spfRecord = txt.find(r => r.data.includes('v=spf1'));
+            const spfStatusEl = document.getElementById('spfStatus');
+            if (spfRecord) {
+                const cleanSpf = spfRecord.data.replace(/"/g, ''); 
+                document.getElementById('spfRaw').innerText = cleanSpf;
+                if (cleanSpf.includes('-all')) {
+                    spfStatusEl.innerText = "Hard Fail";
+                    spfStatusEl.className = "status-badge bg-green-900/30 text-green-400 border border-green-500/30";
+                } else if (cleanSpf.includes('~all')) {
+                    spfStatusEl.innerText = "Soft Fail";
+                    spfStatusEl.className = "status-badge bg-yellow-900/30 text-yellow-400 border border-yellow-500/30";
+                } else {
+                    spfStatusEl.innerText = "Neutral/Insecure";
+                    spfStatusEl.className = "status-badge bg-red-900/30 text-red-400 border border-red-500/30";
+                }
+            } else {
+                document.getElementById('spfRaw').innerText = "No SPF Record";
+                spfStatusEl.innerText = "Missing";
+                spfStatusEl.className = "status-badge bg-red-900/30 text-red-400";
+            }
+
+            // DMARC
+            const dmarcRecord = dmarc.find(r => r.data.includes('v=DMARC1'));
+            const dmarcStatusEl = document.getElementById('dmarcStatus');
+            if (dmarcRecord) {
+                const cleanDmarc = dmarcRecord.data.replace(/"/g, '');
+                document.getElementById('dmarcRaw').innerText = cleanDmarc;
+                if (cleanDmarc.includes('p=reject')) {
+                    dmarcStatusEl.innerText = "Reject";
+                    dmarcStatusEl.className = "status-badge bg-green-900/30 text-green-400 border border-green-500/30";
+                } else if (cleanDmarc.includes('p=quarantine')) {
+                    dmarcStatusEl.innerText = "Quarantine";
+                    dmarcStatusEl.className = "status-badge bg-blue-900/30 text-blue-400 border border-blue-500/30";
+                } else {
+                    dmarcStatusEl.innerText = "None";
+                    dmarcStatusEl.className = "status-badge bg-yellow-900/30 text-yellow-400 border border-yellow-500/30";
+                }
+            } else {
+                document.getElementById('dmarcRaw').innerText = "No DMARC Record";
+                dmarcStatusEl.innerText = "Missing";
+                dmarcStatusEl.className = "status-badge bg-red-900/30 text-red-400";
+            }
+        }
+
+        // Enter key trigger
+        document.getElementById('domainInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') runAnalysis();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Flow Designer | HomeLab Playground</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',
+                            pane: '#252526',
+                            border: '#3c3c3c',
+                            accent: '#7c3aed',
+                            text: '#cccccc'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4c4c4c; }
+
+        .dragging { opacity: 0.5; transform: scale(0.95); }
+        .drag-over { border-color: #7c3aed !important; background: rgba(124, 58, 237, 0.05); }
+        
+        input:focus, textarea:focus { outline: none; border-color: #7c3aed !important; }
+        
+        .phase-column { min-width: 350px; width: 350px; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-4">
+            <i class="fa-solid fa-diagram-project text-obsidian-accent text-xl"></i>
+            <div class="flex flex-col">
+                <input type="text" id="project-name" placeholder="Untitled Project" 
+                    class="bg-transparent border-none font-bold text-white focus:ring-0 text-sm md:text-base w-48 md:w-64 p-0 leading-tight"
+                    onchange="updateProjectName(this.value)">
+                <span id="global-hours" class="text-[9px] text-gray-500 font-mono uppercase tracking-tighter">Total Scope: 0 hrs</span>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-1 md:gap-2">
+            <button onclick="addPhase()" class="p-2 hover:bg-white/5 rounded-md text-obsidian-text transition-colors flex items-center gap-2" title="Add Phase">
+                <i class="fa-solid fa-plus text-obsidian-accent"></i> 
+                <span class="hidden lg:inline text-[10px] font-bold uppercase tracking-widest">Add Phase</span>
+            </button>
+            <div class="w-px h-6 bg-obsidian-border mx-1"></div>
+            
+            <input type="file" id="import-input" class="hidden" accept=".json" onchange="handleImport(event)">
+            <button onclick="document.getElementById('import-input').click()" class="p-2 hover:bg-white/5 rounded-md text-blue-400 transition-colors" title="Import Template (JSON)">
+                <i class="fa-solid fa-file-import"></i>
+            </button>
+
+            <button onclick="exportCSV()" class="p-2 hover:bg-white/5 rounded-md text-green-500 transition-colors" title="Export to Excel (CSV)">
+                <i class="fa-solid fa-file-excel"></i>
+            </button>
+            <button onclick="exportJSON()" class="p-2 hover:bg-white/5 rounded-md text-obsidian-text transition-colors" title="Export Baseline (JSON)">
+                <i class="fa-solid fa-code"></i>
+            </button>
+            <button onclick="generatePlan()" class="p-2 hover:bg-white/5 rounded-md text-obsidian-text transition-colors" title="Generate Implementation Plan">
+                <i class="fa-solid fa-clipboard-check"></i>
+            </button>
+            <button onclick="clearAll()" class="p-2 hover:bg-red-500/10 hover:text-red-400 rounded-md text-obsidian-text transition-colors" title="Clear Project">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-x-auto overflow-y-hidden bg-[#121212] p-6 flex gap-6" id="board">
+        </main>
+
+    <div id="modal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="p-4 border-b border-obsidian-border flex justify-between items-center">
+                <h2 class="font-bold text-white" id="modal-title">Output</h2>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 font-mono text-xs leading-relaxed whitespace-pre-wrap text-gray-300" id="modal-content"></div>
+            <div class="p-4 border-t border-obsidian-border text-right space-x-2">
+                <button onclick="copyModalContent()" class="px-4 py-2 bg-obsidian-accent hover:bg-violet-600 text-white rounded text-sm transition-colors">
+                    <i class="fa-solid fa-copy mr-2"></i> Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // Versioned key to prevent data collision with older versions
+        const STORAGE_KEY = 'hp_project_flow_v4';
+
+        let projectData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+            name: "Switch Refresh Baseline",
+            phases: [
+                { id: 'p1', title: 'Phase 1: Pre-Config', tasks: [
+                    { id: 't-surv', title: 'On-site Survey', owner: 'Tech A', dep: 'N/A', hours: 2, criteria: 'Verify rack space, power, and existing cable lengths.' }
+                ]}
+            ]
+        };
+
+        function save() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(projectData));
+            renderBoard();
+        }
+
+        function renderBoard() {
+            document.getElementById('project-name').value = projectData.name || '';
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            let grandTotal = 0;
+
+            projectData.phases.forEach((phase) => {
+                const phaseTotal = phase.tasks.reduce((sum, t) => sum + (parseFloat(t.hours) || 0), 0);
+                grandTotal += phaseTotal;
+                
+                const col = document.createElement('div');
+                col.className = 'phase-column flex flex-col h-full bg-obsidian-pane border border-obsidian-border rounded-lg shadow-lg shrink-0';
+                col.setAttribute('ondragover', 'allowDrop(event)');
+                col.setAttribute('ondrop', `dropTask(event, '${phase.id}')`);
+                col.setAttribute('ondragenter', 'this.classList.add("drag-over")');
+                col.setAttribute('ondragleave', 'this.classList.remove("drag-over")');
+
+                col.innerHTML = `
+                    <div class="p-4 border-b border-obsidian-border shrink-0">
+                        <div class="flex justify-between items-center mb-1">
+                            <input type="text" value="${phase.title}" 
+                                class="bg-transparent font-bold text-white w-full border-none focus:ring-0 p-0"
+                                onchange="updatePhaseTitle('${phase.id}', this.value)">
+                            <button onclick="removePhase('${phase.id}')" class="text-gray-600 hover:text-red-400 ml-2"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                        </div>
+                        <div class="text-[10px] text-obsidian-accent font-mono uppercase tracking-widest">
+                            Phase Effort: ${phaseTotal} hrs
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-3 space-y-4">
+                        ${phase.tasks.map(task => `
+                            <div class="bg-obsidian-bg border border-obsidian-border p-3 rounded-md shadow-sm cursor-move group relative"
+                                draggable="true" ondragstart="dragTask(event, '${task.id}', '${phase.id}')">
+                                
+                                <div class="flex justify-between items-start mb-2">
+                                    <input type="text" value="${task.title}" 
+                                        class="bg-transparent text-sm font-bold text-violet-400 border-none p-0 focus:ring-0 w-full"
+                                        placeholder="Task Name"
+                                        onchange="updateTaskField('${phase.id}', '${task.id}', 'title', this.value)">
+                                    <button onclick="removeTask('${phase.id}', '${task.id}')" class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition-opacity">
+                                        <i class="fa-solid fa-xmark text-xs"></i>
+                                    </button>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <textarea 
+                                        class="w-full bg-[#121212] text-[11px] border border-obsidian-border p-2 rounded text-obsidian-text placeholder:text-gray-700 resize-none h-16 font-sans"
+                                        placeholder="Success Criteria..."
+                                        onchange="updateTaskField('${phase.id}', '${task.id}', 'criteria', this.value)">${task.criteria || ''}</textarea>
+                                    
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <div>
+                                            <label class="text-[9px] uppercase text-gray-500 block mb-0.5">Owner</label>
+                                            <input type="text" value="${task.owner}" 
+                                                class="bg-[#121212] text-[11px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono"
+                                                onchange="updateTaskField('${phase.id}', '${task.id}', 'owner', this.value)">
+                                        </div>
+                                        <div>
+                                            <label class="text-[9px] uppercase text-gray-500 block mb-0.5">Dep</label>
+                                            <input type="text" value="${task.dep}" 
+                                                class="bg-[#121212] text-[11px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono"
+                                                onchange="updateTaskField('${phase.id}', '${task.id}', 'dep', this.value)">
+                                        </div>
+                                        <div>
+                                            <label class="text-[9px] uppercase text-gray-500 block mb-0.5">Hrs</label>
+                                            <input type="number" step="0.5" value="${task.hours}" 
+                                                class="bg-[#121212] text-[11px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono"
+                                                onchange="updateTaskField('${phase.id}', '${task.id}', 'hours', this.value)">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="absolute bottom-1 right-2 text-[8px] text-gray-700 font-mono select-none uppercase">ID: ${task.id}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="p-3 border-t border-obsidian-border">
+                        <button onclick="addTask('${phase.id}')" class="w-full py-2 bg-white/5 hover:bg-violet-500/10 border border-obsidian-border rounded text-[11px] font-bold uppercase tracking-wider text-obsidian-text transition-all">
+                            <i class="fa-solid fa-plus mr-1"></i> Add Task
+                        </button>
+                    </div>
+                `;
+                board.appendChild(col);
+            });
+
+            document.getElementById('global-hours').innerText = `Total Scope: ${grandTotal} hrs`;
+        }
+
+        // --- HANDLERS ---
+        function updateProjectName(val) { projectData.name = val; save(); }
+        function updatePhaseTitle(id, val) { 
+            const phase = projectData.phases.find(p => p.id === id);
+            if(phase) phase.title = val;
+            save();
+        }
+        function addPhase() {
+            projectData.phases.push({ id: 'p' + Date.now(), title: 'New Phase', tasks: [] });
+            save();
+        }
+        function removePhase(id) {
+            if(confirm('Delete phase and all contents?')) {
+                projectData.phases = projectData.phases.filter(p => p.id !== id);
+                save();
+            }
+        }
+        function addTask(phaseId) {
+            const phase = projectData.phases.find(p => p.id === phaseId);
+            if(phase) {
+                phase.tasks.push({ 
+                    id: Math.random().toString(36).substr(2, 4).toUpperCase(), 
+                    title: '', owner: '', dep: '', hours: 0, criteria: '' 
+                });
+                save();
+            }
+        }
+        function updateTaskField(pId, tId, field, val) {
+            const phase = projectData.phases.find(p => p.id === pId);
+            const task = phase.tasks.find(t => t.id === tId);
+            if(task) task[field] = (field === 'hours') ? parseFloat(val) : val;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(projectData));
+            if (field === 'hours') renderBoard();
+        }
+        function removeTask(pId, tId) {
+            const phase = projectData.phases.find(p => p.id === pId);
+            phase.tasks = phase.tasks.filter(t => t.id !== tId);
+            save();
+        }
+
+        // --- IMPORT/EXPORT ---
+
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported.phases && Array.isArray(imported.phases)) {
+                        projectData = imported;
+                        save();
+                        alert('Project imported successfully.');
+                    } else {
+                        throw new Error('Invalid project structure');
+                    }
+                } catch (err) {
+                    alert('Error: This is not a valid project JSON file.');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input
+        }
+
+        function exportJSON() {
+            const blob = new Blob([JSON.stringify(projectData, null, 2)], {type : 'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${projectData.name.replace(/\s+/g, '_')}_baseline.json`;
+            a.click();
+        }
+
+        function exportCSV() {
+            let csv = "Phase,Task ID,Task Title,Owner,Dependency,Hours,Success Criteria\n";
+            projectData.phases.forEach(phase => {
+                phase.tasks.forEach(task => {
+                    const row = [
+                        `"${phase.title.replace(/"/g, '""')}"`,
+                        `"${task.id}"`,
+                        `"${task.title.replace(/"/g, '""')}"`,
+                        `"${task.owner.replace(/"/g, '""')}"`,
+                        `"${task.dep}"`,
+                        task.hours,
+                        `"${task.criteria.replace(/"/g, '""').replace(/\n/g, ' ')}"`
+                    ];
+                    csv += row.join(",") + "\n";
+                });
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `${projectData.name.replace(/\s+/g, '_')}_export.csv`;
+            link.click();
+        }
+
+        function generatePlan() {
+            let output = `IMPLEMENTATION STRATEGY: ${projectData.name.toUpperCase()}\n`;
+            output += "=".repeat(65) + "\n\n";
+            projectData.phases.forEach((phase, i) => {
+                const total = phase.tasks.reduce((sum, t) => sum + (parseFloat(t.hours) || 0), 0);
+                output += `PHASE ${i + 1}: ${phase.title} (Est: ${total} hrs)\n` + "-".repeat(40) + "\n";
+                phase.tasks.forEach(t => {
+                    output += `[ ] [${t.id}] ${t.title || 'Untitled Task'} \n`;
+                    output += `    Lead: ${t.owner || 'N/A'} | Budget: ${t.hours} hrs | Dependency: ${t.dep || 'N/A'}\n`;
+                    if(t.criteria) output += `    Req to Close: ${t.criteria}\n`;
+                    output += `\n`;
+                });
+                output += "\n";
+            });
+            document.getElementById('modal-title').innerText = "Formatted Implementation Plan";
+            document.getElementById('modal-content').innerText = output;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        // --- UTILS ---
+        let draggedTaskId = null, sourcePhaseId = null;
+        function dragTask(ev, tId, pId) { draggedTaskId = tId; sourcePhaseId = pId; ev.target.classList.add('dragging'); }
+        function allowDrop(ev) { ev.preventDefault(); }
+        function dropTask(ev, targetPhaseId) {
+            ev.preventDefault();
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            if (sourcePhaseId === targetPhaseId) { renderBoard(); return; }
+            const sourcePhase = projectData.phases.find(p => p.id === sourcePhaseId);
+            const targetPhase = projectData.phases.find(p => p.id === targetPhaseId);
+            const taskIndex = sourcePhase.tasks.findIndex(t => t.id === draggedTaskId);
+            const task = sourcePhase.tasks.splice(taskIndex, 1)[0];
+            targetPhase.tasks.push(task);
+            save();
+        }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function copyModalContent() {
+            navigator.clipboard.writeText(document.getElementById('modal-content').innerText);
+            alert('Copied to clipboard!');
+        }
+        function clearAll() { if(confirm('Wipe project?')) { projectData = { name: "New Project", phases: [] }; save(); } }
+
+        renderBoard();
+    </script>
+</body>
+</html>
