@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snippet Library | Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Line Clamp for preview text */
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Editor Transition */
+        #editor-modal {
+            transition: opacity 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-layer-group text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-white">Snippet<span class="text-obsidian-accent">Library</span></h1>
+        </div>
+        <button onclick="openEditor()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">New Snippet</span>
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto relative flex flex-col">
+        
+        <div class="sticky top-0 bg-obsidian-bg/95 backdrop-blur-sm border-b border-obsidian-border p-4 z-10">
+            <div class="relative max-w-2xl mx-auto w-full">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                <input type="text" id="search-input" oninput="renderSnippets()" 
+                    placeholder="Search snippets by title, language, or code..." 
+                    class="w-full bg-black/20 border border-obsidian-border rounded-md py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-obsidian-accent transition-colors">
+            </div>
+        </div>
+
+        <div id="snippet-grid" class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto w-full">
+            </div>
+
+        <div id="empty-state" class="hidden flex-1 flex flex-col items-center justify-center text-gray-500 mt-20">
+            <i class="fa-solid fa-code text-6xl mb-4 opacity-20"></i>
+            <p class="text-lg">No snippets found.</p>
+            <button onclick="openEditor()" class="mt-4 text-obsidian-accent hover:text-white underline text-sm">Create your first snippet</button>
+        </div>
+    </main>
+
+    <div id="editor-modal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-obsidian-pane w-full max-w-3xl rounded-lg shadow-2xl border border-obsidian-border flex flex-col max-h-[90vh]">
+            
+            <div class="flex items-center justify-between p-4 border-b border-obsidian-border">
+                <h2 id="modal-title" class="text-white font-semibold">New Snippet</h2>
+                <button onclick="closeEditor()" class="text-gray-400 hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-4 flex flex-col gap-4 flex-1 overflow-y-auto">
+                <input type="hidden" id="snippet-id">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs text-gray-500 mb-1 uppercase font-bold tracking-wider">Title</label>
+                        <input type="text" id="input-title" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:outline-none focus:border-obsidian-accent" placeholder="e.g. Docker Compose Setup">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1 uppercase font-bold tracking-wider">Language</label>
+                        <select id="input-lang" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:outline-none focus:border-obsidian-accent appearance-none">
+                            <option value="plaintext">Plain Text</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="html">HTML</option>
+                            <option value="css">CSS</option>
+                            <option value="python">Python</option>
+                            <option value="bash">Bash / Shell</option>
+                            <option value="json">JSON</option>
+                            <option value="yaml">YAML</option>
+                            <option value="sql">SQL</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col min-h-[300px]">
+                    <label class="block text-xs text-gray-500 mb-1 uppercase font-bold tracking-wider">Code</label>
+                    <textarea id="input-code" class="flex-1 w-full bg-obsidian-bg border border-obsidian-border rounded p-3 text-sm font-mono text-gray-300 focus:outline-none focus:border-obsidian-accent resize-none leading-relaxed" spellcheck="false" placeholder="// Paste your code here..."></textarea>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-obsidian-border flex justify-between bg-obsidian-bg/30">
+                <button type="button" onclick="deleteCurrentSnippet()" id="btn-delete" class="text-red-400 hover:text-red-300 text-sm px-3 py-2 rounded hover:bg-red-500/10 transition-colors hidden">
+                    <i class="fa-solid fa-trash mr-1"></i> Delete
+                </button>
+                <div class="ml-auto flex gap-3">
+                    <button onclick="closeEditor()" class="text-gray-400 hover:text-white px-4 py-2 text-sm transition-colors">Cancel</button>
+                    <button onclick="saveSnippet()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-6 py-2 rounded text-sm font-medium transition-colors shadow-lg shadow-violet-900/20">
+                        Save Snippet
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        let snippets = [];
+        
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSnippets();
+            renderSnippets();
+        });
+
+        // --- Data Persistence ---
+        function loadSnippets() {
+            const stored = localStorage.getItem('hlp_snippets');
+            if (stored) {
+                snippets = JSON.parse(stored);
+            } else {
+                // Add a default snippet if empty
+                snippets = [{
+                    id: crypto.randomUUID(),
+                    title: 'Welcome Snippet',
+                    language: 'javascript',
+                    code: '// Welcome to your Snippet Library!\n// You can save, edit, and search your code here.\n\nconsole.log("Hello World");',
+                    timestamp: Date.now()
+                }];
+                saveToStorage();
+            }
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('hlp_snippets', JSON.stringify(snippets));
+        }
+
+        // --- Core Functions ---
+        
+        function saveSnippet() {
+            const id = document.getElementById('snippet-id').value;
+            const title = document.getElementById('input-title').value.trim() || 'Untitled Snippet';
+            const language = document.getElementById('input-lang').value;
+            const code = document.getElementById('input-code').value;
+
+            if (id) {
+                // Update existing
+                const index = snippets.findIndex(s => s.id === id);
+                if (index !== -1) {
+                    snippets[index] = { ...snippets[index], title, language, code, timestamp: Date.now() };
+                }
+            } else {
+                // Create new
+                const newSnippet = {
+                    id: crypto.randomUUID(),
+                    title,
+                    language,
+                    code,
+                    timestamp: Date.now()
+                };
+                snippets.unshift(newSnippet); // Add to top
+            }
+
+            saveToStorage();
+            renderSnippets();
+            closeEditor();
+        }
+
+        function deleteCurrentSnippet() {
+            const id = document.getElementById('snippet-id').value;
+            if (!id) return;
+            
+            if(confirm('Are you sure you want to delete this snippet?')) {
+                snippets = snippets.filter(s => s.id !== id);
+                saveToStorage();
+                renderSnippets();
+                closeEditor();
+            }
+        }
+
+        function renderSnippets() {
+            const grid = document.getElementById('snippet-grid');
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const emptyState = document.getElementById('empty-state');
+
+            grid.innerHTML = '';
+
+            const filtered = snippets.filter(s => 
+                s.title.toLowerCase().includes(search) || 
+                s.code.toLowerCase().includes(search) ||
+                s.language.toLowerCase().includes(search)
+            );
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach(snippet => {
+                const langIcon = getLangIcon(snippet.language);
+                const card = document.createElement('div');
+                card.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex flex-col hover:border-obsidian-accent/50 transition-colors group h-64 shadow-sm';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <i class="${langIcon} text-obsidian-accent text-lg w-5 text-center"></i>
+                            <div>
+                                <h3 class="font-bold text-gray-200 truncate cursor-pointer hover:text-white" onclick="editSnippet('${snippet.id}')">${escapeHtml(snippet.title)}</h3>
+                                <span class="text-xs text-gray-500 font-mono capitalize">${snippet.language}</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="copyCode('${snippet.id}')" class="text-gray-500 hover:text-white p-1.5 rounded hover:bg-white/10" title="Copy Code">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                            <button onclick="editSnippet('${snippet.id}')" class="text-gray-500 hover:text-obsidian-accent p-1.5 rounded hover:bg-white/10" title="Edit">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 bg-obsidian-bg rounded p-3 overflow-hidden relative border border-obsidian-border/50 cursor-pointer" onclick="editSnippet('${snippet.id}')">
+                        <pre class="text-xs font-mono text-gray-400 line-clamp-6 leading-5 pointer-events-none">${escapeHtml(snippet.code)}</pre>
+                        <div class="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-obsidian-bg to-transparent"></div>
+                    </div>
+                    <div class="mt-3 flex justify-between items-center text-xs text-gray-600">
+                        <span>${new Date(snippet.timestamp).toLocaleDateString()}</span>
+                        <span class="font-mono text-[10px] bg-obsidian-bg px-1.5 py-0.5 rounded border border-obsidian-border">${snippet.code.length} chars</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- Helpers & Utility ---
+
+        function openEditor(snippetId = null) {
+            const modal = document.getElementById('editor-modal');
+            const titleEl = document.getElementById('modal-title');
+            const deleteBtn = document.getElementById('btn-delete');
+            
+            // Reset Form
+            document.getElementById('snippet-id').value = '';
+            document.getElementById('input-title').value = '';
+            document.getElementById('input-lang').value = 'plaintext';
+            document.getElementById('input-code').value = '';
+
+            if (snippetId) {
+                // Edit Mode
+                const snippet = snippets.find(s => s.id === snippetId);
+                if (snippet) {
+                    document.getElementById('snippet-id').value = snippet.id;
+                    document.getElementById('input-title').value = snippet.title;
+                    document.getElementById('input-lang').value = snippet.language;
+                    document.getElementById('input-code').value = snippet.code;
+                    
+                    titleEl.innerText = 'Edit Snippet';
+                    deleteBtn.classList.remove('hidden');
+                }
+            } else {
+                // Create Mode
+                titleEl.innerText = 'New Snippet';
+                deleteBtn.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('input-title').focus();
+        }
+
+        function closeEditor() {
+            const modal = document.getElementById('editor-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function editSnippet(id) {
+            openEditor(id);
+        }
+
+        function copyCode(id) {
+            const snippet = snippets.find(s => s.id === id);
+            if (snippet) {
+                navigator.clipboard.writeText(snippet.code).then(() => {
+                    // Show a temporary toast or change icon
+                    const btn = event.currentTarget;
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '<i class="fa-solid fa-check text-green-400"></i>';
+                    setTimeout(() => btn.innerHTML = originalHTML, 1500);
+                });
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        function getLangIcon(lang) {
+            const map = {
+                'javascript': 'fa-brands fa-js',
+                'html': 'fa-brands fa-html5',
+                'css': 'fa-brands fa-css3-alt',
+                'python': 'fa-brands fa-python',
+                'java': 'fa-brands fa-java',
+                'bash': 'fa-solid fa-terminal',
+                'docker': 'fa-brands fa-docker',
+                'sql': 'fa-solid fa-database',
+                'json': 'fa-solid fa-code',
+                'yaml': 'fa-solid fa-file-code'
+            };
+            return map[lang] || 'fa-solid fa-file-code';
+        }
+
+        // Close modal on outside click
+        document.getElementById('editor-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'editor-modal') closeEditor();
+        });
+    </script>
+</body>
+</html>
