@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFmpeg Command Builder - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b4b4b; 
+        }
+
+        /* Form Element Resets for Dark Mode consistency */
+        select, input[type="text"], input[type="number"] {
+            color-scheme: dark;
+        }
+        
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #7c3aed;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #7c3aed;
+        }
+        
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-violet-900/20">
+                <i class="fa-solid fa-terminal text-sm"></i>
+            </div>
+            <h1 class="font-bold text-lg tracking-tight text-white">FFmpeg <span class="text-obsidian-accent">Builder</span></h1>
+        </div>
+        <button id="resetBtn" class="text-xs bg-obsidian-bg border border-obsidian-border hover:bg-white/5 text-gray-400 hover:text-white px-3 py-1.5 rounded transition-colors">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        
+        <div class="w-full bg-obsidian-pane border border-obsidian-border rounded-lg shadow-xl overflow-hidden order-first mb-6 relative group">
+            <div class="px-4 py-2 border-b border-obsidian-border bg-[#1a1a1a] flex justify-between items-center">
+                <span class="text-xs font-mono text-gray-500 uppercase tracking-wider">Generated Command</span>
+                <span class="text-xs text-obsidian-accent hidden group-hover:block transition-opacity duration-300">Ready to run</span>
+            </div>
+            <div class="p-0 relative">
+                <textarea id="outputCmd" readonly 
+                    class="w-full h-24 bg-[#111111] text-green-400 font-mono text-sm p-4 resize-none focus:outline-none border-none leading-relaxed"></textarea>
+                <button onclick="copyCommand()" 
+                    class="absolute bottom-3 right-3 bg-obsidian-accent hover:bg-violet-600 text-white p-2 rounded shadow-lg transition-transform active:scale-95 flex items-center gap-2 text-sm font-medium">
+                    <i class="fa-regular fa-copy"></i>
+                    <span>Copy</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
+
+            <div class="space-y-6">
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5">
+                    <h2 class="text-white font-semibold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-file-video text-obsidian-accent"></i> Input & Output
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1.5 font-mono">QUICK PRESET</label>
+                            <select id="presetSelect" class="w-full bg-obsidian-bg border border-obsidian-border text-gray-300 text-sm rounded px-3 py-2 focus:border-obsidian-accent outline-none">
+                                <option value="custom">Custom Configuration</option>
+                                <option value="mkv_mp4">Convert MKV to MP4 (Copy Stream)</option>
+                                <option value="extract_audio">Extract Audio to MP3</option>
+                                <option value="compress_h265">Compress (H.265 + AAC)</option>
+                                <option value="gif">Video to GIF</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1.5 font-mono">INPUT FILENAME</label>
+                            <input type="text" id="inputFile" value="input.mkv" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border text-white font-mono text-sm rounded px-3 py-2 focus:border-obsidian-accent outline-none placeholder-gray-600">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1.5 font-mono">OUTPUT CONTAINER</label>
+                            <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                <button type="button" class="container-btn px-2 py-1.5 text-sm border border-obsidian-border rounded bg-obsidian-bg hover:bg-white/5 transition-colors text-center" data-val="mp4">mp4</button>
+                                <button type="button" class="container-btn px-2 py-1.5 text-sm border border-obsidian-border rounded bg-obsidian-bg hover:bg-white/5 transition-colors text-center" data-val="mkv">mkv</button>
+                                <button type="button" class="container-btn px-2 py-1.5 text-sm border border-obsidian-border rounded bg-obsidian-bg hover:bg-white/5 transition-colors text-center" data-val="webm">webm</button>
+                                <button type="button" class="container-btn px-2 py-1.5 text-sm border border-obsidian-border rounded bg-obsidian-bg hover:bg-white/5 transition-colors text-center" data-val="mov">mov</button>
+                                <button type="button" class="container-btn px-2 py-1.5 text-sm border border-obsidian-border rounded bg-obsidian-bg hover:bg-white/5 transition-colors text-center" data-val="mp3">mp3</button>
+                            </div>
+                            <input type="hidden" id="containerFormat" value="mp4">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-white font-semibold flex items-center gap-2">
+                            <i class="fa-solid fa-scissors text-obsidian-accent"></i> Trim
+                        </h2>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="trimEnable" class="sr-only peer">
+                            <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-obsidian-accent"></div>
+                        </label>
+                    </div>
+
+                    <div id="trimOptions" class="grid grid-cols-2 gap-4 opacity-50 pointer-events-none transition-opacity">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1.5 font-mono">START (HH:MM:SS)</label>
+                            <input type="text" id="trimStart" placeholder="00:00:00" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border text-white font-mono text-sm rounded px-3 py-2 focus:border-obsidian-accent outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1.5 font-mono">DURATION / END</label>
+                            <div class="flex">
+                                <select id="trimType" class="bg-obsidian-bg border border-r-0 border-obsidian-border text-gray-400 text-xs rounded-l px-2 focus:outline-none">
+                                    <option value="-t">Duration</option>
+                                    <option value="-to">End At</option>
+                                </select>
+                                <input type="text" id="trimEnd" placeholder="00:00:10" 
+                                    class="w-full bg-obsidian-bg border border-obsidian-border text-white font-mono text-sm rounded-r px-3 py-2 focus:border-obsidian-accent outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5">
+                    <h2 class="text-white font-semibold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-film text-obsidian-accent"></i> Video
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1.5 font-mono">CODEC</label>
+                            <select id="videoCodec" class="w-full bg-obsidian-bg border border-obsidian-border text-white text-sm rounded px-3 py-2 focus:border-obsidian-accent outline-none">
+                                <option value="copy" selected>Copy (Stream Copy - Fast)</option>
+                                <option value="libx264">H.264 (MP4/MKV Standard)</option>
+                                <option value="libx265">H.265 (HEVC - High Compress)</option>
+                                <option value="libvpx-vp9">VP9 (WebM)</option>
+                                <option value="prores_ks">ProRes (Editing)</option>
+                                <option value="gif">GIF (Animation)</option>
+                                <option value="vn">Disable Video (-vn)</option>
+                            </select>
+                        </div>
+
+                        <div id="videoFilters" class="transition-all duration-300">
+                            <div class="border-t border-obsidian-border my-4"></div>
+                            
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-xs text-gray-500 font-mono">SCALE / RESIZE</label>
+                                <select id="scalePreset" class="bg-obsidian-bg border border-obsidian-border text-xs text-white rounded px-2 py-1">
+                                    <option value="none">Original</option>
+                                    <option value="1920:1080">1080p</option>
+                                    <option value="1280:720">720p</option>
+                                    <option value="-1:720">Height 720p (Auto width)</option>
+                                    <option value="iw/2:ih/2">Half Size</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center justify-between mb-2 mt-4">
+                                <label class="text-xs text-gray-500 font-mono">FRAME RATE</label>
+                                <select id="fpsSelect" class="bg-obsidian-bg border border-obsidian-border text-xs text-white rounded px-2 py-1">
+                                    <option value="none">Original</option>
+                                    <option value="60">60 fps</option>
+                                    <option value="30">30 fps</option>
+                                    <option value="24">24 fps</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center justify-between mb-2 mt-4">
+                                <label class="text-xs text-gray-500 font-mono">CRF (QUALITY: <span id="crfValueDisplay">23</span>)</label>
+                                <input type="range" id="crfRange" min="0" max="51" value="23" class="w-32 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">Lower is higher quality. 18-28 is standard.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5">
+                    <h2 class="text-white font-semibold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-music text-obsidian-accent"></i> Audio
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1.5 font-mono">CODEC</label>
+                            <select id="audioCodec" class="w-full bg-obsidian-bg border border-obsidian-border text-white text-sm rounded px-3 py-2 focus:border-obsidian-accent outline-none">
+                                <option value="copy" selected>Copy (Stream Copy)</option>
+                                <option value="aac">AAC (Standard)</option>
+                                <option value="libmp3lame">MP3</option>
+                                <option value="ac3">AC3 (Dolby)</option>
+                                <option value="flac">FLAC (Lossless)</option>
+                                <option value="an">Remove Audio (-an)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="audioBitrateGroup" class="hidden">
+                             <label class="block text-xs text-gray-500 mb-1.5 font-mono">BITRATE</label>
+                             <select id="audioBitrate" class="w-full bg-obsidian-bg border border-obsidian-border text-white text-sm rounded px-3 py-2 focus:border-obsidian-accent outline-none">
+                                <option value="128k" selected>128k</option>
+                                <option value="192k">192k</option>
+                                <option value="320k">320k</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="h-8"></div> </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-obsidian-accent text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            input: 'input.mkv',
+            container: 'mp4',
+            trim: { enabled: false, start: '', end: '', type: '-t' },
+            video: { codec: 'copy', scale: 'none', fps: 'none', crf: 23 },
+            audio: { codec: 'copy', bitrate: '128k' }
+        };
+
+        // --- DOM Elements ---
+        const els = {
+            output: document.getElementById('outputCmd'),
+            inputFile: document.getElementById('inputFile'),
+            containerBtns: document.querySelectorAll('.container-btn'),
+            trimEnable: document.getElementById('trimEnable'),
+            trimOptions: document.getElementById('trimOptions'),
+            trimStart: document.getElementById('trimStart'),
+            trimEnd: document.getElementById('trimEnd'),
+            trimType: document.getElementById('trimType'),
+            videoCodec: document.getElementById('videoCodec'),
+            scalePreset: document.getElementById('scalePreset'),
+            fpsSelect: document.getElementById('fpsSelect'),
+            crfRange: document.getElementById('crfRange'),
+            crfValueDisplay: document.getElementById('crfValueDisplay'),
+            audioCodec: document.getElementById('audioCodec'),
+            audioBitrate: document.getElementById('audioBitrate'),
+            audioBitrateGroup: document.getElementById('audioBitrateGroup'),
+            videoFilters: document.getElementById('videoFilters'),
+            presetSelect: document.getElementById('presetSelect'),
+            resetBtn: document.getElementById('resetBtn')
+        };
+
+        // --- Event Listeners ---
+        function attachListeners() {
+            els.inputFile.addEventListener('input', updateState);
+            els.trimEnable.addEventListener('change', updateState);
+            els.trimStart.addEventListener('input', updateState);
+            els.trimEnd.addEventListener('input', updateState);
+            els.trimType.addEventListener('change', updateState);
+            els.videoCodec.addEventListener('change', updateState);
+            els.scalePreset.addEventListener('change', updateState);
+            els.fpsSelect.addEventListener('change', updateState);
+            els.crfRange.addEventListener('input', (e) => {
+                els.crfValueDisplay.textContent = e.target.value;
+                updateState();
+            });
+            els.audioCodec.addEventListener('change', updateState);
+            els.audioBitrate.addEventListener('change', updateState);
+            els.presetSelect.addEventListener('change', applyPreset);
+            els.resetBtn.addEventListener('click', () => location.reload());
+
+            els.containerBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    els.containerBtns.forEach(b => {
+                        b.classList.remove('bg-obsidian-accent', 'text-white', 'border-transparent');
+                        b.classList.add('bg-obsidian-bg', 'text-obsidian-text', 'border-obsidian-border');
+                    });
+                    btn.classList.remove('bg-obsidian-bg', 'text-obsidian-text', 'border-obsidian-border');
+                    btn.classList.add('bg-obsidian-accent', 'text-white', 'border-transparent');
+                    state.container = btn.dataset.val;
+                    build();
+                });
+            });
+        }
+
+        // --- Logic Functions ---
+
+        function updateState() {
+            // Read DOM to State
+            state.input = els.inputFile.value || 'input.mkv';
+            
+            // Trim
+            state.trim.enabled = els.trimEnable.checked;
+            state.trim.start = els.trimStart.value;
+            state.trim.end = els.trimEnd.value;
+            state.trim.type = els.trimType.value;
+            
+            // UI Toggle for Trim
+            if(state.trim.enabled) {
+                els.trimOptions.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                els.trimOptions.classList.add('opacity-50', 'pointer-events-none');
+            }
+
+            // Video
+            state.video.codec = els.videoCodec.value;
+            state.video.scale = els.scalePreset.value;
+            state.video.fps = els.fpsSelect.value;
+            state.video.crf = els.crfRange.value;
+
+            // UI Toggle for Video Filters
+            if(state.video.codec === 'copy' || state.video.codec === 'vn') {
+                els.videoFilters.classList.add('hidden');
+            } else {
+                els.videoFilters.classList.remove('hidden');
+            }
+
+            // Audio
+            state.audio.codec = els.audioCodec.value;
+            state.audio.bitrate = els.audioBitrate.value;
+
+            // UI Toggle for Audio Bitrate
+            if(['aac', 'libmp3lame', 'ac3'].includes(state.audio.codec)) {
+                els.audioBitrateGroup.classList.remove('hidden');
+            } else {
+                els.audioBitrateGroup.classList.add('hidden');
+            }
+
+            build();
+        }
+
+        function build() {
+            let cmd = [];
+            cmd.push('ffmpeg');
+            cmd.push(`-i "${state.input}"`);
+
+            // Trim
+            if (state.trim.enabled) {
+                if (state.trim.start) cmd.push(`-ss ${state.trim.start}`);
+                if (state.trim.end) cmd.push(`${state.trim.type} ${state.trim.end}`);
+            }
+
+            // Video
+            if (state.video.codec === 'vn') {
+                cmd.push('-vn');
+            } else {
+                cmd.push(`-c:v ${state.video.codec}`);
+                
+                // Filters (Only if re-encoding)
+                if(state.video.codec !== 'copy') {
+                    // CRF
+                    if(state.video.codec !== 'gif') {
+                        cmd.push(`-crf ${state.video.crf}`);
+                    }
+                    
+                    // Filter Complex
+                    let filters = [];
+                    if(state.video.scale !== 'none') filters.push(`scale=${state.video.scale}`);
+                    if(state.video.fps !== 'none') filters.push(`fps=${state.video.fps}`);
+                    
+                    if(filters.length > 0) {
+                        cmd.push(`-vf "${filters.join(',')}"`);
+                    }
+                }
+            }
+
+            // Audio
+            if (state.audio.codec === 'an') {
+                cmd.push('-an');
+            } else {
+                cmd.push(`-c:a ${state.audio.codec}`);
+                if (state.audio.codec !== 'copy' && state.audio.codec !== 'flac') {
+                    cmd.push(`-b:a ${state.audio.bitrate}`);
+                }
+            }
+
+            // Container strictness
+            if(state.container === 'mov' && state.video.codec !== 'copy') {
+                cmd.push('-f mov');
+            }
+
+            // Output Filename
+            let inputBase = state.input.substring(0, state.input.lastIndexOf('.')) || 'output';
+            // Clean inputBase if it contains path
+            if(inputBase.includes('/')) inputBase = inputBase.split('/').pop();
+            if(inputBase.includes('\\')) inputBase = inputBase.split('\\').pop();
+            
+            cmd.push(`"${inputBase}_edit.${state.container}"`);
+
+            els.output.value = cmd.join(' ');
+        }
+
+        function applyPreset(e) {
+            const val = e.target.value;
+            if(val === 'custom') return;
+
+            // Reset UI bits first
+            els.trimEnable.checked = false;
+            
+            if(val === 'mkv_mp4') {
+                updateContainerBtn('mp4');
+                setVal(els.videoCodec, 'copy');
+                setVal(els.audioCodec, 'copy');
+            } else if (val === 'extract_audio') {
+                updateContainerBtn('mp3');
+                setVal(els.videoCodec, 'vn');
+                setVal(els.audioCodec, 'libmp3lame');
+            } else if (val === 'compress_h265') {
+                updateContainerBtn('mp4');
+                setVal(els.videoCodec, 'libx265');
+                setVal(els.audioCodec, 'aac');
+                els.crfRange.value = 28;
+                els.crfValueDisplay.innerText = "28";
+            } else if (val === 'gif') {
+                updateContainerBtn('gif'); // Needs logic handling or let user pick extension?
+                // Actually container needs to be gif usually implies specific format
+                // For simplicity, let's treat extension as gif
+                // We don't have gif in container list, let's hack it or ignore.
+                // Assuming gif codec sets container logic implicitly in user mind
+                state.container = 'gif'; // override state directly
+                // Visual update manual
+                els.containerBtns.forEach(b => {
+                    b.classList.remove('bg-obsidian-accent', 'text-white', 'border-transparent');
+                    b.classList.add('bg-obsidian-bg', 'text-obsidian-text', 'border-obsidian-border');
+                });
+                
+                setVal(els.videoCodec, 'gif');
+                setVal(els.audioCodec, 'an');
+                setVal(els.scalePreset, '1280:720'); // reasonable default
+                setVal(els.fpsSelect, '15');
+            }
+
+            updateState();
+        }
+
+        function updateContainerBtn(val) {
+            const btn = document.querySelector(`.container-btn[data-val="${val}"]`);
+            if(btn) btn.click();
+        }
+
+        function setVal(el, val) {
+            el.value = val;
+        }
+
+        function copyCommand() {
+            els.output.select();
+            els.output.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(els.output.value);
+            
+            const btn = document.querySelector('button[onclick="copyCommand()"] span');
+            const original = btn.innerText;
+            btn.innerText = "Copied!";
+            setTimeout(() => btn.innerText = original, 2000);
+        }
+
+        // Initialize
+        attachListeners();
+        // Set default container active
+        updateContainerBtn('mp4');
+        updateState();
+
+    </script>
+</body>
+</html>

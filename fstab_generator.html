@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FSTAB Generator | Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Webkit Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4a4a4a; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5a5a5a; 
+        }
+
+        /* Form Elements */
+        input[type="text"], input[type="number"], select {
+            background-color: #111827;
+            border: 1px solid #3c3c3c;
+            color: #e5e7eb;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #7c3aed;
+        }
+        
+        /* Custom Checkbox */
+        .custom-checkbox {
+            appearance: none;
+            background-color: #111827;
+            margin: 0;
+            font: inherit;
+            color: currentColor;
+            width: 1.15em;
+            height: 1.15em;
+            border: 1px solid #3c3c3c;
+            border-radius: 0.15em;
+            display: grid;
+            place-content: center;
+        }
+        .custom-checkbox::before {
+            content: "";
+            width: 0.65em;
+            height: 0.65em;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em #7c3aed;
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        .custom-checkbox:checked::before {
+            transform: scale(1);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 md:px-6 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-hard-drive text-obsidian-accent text-lg"></i>
+            <h1 class="font-bold text-lg tracking-tight text-white">FSTAB Generator</h1>
+        </div>
+        <div class="text-xs text-gray-500 hidden md:block">
+            Safely mount your drives
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-6">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <div class="space-y-6">
+                
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5">
+                    <h2 class="text-white font-semibold mb-4 flex items-center gap-2">
+                        <span class="bg-obsidian-accent/20 text-obsidian-accent w-6 h-6 rounded flex items-center justify-center text-xs">1</span>
+                        Device & Mount
+                    </h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1.5 uppercase">Identifier Type</label>
+                            <div class="flex bg-[#111827] rounded-md p-1 border border-obsidian-border">
+                                <button onclick="setSourceType('uuid')" id="btn-uuid" class="flex-1 py-1.5 text-xs rounded transition-colors bg-obsidian-accent text-white font-medium">UUID</button>
+                                <button onclick="setSourceType('dev')" id="btn-dev" class="flex-1 py-1.5 text-xs rounded transition-colors text-gray-400 hover:text-white">Device</button>
+                                <button onclick="setSourceType('net')" id="btn-net" class="flex-1 py-1.5 text-xs rounded transition-colors text-gray-400 hover:text-white">Network</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1.5">
+                                <span id="source-label">UUID</span>
+                            </label>
+                            <input type="text" id="input-source" class="w-full px-3 py-2 rounded font-mono text-sm" placeholder="e.g. 1234-5678-ABCD">
+                            <p id="helper-uuid" class="text-[10px] text-gray-500 mt-1"><i class="fa-solid fa-terminal mr-1"></i> Run <code class="bg-[#111827] px-1 rounded text-gray-300">sudo blkid</code> to find UUIDs</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1.5">Mount Point</label>
+                            <input type="text" id="input-mount" class="w-full px-3 py-2 rounded font-mono text-sm" placeholder="/mnt/data">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1.5">Filesystem Type</label>
+                            <select id="input-fs" class="w-full px-3 py-2 rounded font-mono text-sm" onchange="updateOptionsUI()">
+                                <option value="ext4">ext4 (Linux Standard)</option>
+                                <option value="xfs">xfs (High Performance)</option>
+                                <option value="cifs">cifs (SMB / Windows Share)</option>
+                                <option value="nfs">nfs (Network File System)</option>
+                                <option value="vfat">vfat (USB / FAT32)</option>
+                                <option value="ntfs-3g">ntfs-3g (Windows NTFS)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5">
+                    <h2 class="text-white font-semibold mb-4 flex items-center gap-2">
+                        <span class="bg-obsidian-accent/20 text-obsidian-accent w-6 h-6 rounded flex items-center justify-center text-xs">2</span>
+                        Options & Permissions
+                    </h2>
+
+                    <div id="options-container" class="space-y-4">
+                        </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5">
+                    <h2 class="text-white font-semibold mb-4 flex items-center gap-2">
+                        <span class="bg-obsidian-accent/20 text-obsidian-accent w-6 h-6 rounded flex items-center justify-center text-xs">3</span>
+                        System Checks
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1.5">Backup Operation (Dump)</label>
+                            <select id="input-dump" class="w-full px-3 py-2 rounded text-sm bg-[#111827] border border-obsidian-border">
+                                <option value="0">0 - No Backup (Common)</option>
+                                <option value="1">1 - Backup enabled</option>
+                            </select>
+                            <p class="text-[10px] text-gray-500 mt-1 leading-tight">Used by the obsolete dump utility.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1.5">Boot Check (Pass)</label>
+                            <select id="input-pass" class="w-full px-3 py-2 rounded text-sm bg-[#111827] border border-obsidian-border">
+                                <option value="0">0 - Don't Check (Network/Swap)</option>
+                                <option value="2">2 - Check (Data Drives)</option>
+                                <option value="1">1 - Root Filesystem Only</option>
+                            </select>
+                            <p class="text-[10px] text-gray-500 mt-1 leading-tight">Order in which fsck checks the drive at boot.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col h-full">
+                <div class="sticky top-0 space-y-6">
+                    
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg overflow-hidden shadow-xl">
+                        <div class="bg-[#111827] border-b border-obsidian-border px-4 py-3 flex justify-between items-center">
+                            <span class="text-xs font-mono text-gray-400">/etc/fstab entry</span>
+                            <button onclick="copyToClipboard()" class="text-xs bg-obsidian-accent hover:bg-violet-600 text-white px-2 py-1 rounded transition-colors">
+                                <i class="fa-regular fa-copy mr-1"></i> Copy
+                            </button>
+                        </div>
+                        <div class="p-4 bg-black/50 overflow-x-auto">
+                            <pre id="output-code" class="text-green-400 font-mono text-sm whitespace-pre-wrap break-all"></pre>
+                        </div>
+                    </div>
+
+                    <div class="bg-yellow-900/10 border border-yellow-700/30 rounded-lg p-5">
+                        <div class="flex items-start gap-3">
+                            <i class="fa-solid fa-triangle-exclamation text-yellow-500 mt-1"></i>
+                            <div>
+                                <h3 class="text-yellow-500 font-semibold text-sm mb-1">Safety First: Verify Before Reboot</h3>
+                                <p class="text-gray-400 text-xs leading-relaxed mb-3">
+                                    A syntax error in fstab can prevent your server from booting. Always test the configuration immediately after editing the file.
+                                </p>
+                                <div class="bg-black/40 rounded p-3 border border-yellow-700/20">
+                                    <p class="text-gray-500 text-[10px] uppercase mb-1 font-bold tracking-wider">Verification Command</p>
+                                    <code class="text-gray-300 font-mono text-sm block select-all">sudo mount -a</code>
+                                </div>
+                                <p class="text-gray-500 text-[10px] mt-2 italic">If the command produces no output, your syntax is likely correct.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-5">
+                        <h4 class="text-white text-sm font-semibold mb-2">Why use this?</h4>
+                        <ul class="text-xs text-gray-400 space-y-2 list-disc pl-4">
+                            <li>Prevents syntax errors that hang boot processes.</li>
+                            <li>Ensures correct credential file handling for SMB.</li>
+                            <li>Applies optimized mount flags (noatime, etc).</li>
+                            <li>Clarifies the confusing "0 0" dump/pass numbers.</li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // State
+        let state = {
+            sourceType: 'uuid', // uuid, dev, net
+            source: '',
+            mount: '',
+            fs: 'ext4',
+            dump: '0',
+            pass: '2',
+            options: {
+                defaults: true,
+                noatime: false,
+                ro: false,
+                // CIFS specific
+                credentials: '',
+                uid: '1000',
+                gid: '1000',
+                vers: '3.0',
+                // NFS specific
+                soft: false,
+                intr: false
+            }
+        };
+
+        // DOM Elements
+        const elInputSource = document.getElementById('input-source');
+        const elInputMount = document.getElementById('input-mount');
+        const elInputFs = document.getElementById('input-fs');
+        const elInputDump = document.getElementById('input-dump');
+        const elInputPass = document.getElementById('input-pass');
+        const elOutput = document.getElementById('output-code');
+        const elOptionsContainer = document.getElementById('options-container');
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            updateOptionsUI();
+            generate();
+            
+            // Global listeners
+            elInputSource.addEventListener('input', (e) => { state.source = e.target.value.trim(); generate(); });
+            elInputMount.addEventListener('input', (e) => { state.mount = e.target.value.trim(); generate(); });
+            elInputDump.addEventListener('change', (e) => { state.dump = e.target.value; generate(); });
+            elInputPass.addEventListener('change', (e) => { state.pass = e.target.value; generate(); });
+            
+            // Watch for changes inside the dynamic options container
+            elOptionsContainer.addEventListener('input', (e) => {
+                const target = e.target;
+                if(target.tagName === 'INPUT') {
+                    if(target.type === 'checkbox') {
+                        state.options[target.name] = target.checked;
+                    } else {
+                        state.options[target.name] = target.value;
+                    }
+                    generate();
+                }
+            });
+        });
+
+        // Toggle Source Type
+        function setSourceType(type) {
+            state.sourceType = type;
+            
+            // Update Buttons
+            ['uuid', 'dev', 'net'].forEach(t => {
+                const btn = document.getElementById(`btn-${t}`);
+                if (t === type) {
+                    btn.classList.remove('text-gray-400', 'hover:text-white');
+                    btn.classList.add('bg-obsidian-accent', 'text-white', 'font-medium');
+                } else {
+                    btn.classList.add('text-gray-400', 'hover:text-white');
+                    btn.classList.remove('bg-obsidian-accent', 'text-white', 'font-medium');
+                }
+            });
+
+            // Update Label & Helper
+            const label = document.getElementById('source-label');
+            const helper = document.getElementById('helper-uuid');
+            const input = document.getElementById('input-source');
+
+            if (type === 'uuid') {
+                label.innerText = 'UUID';
+                input.placeholder = 'e.g. 1234-5678-ABCD';
+                helper.classList.remove('hidden');
+                // Auto switch FS to ext4 if it was cifs/nfs
+                if(state.fs === 'cifs' || state.fs === 'nfs') {
+                    elInputFs.value = 'ext4';
+                    updateOptionsUI();
+                }
+            } else if (type === 'dev') {
+                label.innerText = 'Block Device Path';
+                input.placeholder = 'e.g. /dev/sdb1';
+                helper.classList.add('hidden');
+            } else if (type === 'net') {
+                label.innerText = 'Network Share Path';
+                input.placeholder = 'e.g. //192.168.1.100/Public';
+                helper.classList.add('hidden');
+                // Auto switch FS to cifs
+                if(state.fs !== 'cifs' && state.fs !== 'nfs') {
+                    elInputFs.value = 'cifs';
+                    updateOptionsUI();
+                }
+            }
+            generate();
+        }
+
+        // Render Dynamic Options based on Filesystem
+        function updateOptionsUI() {
+            state.fs = elInputFs.value;
+            let html = '';
+
+            const commonCheckbox = (name, label, checked) => `
+                <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" name="${name}" class="custom-checkbox" ${checked ? 'checked' : ''}>
+                    <span class="text-sm text-gray-300 group-hover:text-white transition-colors">${label}</span>
+                </label>
+            `;
+
+            const textInput = (name, label, placeholder, value) => `
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">${label}</label>
+                    <input type="text" name="${name}" value="${value}" placeholder="${placeholder}" class="w-full px-3 py-2 rounded font-mono text-sm bg-[#111827] border border-obsidian-border focus:border-obsidian-accent outline-none text-white">
+                </div>
+            `;
+
+            if (state.fs === 'cifs') {
+                // CIFS Specific
+                html += textInput('credentials', 'Credentials File Path (Safer than plaintext)', '/home/user/.smbcredentials', state.options.credentials);
+                html += `<div class="grid grid-cols-2 gap-4">
+                            ${textInput('uid', 'User ID (uid)', '1000', state.options.uid)}
+                            ${textInput('gid', 'Group ID (gid)', '1000', state.options.gid)}
+                         </div>`;
+                html += textInput('vers', 'SMB Version', '3.0', '3.0');
+                html += '<div class="pt-2 border-t border-obsidian-border mt-2 space-y-2">';
+                html += commonCheckbox('ro', 'Read Only (ro)', state.options.ro);
+                html += commonCheckbox('noatime', 'No Access Time (noatime)', state.options.noatime);
+                html += '</div>';
+            } else if (state.fs === 'nfs') {
+                // NFS Specific
+                html += '<div class="space-y-3">';
+                html += commonCheckbox('defaults', 'Defaults', true);
+                html += commonCheckbox('soft', 'Soft Mount (Prevents hang on disconnect)', true);
+                html += commonCheckbox('intr', 'Interruptible', true);
+                html += '</div>';
+            } else {
+                // Standard Block Devices (ext4, xfs, etc)
+                html += '<div class="space-y-3">';
+                html += commonCheckbox('defaults', 'Defaults', true);
+                html += commonCheckbox('noatime', 'Disable Access Time (Performance)', false);
+                html += commonCheckbox('ro', 'Read Only Mode', false);
+                html += '</div>';
+            }
+
+            elOptionsContainer.innerHTML = html;
+            generate();
+        }
+
+        // Generate the Output String
+        function generate() {
+            let parts = [];
+
+            // 1. Source
+            let src = state.source || '<device>';
+            if (state.sourceType === 'uuid' && src !== '<device>') {
+                // Remove UUID= if user typed it
+                src = src.replace(/^UUID=/i, '');
+                src = `UUID=${src}`;
+            }
+            parts.push(src);
+
+            // 2. Mount Point
+            parts.push(state.mount || '/mnt/point');
+
+            // 3. FS Type
+            parts.push(state.fs);
+
+            // 4. Options
+            let opts = [];
+            
+            if (state.fs === 'cifs') {
+                if (state.options.credentials) opts.push(`credentials=${state.options.credentials}`);
+                if (state.options.uid) opts.push(`uid=${state.options.uid}`);
+                if (state.options.gid) opts.push(`gid=${state.options.gid}`);
+                if (state.options.vers) opts.push(`vers=${state.options.vers}`);
+                opts.push('iocharset=utf8'); // standard good practice
+            } else if (state.fs === 'nfs') {
+                if (state.options.defaults) opts.push('defaults');
+                if (state.options.soft) opts.push('soft');
+                if (state.options.intr) opts.push('intr');
+                // NFS usually needs 0 0
+                if(state.dump !== '0') state.dump = '0';
+                if(state.pass !== '0') state.pass = '0';
+                // Update dropdowns visually if forced
+                elInputDump.value = '0';
+                elInputPass.value = '0';
+            } else {
+                if (state.options.defaults) opts.push('defaults');
+            }
+
+            // Common flags
+            if (state.options.noatime) opts.push('noatime');
+            if (state.options.ro) opts.push('ro');
+
+            // Fallback if empty
+            if (opts.length === 0) opts.push('defaults');
+
+            parts.push(opts.join(','));
+
+            // 5. Dump & Pass
+            parts.push(state.dump);
+            parts.push(state.pass);
+
+            // Align columns with tabs for display? No, fstab is usually space separated, 
+            // but tabs make it look nicer. We will use spaces for safety/copy-paste.
+            elOutput.textContent = parts.join('    ');
+        }
+
+        // Copy Function
+        function copyToClipboard() {
+            const text = elOutput.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.querySelector('button[onclick="copyToClipboard()"]');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Copied';
+                btn.classList.replace('bg-obsidian-accent', 'bg-green-600');
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.replace('bg-green-600', 'bg-obsidian-accent');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
