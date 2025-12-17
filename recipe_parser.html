@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Scraper & Converter</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-4 justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-utensils text-obsidian-accent text-lg"></i>
+            <h1 class="font-semibold text-lg tracking-wide text-gray-200">Recipe Scraper v1.1</h1>
+        </div>
+        <div class="text-xs text-gray-500 font-mono hidden sm:block">Extracts Schema.org/Recipe Data</div>
+    </header>
+
+    <main class="flex-grow flex flex-col overflow-hidden">
+        
+        <div class="p-6 shrink-0 border-b border-obsidian-border bg-obsidian-bg">
+            <div class="max-w-4xl mx-auto w-full flex flex-col gap-4">
+                <label class="text-sm font-medium text-gray-400">Recipe URL</label>
+                <div class="flex gap-2">
+                    <div class="relative flex-grow">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-link text-gray-600"></i>
+                        </div>
+                        <input type="url" id="urlInput" 
+                            class="w-full bg-obsidian-pane border border-obsidian-border rounded pl-10 pr-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600 font-mono"
+                            placeholder="https://www.allrecipes.com/recipe/..."
+                            value="https://www.allrecipes.com/recipe/11861679/easy-one-pan-caesar-chicken-bake/">
+                    </div>
+                    <button id="scrapeBtn" onclick="scrapeRecipe()" 
+                        class="bg-obsidian-accent hover:bg-violet-600 text-white px-6 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-violet-900/20">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Scrape</span>
+                    </button>
+                </div>
+                <div id="statusMsg" class="text-xs font-mono h-4 truncate"></div>
+            </div>
+        </div>
+
+        <div class="flex-grow flex flex-col min-h-0 bg-obsidian-bg relative">
+            
+            <div class="flex border-b border-obsidian-border bg-obsidian-pane px-4 shrink-0">
+                <button onclick="switchTab('markdown')" id="tab-markdown" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-obsidian-accent text-white flex items-center gap-2">
+                    <i class="fa-brands fa-markdown"></i> Markdown
+                </button>
+                <button onclick="switchTab('json')" id="tab-json" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-code"></i> JSON
+                </button>
+                <button onclick="switchTab('yaml')" id="tab-yaml" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-file-lines"></i> YAML
+                </button>
+                
+                <div class="ml-auto flex items-center">
+                    <button onclick="copyCurrentContent()" class="text-xs bg-white/5 hover:bg-white/10 text-gray-300 px-3 py-1.5 rounded transition-colors border border-white/5">
+                        <i class="fa-regular fa-copy mr-1"></i> Copy
+                    </button>
+                </div>
+            </div>
+
+            <div class="relative flex-grow overflow-auto p-0">
+                <div id="view-markdown" class="view-pane w-full h-full p-6 absolute inset-0 overflow-auto">
+                    <textarea id="output-markdown" readonly class="w-full h-full bg-transparent resize-none focus:outline-none font-mono text-sm text-gray-300 leading-relaxed"></textarea>
+                </div>
+
+                <div id="view-json" class="view-pane hidden w-full h-full p-6 absolute inset-0 overflow-auto">
+                     <textarea id="output-json" readonly class="w-full h-full bg-transparent resize-none focus:outline-none font-mono text-sm text-gray-300 leading-relaxed"></textarea>
+                </div>
+
+                <div id="view-yaml" class="view-pane hidden w-full h-full p-6 absolute inset-0 overflow-auto">
+                     <textarea id="output-yaml" readonly class="w-full h-full bg-transparent resize-none focus:outline-none font-mono text-sm text-gray-300 leading-relaxed"></textarea>
+                </div>
+                
+                <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-600 pointer-events-none">
+                    <i class="fa-solid fa-bowl-food text-6xl mb-4 opacity-20"></i>
+                    <p class="text-sm">Enter a URL to generate ingredients & instructions</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // State
+        let currentData = null;
+        let activeTab = 'markdown';
+
+        // --- Core Logic ---
+
+        async function scrapeRecipe() {
+            const urlInput = document.getElementById('urlInput');
+            const statusMsg = document.getElementById('statusMsg');
+            const btn = document.getElementById('scrapeBtn');
+            const emptyState = document.getElementById('empty-state');
+            
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                setStatus('Please enter a valid URL', 'text-red-400');
+                return;
+            }
+
+            // UI Loading State
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Fetching...</span>';
+            setStatus('Connecting to proxy...', 'text-blue-400');
+            emptyState.classList.add('hidden');
+            
+            // Clear previous outputs
+            document.getElementById('output-markdown').value = '';
+            document.getElementById('output-json').value = '';
+            document.getElementById('output-yaml').value = '';
+
+            try {
+                // CHANGED: Using corsproxy.io instead of allorigins. 
+                // It returns raw HTML string directly, not wrapped in JSON.
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Proxy responded with status: ${response.status}`);
+                }
+
+                const htmlText = await response.text();
+                
+                if (!htmlText || htmlText.length < 100) {
+                    throw new Error("Received empty or invalid response from website.");
+                }
+
+                // Parse HTML
+                setStatus('Parsing Schema.org data...', 'text-blue-400');
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlText, 'text/html');
+
+                // Extract Recipe Data
+                const recipe = extractRecipeSchema(doc);
+
+                if (!recipe) {
+                    throw new Error("Could not find valid 'Recipe' schema (JSON-LD) on this page.");
+                }
+
+                // Process Data
+                currentData = normalizeRecipe(recipe, url);
+                
+                // Render Outputs
+                renderOutputs();
+                
+                setStatus('Recipe extracted successfully!', 'text-green-400');
+
+            } catch (error) {
+                console.error(error);
+                setStatus(`Error: ${error.message}`, 'text-red-400');
+                emptyState.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.innerHTML = '<i class="fa-solid fa-download"></i><span>Scrape</span>';
+            }
+        }
+
+        // Search for JSON-LD Recipe
+        function extractRecipeSchema(doc) {
+            const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+            
+            for (let script of scripts) {
+                try {
+                    const jsonContent = script.textContent.trim();
+                    if(!jsonContent) continue;
+
+                    const json = JSON.parse(jsonContent);
+                    
+                    // Recursive helper to find @type "Recipe"
+                    const findRecipe = (obj) => {
+                        if (!obj) return null;
+                        
+                        if (Array.isArray(obj)) {
+                            for (let item of obj) {
+                                const found = findRecipe(item);
+                                if (found) return found;
+                            }
+                        } else if (typeof obj === 'object') {
+                            const type = obj['@type'];
+                            // Check for Recipe type (can be string or array)
+                            const isRecipe = Array.isArray(type) 
+                                ? type.includes('Recipe') 
+                                : type === 'Recipe';
+                                
+                            if (isRecipe) return obj;
+
+                            // Check Graph structure common in Wordpress/Yoast
+                            if (obj['@graph']) {
+                                return findRecipe(obj['@graph']);
+                            }
+                        }
+                        return null;
+                    };
+
+                    const recipe = findRecipe(json);
+                    if (recipe) return recipe;
+
+                } catch (e) {
+                    // Ignore JSON parse errors in individual script tags
+                    continue; 
+                }
+            }
+            return null;
+        }
+
+        // Clean and Normalize Data
+        function normalizeRecipe(raw, sourceUrl) {
+            // Helper to clean HTML entities
+            const decodeHtml = (html) => {
+                if (!html) return "";
+                const txt = document.createElement("textarea");
+                txt.innerHTML = html;
+                return txt.value.replace(/<[^>]*>?/gm, ''); // Strip tags
+            };
+
+            // Instructions Normalization
+            let instructions = [];
+            if (raw.recipeInstructions) {
+                if (typeof raw.recipeInstructions === 'string') {
+                    instructions.push(decodeHtml(raw.recipeInstructions));
+                } else if (Array.isArray(raw.recipeInstructions)) {
+                    // Recursively flatten nested arrays (common in some schemas)
+                    const flattenInstructions = (arr) => {
+                        let res = [];
+                        arr.forEach(step => {
+                            if (Array.isArray(step)) {
+                                res = res.concat(flattenInstructions(step));
+                            } else if (typeof step === 'string') {
+                                res.push(decodeHtml(step));
+                            } else if (step.text) {
+                                res.push(decodeHtml(step.text));
+                            } else if (step.itemListElement) {
+                                // HowToSection handling
+                                if(step.name) res.push(`**${step.name}**`);
+                                res = res.concat(flattenInstructions(step.itemListElement));
+                            }
+                        });
+                        return res;
+                    };
+                    instructions = flattenInstructions(raw.recipeInstructions);
+                }
+            }
+
+            // Image Normalization
+            let image = '';
+            if (raw.image) {
+                if (typeof raw.image === 'string') image = raw.image;
+                else if (Array.isArray(raw.image)) image = raw.image[0]; // Take first
+                else if (raw.image.url) image = raw.image.url;
+            }
+
+            // Author Normalization
+            let author = "Unknown";
+            if (raw.author) {
+                if (typeof raw.author === 'string') author = raw.author;
+                else if (Array.isArray(raw.author)) author = raw.author[0]?.name || "Unknown";
+                else author = raw.author.name || "Unknown";
+            }
+
+            return {
+                name: decodeHtml(raw.name || "Untitled Recipe"),
+                description: decodeHtml(raw.description || ""),
+                author: author,
+                prepTime: formatDuration(raw.prepTime),
+                cookTime: formatDuration(raw.cookTime),
+                totalTime: formatDuration(raw.totalTime),
+                servings: raw.recipeYield || "N/A",
+                category: raw.recipeCategory || "General",
+                cuisine: raw.recipeCuisine || "General",
+                image: image,
+                source: sourceUrl,
+                ingredients: (raw.recipeIngredient || []).map(i => decodeHtml(i)),
+                instructions: instructions
+            };
+        }
+
+        function formatDuration(isoString) {
+            if (!isoString) return "";
+            try {
+                // Simple Regex parser for PT1H30M format
+                return isoString
+                    .replace("PT", "")
+                    .replace("H", " hr ")
+                    .replace("M", " min")
+                    .toLowerCase()
+                    .trim();
+            } catch(e) {
+                return isoString;
+            }
+        }
+
+        // --- Generation Logic ---
+
+        function renderOutputs() {
+            if (!currentData) return;
+
+            // 1. Markdown
+            const md = 
+`# ${currentData.name}
+
+![Recipe Image](${currentData.image})
+
+> **Source:** [${currentData.source}](${currentData.source})  
+> **Author:** ${currentData.author}
+
+| Prep Time | Cook Time | Servings |
+|-----------|-----------|----------|
+| ${currentData.prepTime || '-'} | ${currentData.cookTime || '-'} | ${currentData.servings} |
+
+## Description
+${currentData.description}
+
+## Ingredients
+${currentData.ingredients.map(ing => `- ${ing}`).join('\n')}
+
+## Instructions
+${currentData.instructions.map((step, index) => {
+    // If step is a bold header (marked by double stars in normalization), don't number it
+    if (step.startsWith('**')) return `\n### ${step.replace(/\*\*/g, '')}`;
+    return `${index + 1}. ${step}`;
+}).join('\n')}
+`;
+            document.getElementById('output-markdown').value = md;
+
+            // 2. JSON
+            const jsonStr = JSON.stringify(currentData, null, 2);
+            document.getElementById('output-json').value = jsonStr;
+
+            // 3. YAML
+            if (window.jsyaml) {
+                const yamlStr = jsyaml.dump(currentData);
+                document.getElementById('output-yaml').value = yamlStr;
+            } else {
+                document.getElementById('output-yaml').value = "# js-yaml library failed to load.";
+            }
+        }
+
+        // --- UI Interactions ---
+
+        function setStatus(msg, classes) {
+            const el = document.getElementById('statusMsg');
+            el.textContent = msg;
+            el.className = `text-xs font-mono h-4 truncate ${classes}`;
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            
+            // Hide all views
+            document.querySelectorAll('.view-pane').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+
+            // Reset tab styling
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-obsidian-accent', 'text-white');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+
+            // Activate current tab
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+            activeBtn.classList.add('border-obsidian-accent', 'text-white');
+        }
+
+        function copyCurrentContent() {
+            const el = document.getElementById(`output-${activeTab}`);
+            if(!el.value) return;
+            
+            el.select();
+            el.setSelectionRange(0, 99999); // Mobile
+            navigator.clipboard.writeText(el.value).then(() => {
+                const prevMsg = document.getElementById('statusMsg').textContent;
+                const prevClass = document.getElementById('statusMsg').className;
+                
+                setStatus('Copied to clipboard!', 'text-green-400');
+                
+                setTimeout(() => {
+                    document.getElementById('statusMsg').textContent = prevMsg;
+                    document.getElementById('statusMsg').className = prevClass;
+                }, 2000);
+            });
+        }
+
+    </script>
+</body>
+</html>

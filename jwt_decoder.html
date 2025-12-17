@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homelab Playground - JWT Decoder</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        },
+                        jwt: {
+                            header: '#ef4444',   // Red-500
+                            payload: '#d946ef',  // Fuchsia-500
+                            signature: '#3b82f6' // Blue-500
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap');
+
+        body {
+            background-color: #1e1e1e;
+            color: #cccccc;
+        }
+
+        /* Webkit Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        .code-block {
+            font-family: 'Fira Code', monospace;
+            line-height: 1.5;
+        }
+        
+        /* Syntax Highlighting for JSON keys/values */
+        .json-key { color: #9cdcfe; }
+        .json-string { color: #ce9178; }
+        .json-number { color: #b5cea8; }
+        .json-boolean { color: #569cd6; }
+        .json-null { color: #569cd6; }
+
+        .jwt-part-header { color: #ef4444; }
+        .jwt-part-payload { color: #d946ef; }
+        .jwt-part-signature { color: #3b82f6; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-obsidian-accent/20 flex items-center justify-center text-obsidian-accent">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h1 class="font-semibold text-lg text-white tracking-wide">JWT Decoder</h1>
+        </div>
+        <div class="text-xs text-gray-500 flex items-center gap-2">
+            <i class="fa-solid fa-lock"></i>
+            <span>Client-side only processing</span>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        <div class="flex-1 flex flex-col min-h-[300px] border-b md:border-b-0 md:border-r border-obsidian-border bg-obsidian-bg">
+            <div class="h-10 bg-obsidian-pane/50 border-b border-obsidian-border flex items-center justify-between px-4 shrink-0">
+                <span class="text-xs font-mono uppercase tracking-wider text-gray-400">Encoded Token</span>
+                <div class="flex gap-2">
+                    <button onclick="pasteToken()" class="text-xs text-obsidian-accent hover:text-white transition-colors">
+                        <i class="fa-regular fa-clipboard mr-1"></i> Paste
+                    </button>
+                    <button onclick="clearAll()" class="text-xs text-red-400 hover:text-red-300 transition-colors">
+                        <i class="fa-solid fa-trash mr-1"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="relative flex-1 group">
+                <textarea id="jwtInput" 
+                    class="w-full h-full bg-transparent p-4 text-sm font-mono text-gray-400 focus:text-white outline-none resize-none code-block"
+                    placeholder="Paste your JWT here (e.g. eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...)"
+                    spellcheck="false"></textarea>
+                </div>
+            <div id="validationStatus" class="h-8 border-t border-obsidian-border bg-obsidian-pane/30 flex items-center px-4 text-xs font-mono hidden">
+                </div>
+        </div>
+
+        <div class="flex-1 flex flex-col bg-[#1a1a1a] overflow-hidden">
+            
+            <div class="flex-1 flex flex-col border-b border-obsidian-border min-h-[150px]">
+                <div class="h-8 bg-obsidian-pane/50 border-b border-obsidian-border flex items-center justify-between px-4 shrink-0">
+                    <span class="text-xs font-mono uppercase tracking-wider text-jwt-header font-bold">Header</span>
+                    <span class="text-[10px] text-gray-500">Algorithm & Token Type</span>
+                </div>
+                <div class="flex-1 overflow-auto p-4 custom-scrollbar">
+                    <pre id="outputHeader" class="text-sm font-mono text-gray-300"></pre>
+                </div>
+            </div>
+
+            <div class="flex-[2] flex flex-col border-b border-obsidian-border min-h-[200px]">
+                <div class="h-8 bg-obsidian-pane/50 border-b border-obsidian-border flex items-center justify-between px-4 shrink-0">
+                    <span class="text-xs font-mono uppercase tracking-wider text-jwt-payload font-bold">Payload</span>
+                    <span class="text-[10px] text-gray-500">Data Claims</span>
+                </div>
+                <div class="flex-1 overflow-auto p-4 relative">
+                    <pre id="outputPayload" class="text-sm font-mono text-gray-300 mb-6"></pre>
+                    
+                    <div id="datePanel" class="hidden mt-4 pt-4 border-t border-white/10 text-xs font-mono">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-400">
+                            <div id="issuedAtBox" class="bg-white/5 p-2 rounded border border-white/5 hidden">
+                                <span class="block text-gray-500 mb-1">Issued At (iat)</span>
+                                <span id="iatValue" class="text-blue-300"></span>
+                            </div>
+                            <div id="expiresAtBox" class="bg-white/5 p-2 rounded border border-white/5 hidden">
+                                <span class="block text-gray-500 mb-1">Expires (exp)</span>
+                                <span id="expValue" class="text-obsidian-accent"></span>
+                                <span id="expRelative" class="block mt-1 text-[10px] text-gray-500"></span>
+                            </div>
+                            <div id="notBeforeBox" class="bg-white/5 p-2 rounded border border-white/5 hidden">
+                                <span class="block text-gray-500 mb-1">Not Before (nbf)</span>
+                                <span id="nbfValue" class="text-yellow-300"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-24 md:h-32 flex flex-col shrink-0 bg-obsidian-pane/20">
+                <div class="h-8 bg-obsidian-pane/50 border-b border-obsidian-border flex items-center justify-between px-4 shrink-0">
+                    <span class="text-xs font-mono uppercase tracking-wider text-jwt-signature font-bold">Signature</span>
+                    <span class="text-[10px] text-gray-500">HMACSHA256(base64UrlEncode(header) + "." + base64UrlEncode(payload), your-256-bit-secret)</span>
+                </div>
+                <div class="flex-1 overflow-auto p-4 break-all">
+                    <div id="outputSignature" class="text-xs font-mono text-jwt-signature opacity-80"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-obsidian-accent text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        const inputArea = document.getElementById('jwtInput');
+        const outputHeader = document.getElementById('outputHeader');
+        const outputPayload = document.getElementById('outputPayload');
+        const outputSignature = document.getElementById('outputSignature');
+        const datePanel = document.getElementById('datePanel');
+        const validationStatus = document.getElementById('validationStatus');
+
+        // Input Event Listener
+        inputArea.addEventListener('input', () => {
+            const token = inputArea.value.trim();
+            decodeJWT(token);
+        });
+
+        // Paste Helper
+        async function pasteToken() {
+            try {
+                const text = await navigator.clipboard.readText();
+                inputArea.value = text;
+                decodeJWT(text.trim());
+            } catch (err) {
+                console.error('Failed to read clipboard contents: ', err);
+            }
+        }
+
+        // Clear Helper
+        function clearAll() {
+            inputArea.value = '';
+            outputHeader.innerHTML = '';
+            outputPayload.innerHTML = '';
+            outputSignature.innerText = '';
+            datePanel.classList.add('hidden');
+            validationStatus.classList.add('hidden');
+        }
+
+        // Base64Url Decoder
+        function base64UrlDecode(str) {
+            // Add padding if needed
+            let output = str.replace(/-/g, "+").replace(/_/g, "/");
+            switch (output.length % 4) {
+                case 0: break;
+                case 2: output += "=="; break;
+                case 3: output += "="; break;
+                default: throw "Illegal base64url string!";
+            }
+            try {
+                // Decode URI component to handle UTF-8 correctly
+                return decodeURIComponent(atob(output).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Syntax Highlighter for JSON
+        function syntaxHighlight(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, undefined, 2);
+            }
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                var cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        // Date Formatter
+        function formatTime(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleString();
+        }
+
+        function getRelativeTime(timestamp) {
+            const now = Date.now() / 1000;
+            const diff = timestamp - now;
+            
+            if (diff < 0) return `Expired ${Math.abs(Math.floor(diff / 60))} mins ago`;
+            if (diff < 60) return `Expires in < 1 min`;
+            if (diff < 3600) return `Expires in ${Math.floor(diff / 60)} mins`;
+            return `Expires in ${Math.floor(diff / 3600)} hours`;
+        }
+
+        // Main Decode Logic
+        function decodeJWT(token) {
+            if (!token) {
+                clearAll();
+                return;
+            }
+
+            const parts = token.split('.');
+            
+            if (parts.length !== 3) {
+                validationStatus.classList.remove('hidden');
+                validationStatus.innerHTML = `<span class="text-red-400"><i class="fa-solid fa-circle-xmark mr-2"></i>Invalid JWT format (must have 3 parts)</span>`;
+                return;
+            } else {
+                validationStatus.classList.remove('hidden');
+                validationStatus.innerHTML = `<span class="text-green-400"><i class="fa-solid fa-check mr-2"></i>Format Valid</span>`;
+            }
+
+            // 1. Header
+            const headerStr = base64UrlDecode(parts[0]);
+            if (headerStr) {
+                try {
+                    const headerObj = JSON.parse(headerStr);
+                    outputHeader.innerHTML = syntaxHighlight(headerObj);
+                } catch (e) {
+                    outputHeader.innerText = "Error parsing JSON header";
+                }
+            } else {
+                outputHeader.innerText = "Invalid Base64 Header";
+            }
+
+            // 2. Payload
+            const payloadStr = base64UrlDecode(parts[1]);
+            if (payloadStr) {
+                try {
+                    const payloadObj = JSON.parse(payloadStr);
+                    outputPayload.innerHTML = syntaxHighlight(payloadObj);
+                    
+                    // Handle Dates
+                    const iatBox = document.getElementById('issuedAtBox');
+                    const expBox = document.getElementById('expiresAtBox');
+                    const nbfBox = document.getElementById('notBeforeBox');
+                    
+                    let hasDates = false;
+
+                    if (payloadObj.iat) {
+                        document.getElementById('iatValue').innerText = formatTime(payloadObj.iat);
+                        iatBox.classList.remove('hidden');
+                        hasDates = true;
+                    } else {
+                        iatBox.classList.add('hidden');
+                    }
+
+                    if (payloadObj.exp) {
+                        document.getElementById('expValue').innerText = formatTime(payloadObj.exp);
+                        document.getElementById('expRelative').innerText = getRelativeTime(payloadObj.exp);
+                        
+                        // Color code expiration
+                        const isExpired = (Date.now() / 1000) > payloadObj.exp;
+                        const expText = document.getElementById('expValue');
+                        if(isExpired) {
+                            expText.className = "text-red-400 font-bold";
+                            document.getElementById('expRelative').className = "block mt-1 text-[10px] text-red-400";
+                        } else {
+                            expText.className = "text-green-400 font-bold";
+                            document.getElementById('expRelative').className = "block mt-1 text-[10px] text-green-400";
+                        }
+
+                        expBox.classList.remove('hidden');
+                        hasDates = true;
+                    } else {
+                        expBox.classList.add('hidden');
+                    }
+
+                    if (payloadObj.nbf) {
+                        document.getElementById('nbfValue').innerText = formatTime(payloadObj.nbf);
+                        nbfBox.classList.remove('hidden');
+                        hasDates = true;
+                    } else {
+                        nbfBox.classList.add('hidden');
+                    }
+
+                    if (hasDates) {
+                        datePanel.classList.remove('hidden');
+                    } else {
+                        datePanel.classList.add('hidden');
+                    }
+
+                } catch (e) {
+                    outputPayload.innerText = "Error parsing JSON payload";
+                }
+            } else {
+                outputPayload.innerText = "Invalid Base64 Payload";
+            }
+
+            // 3. Signature
+            outputSignature.innerText = parts[2];
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homelab Diff Checker</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc',     // Standard Text
+                            green: '#2ea04326',  // Diff Add Bg
+                            greenText: '#2ea043',// Diff Add Text
+                            red: '#da363326',    // Diff Del Bg
+                            redText: '#f85149'   // Diff Del Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 5px;
+            border: 2px solid #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Editor specific styles */
+        .line-number {
+            user-select: none;
+            text-align: right;
+            padding-right: 1rem;
+            color: #6e7681;
+            min-width: 3rem;
+        }
+        
+        .diff-row {
+            display: flex;
+            width: 100%;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .diff-content {
+            white-space: pre-wrap;
+            word-break: break-all;
+            flex: 1;
+            padding-left: 0.5rem;
+        }
+
+        textarea {
+            resize: none;
+        }
+        
+        /* Smooth fade for toggling views */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-obsidian-accent/10 flex items-center justify-center text-obsidian-accent">
+                <i class="fa-solid fa-code-compare"></i>
+            </div>
+            <h1 class="font-semibold text-white tracking-wide">Diff Checker</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="loadSample()" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded transition-colors">
+                Load Sample
+            </button>
+            <button onclick="clearAll()" class="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-red-400 hover:bg-white/5 rounded transition-colors">
+                <i class="fa-solid fa-trash mr-1"></i> Clear
+            </button>
+            <div class="h-4 w-px bg-obsidian-border mx-1"></div>
+            <button id="compareBtn" onclick="computeDiff()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors shadow-lg shadow-violet-900/20">
+                <i class="fa-solid fa-play mr-2"></i>Compare
+            </button>
+            <button id="editBtn" onclick="toggleEditMode()" class="hidden bg-obsidian-pane border border-obsidian-border hover:bg-white/5 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">
+                <i class="fa-solid fa-pen mr-2"></i>Edit
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        
+        <div id="inputView" class="flex-1 flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-obsidian-border h-full">
+            
+            <div class="flex-1 flex flex-col min-h-0 bg-obsidian-bg">
+                <div class="h-8 bg-obsidian-pane/50 border-b border-obsidian-border flex items-center justify-between px-3 text-xs uppercase tracking-wider font-mono text-gray-500">
+                    <span>Original Text</span>
+                    <span id="originalCount">0 lines</span>
+                </div>
+                <textarea id="originalInput" class="flex-1 bg-obsidian-bg text-gray-300 p-4 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-obsidian-accent/50 placeholder-gray-700" placeholder="Paste original content here..."></textarea>
+            </div>
+
+            <div class="flex-1 flex flex-col min-h-0 bg-obsidian-bg">
+                <div class="h-8 bg-obsidian-pane/50 border-b border-obsidian-border flex items-center justify-between px-3 text-xs uppercase tracking-wider font-mono text-gray-500">
+                    <span>Modified Text</span>
+                    <span id="modifiedCount">0 lines</span>
+                </div>
+                <textarea id="modifiedInput" class="flex-1 bg-obsidian-bg text-gray-300 p-4 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-obsidian-accent/50 placeholder-gray-700" placeholder="Paste modified content here..."></textarea>
+            </div>
+        </div>
+
+        <div id="outputView" class="hidden flex-1 flex-col bg-obsidian-bg overflow-hidden fade-in">
+            <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0">
+                <div class="flex gap-4 text-xs font-mono">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 bg-obsidian-red rounded-sm border border-red-900/50"></div>
+                        <span class="text-gray-400">Removed</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 bg-obsidian-green rounded-sm border border-green-900/50"></div>
+                        <span class="text-gray-400">Added</span>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 font-mono" id="diffStats">
+                    Calculating...
+                </div>
+            </div>
+            
+            <div id="diffContainer" class="flex-1 overflow-auto p-4 custom-scrollbar">
+                </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        const originalInput = document.getElementById('originalInput');
+        const modifiedInput = document.getElementById('modifiedInput');
+        const inputView = document.getElementById('inputView');
+        const outputView = document.getElementById('outputView');
+        const compareBtn = document.getElementById('compareBtn');
+        const editBtn = document.getElementById('editBtn');
+        const diffContainer = document.getElementById('diffContainer');
+        const diffStats = document.getElementById('diffStats');
+
+        // --- Event Listeners for Line Counts ---
+        const updateCounts = () => {
+            const orgLines = originalInput.value.split(/\r\n|\r|\n/).length;
+            const modLines = modifiedInput.value.split(/\r\n|\r|\n/).length;
+            document.getElementById('originalCount').textContent = `${orgLines} lines`;
+            document.getElementById('modifiedCount').textContent = `${modLines} lines`;
+        };
+
+        originalInput.addEventListener('input', updateCounts);
+        modifiedInput.addEventListener('input', updateCounts);
+
+        // --- Core Diff Logic (LCS Algorithm) ---
+        // Basic implementation of Longest Common Subsequence to detect line changes
+        function computeDiffData(text1, text2) {
+            const lines1 = text1.split(/\r\n|\r|\n/);
+            const lines2 = text2.split(/\r\n|\r|\n/);
+            
+            // Matrix for LCS
+            const m = lines1.length;
+            const n = lines2.length;
+            const C = Array(m + 1).fill().map(() => Array(n + 1).fill(0));
+
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (lines1[i - 1] === lines2[j - 1]) {
+                        C[i][j] = C[i - 1][j - 1] + 1;
+                    } else {
+                        C[i][j] = Math.max(C[i][j - 1], C[i - 1][j]);
+                    }
+                }
+            }
+
+            // Backtrack to find diff
+            let diff = [];
+            let i = m;
+            let j = n;
+            let adds = 0;
+            let dels = 0;
+
+            while (i > 0 && j > 0) {
+                if (lines1[i - 1] === lines2[j - 1]) {
+                    diff.unshift({ type: 'equal', text: lines1[i - 1], lineOld: i, lineNew: j });
+                    i--;
+                    j--;
+                } else if (C[i][j - 1] >= C[i - 1][j]) {
+                    diff.unshift({ type: 'add', text: lines2[j - 1], lineNew: j });
+                    adds++;
+                    j--;
+                } else {
+                    diff.unshift({ type: 'delete', text: lines1[i - 1], lineOld: i });
+                    dels++;
+                    i--;
+                }
+            }
+
+            while (j > 0) {
+                diff.unshift({ type: 'add', text: lines2[j - 1], lineNew: j });
+                adds++;
+                j--;
+            }
+            while (i > 0) {
+                diff.unshift({ type: 'delete', text: lines1[i - 1], lineOld: i });
+                dels++;
+                i--;
+            }
+
+            return { diff, adds, dels };
+        }
+
+        // --- UI Rendering ---
+        function computeDiff() {
+            const orgText = originalInput.value;
+            const modText = modifiedInput.value;
+
+            if (!orgText && !modText) {
+                alert("Please enter text to compare.");
+                return;
+            }
+
+            const { diff, adds, dels } = computeDiffData(orgText, modText);
+
+            // Update Stats
+            diffStats.innerHTML = `<span class="text-green-500 mr-2">+${adds}</span> <span class="text-red-500">-${dels}</span>`;
+
+            // Render HTML
+            let html = '';
+            
+            diff.forEach(part => {
+                let rowClass = '';
+                let bgClass = '';
+                let symbol = ' ';
+                let lineOld = part.lineOld || '';
+                let lineNew = part.lineNew || '';
+                
+                if (part.type === 'add') {
+                    bgClass = 'bg-obsidian-green text-gray-200';
+                    symbol = '+';
+                } else if (part.type === 'delete') {
+                    bgClass = 'bg-obsidian-red text-gray-400';
+                    symbol = '-';
+                } else {
+                    bgClass = 'text-gray-500 hover:bg-white/5';
+                }
+
+                // Escape HTML to prevent injection
+                const safeText = part.text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+
+                html += `
+                <div class="diff-row ${bgClass}">
+                    <div class="line-number border-r border-obsidian-border bg-obsidian-bg/30">${lineOld}</div>
+                    <div class="line-number border-r border-obsidian-border bg-obsidian-bg/30">${lineNew}</div>
+                    <div class="w-8 text-center select-none opacity-50">${symbol}</div>
+                    <div class="diff-content">${safeText}</div>
+                </div>`;
+            });
+
+            diffContainer.innerHTML = html;
+
+            // Toggle Views
+            inputView.classList.add('hidden');
+            outputView.classList.remove('hidden');
+            outputView.classList.add('flex');
+            compareBtn.classList.add('hidden');
+            editBtn.classList.remove('hidden');
+        }
+
+        function toggleEditMode() {
+            outputView.classList.add('hidden');
+            outputView.classList.remove('flex');
+            inputView.classList.remove('hidden');
+            compareBtn.classList.remove('hidden');
+            editBtn.classList.add('hidden');
+        }
+
+        function clearAll() {
+            originalInput.value = '';
+            modifiedInput.value = '';
+            updateCounts();
+            toggleEditMode(); // Ensure we are back in edit mode
+        }
+
+        function loadSample() {
+            const sampleA = `{
+  "server": {
+    "port": 8080,
+    "host": "localhost",
+    "debug": true
+  },
+  "database": {
+    "url": "mysql://root:pass@127.0.0.1:3306/db",
+    "pool": 5
+  }
+}`;
+            const sampleB = `{
+  "server": {
+    "port": 9000,
+    "host": "0.0.0.0",
+    "debug": true
+  },
+  "features": [
+    "auth",
+    "logging"
+  ],
+  "database": {
+    "url": "postgres://admin:secure@192.168.1.10:5432/prod_db",
+    "pool": 10
+  }
+}`;
+            originalInput.value = sampleA;
+            modifiedInput.value = sampleB;
+            updateCounts();
+        }
+
+        // Initialize counts
+        updateCounts();
+    </script>
+</body>
+</html>

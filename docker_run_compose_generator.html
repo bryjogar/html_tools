@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Run to Compose Converter</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #1e1e1e;
+            color: #cccccc;
+        }
+        
+        /* Custom Webkit Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Syntax Highlighting Utilities */
+        .yaml-key { color: #9cdcfe; }
+        .yaml-string { color: #ce9178; }
+        .yaml-val { color: #b5cea8; }
+        .yaml-comment { color: #6a9955; font-style: italic; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden font-sans text-obsidian-text bg-obsidian-bg">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-6 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-brands fa-docker text-blue-500 text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200">Run <span class="text-obsidian-accent">→</span> Compose</h1>
+        </div>
+        <div class="text-xs text-gray-500 font-mono">v1.0.0</div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <div class="flex-1 flex flex-col min-h-[50%] md:min-h-0 border-b md:border-b-0 md:border-r border-obsidian-border">
+            <div class="h-10 bg-obsidian-pane flex items-center justify-between px-4 border-b border-obsidian-border">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <i class="fa-solid fa-terminal mr-2"></i>Docker Run Command
+                </span>
+                <button onclick="clearInput()" class="text-xs text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-trash mr-1"></i> Clear
+                </button>
+            </div>
+            <div class="flex-1 relative group">
+                <textarea 
+                    id="inputCommand" 
+                    class="w-full h-full bg-[#111827] text-gray-300 p-4 font-mono text-sm resize-none focus:outline-none"
+                    placeholder="docker run -d --name my-container -p 8080:80 nginx:latest"
+                    spellcheck="false"></textarea>
+            </div>
+        </div>
+
+        <div class="bg-obsidian-pane border-b md:border-b-0 md:border-r border-obsidian-border flex md:flex-col items-center justify-center p-2 gap-4 z-10">
+            <button onclick="convertCommand()" class="w-10 h-10 rounded-lg bg-obsidian-accent hover:bg-violet-600 text-white flex items-center justify-center transition-all shadow-lg hover:shadow-violet-900/20" title="Convert">
+                <i class="fa-solid fa-arrow-right md:hidden"></i> <i class="fa-solid fa-arrow-right hidden md:block"></i> </button>
+        </div>
+
+        <div class="flex-1 flex flex-col min-h-[50%] md:min-h-0">
+            <div class="h-10 bg-obsidian-pane flex items-center justify-between px-4 border-b border-obsidian-border">
+                <span class="text-xs font-bold uppercase tracking-wider text-gray-400">
+                    <i class="fa-solid fa-file-code mr-2"></i>docker-compose.yml
+                </span>
+                <button onclick="copyOutput()" id="copyBtn" class="text-xs text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-regular fa-copy mr-1"></i> Copy
+                </button>
+            </div>
+            <div class="flex-1 relative bg-obsidian-bg overflow-auto">
+                <div id="placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-gray-600 opacity-50 pointer-events-none">
+                    <i class="fa-brands fa-docker text-4xl mb-3"></i>
+                    <p class="text-sm">Waiting for input...</p>
+                </div>
+                <pre id="outputYaml" class="w-full h-full p-4 font-mono text-sm text-gray-300 hidden select-text"></pre>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // Regex for tokenizing command line arguments (respects quotes)
+        const TOKEN_REGEX = /[^\s"]+|"([^"]*)"/gi;
+
+        function clearInput() {
+            document.getElementById('inputCommand').value = '';
+            document.getElementById('outputYaml').innerHTML = '';
+            document.getElementById('outputYaml').classList.add('hidden');
+            document.getElementById('placeholder').classList.remove('hidden');
+        }
+
+        function copyOutput() {
+            const outputText = document.getElementById('outputYaml').innerText;
+            if (!outputText) return;
+
+            navigator.clipboard.writeText(outputText).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check mr-1 text-green-400"></i> Copied';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                }, 2000);
+            });
+        }
+
+        function convertCommand() {
+            const rawInput = document.getElementById('inputCommand').value.trim();
+            
+            if (!rawInput) return;
+
+            // 1. Preprocess: Remove newlines used for multi-line commands (backslash + newline)
+            const cleanInput = rawInput.replace(/\\\s*\n/g, ' ').replace(/\n/g, ' ');
+
+            // 2. Tokenize
+            const tokens = [];
+            let match;
+            while (match = TOKEN_REGEX.exec(cleanInput)) {
+                // If quoted, use group 1, else use match 0
+                tokens.push(match[1] ? match[1] : match[0]);
+            }
+
+            // 3. Parse Args
+            const service = {
+                image: '',
+                container_name: '',
+                restart: '',
+                ports: [],
+                volumes: [],
+                environment: [],
+                networks: [],
+                privileged: false,
+                command: []
+            };
+
+            let imageFound = false;
+
+            // Iterate tokens. Start at 1 if token[0] is 'docker' and token[1] is 'run'
+            let startIndex = 0;
+            if (tokens[0] === 'docker' && tokens[1] === 'run') startIndex = 2;
+            else if (tokens[0] === 'run') startIndex = 1; // In case user omitted 'docker'
+
+            for (let i = startIndex; i < tokens.length; i++) {
+                const token = tokens[i];
+
+                // Stop processing flags if we hit the image (usually the first non-flag arg)
+                // However, Docker run syntax allows flags *after* image for the entrypoint command.
+                // We need a heuristic. Usually args start with -. 
+                
+                if (token.startsWith('-')) {
+                    // It is a flag
+                    switch (token) {
+                        case '-d': 
+                        case '--detach':
+                        case '-it':
+                        case '-t':
+                        case '-i':
+                        case '--rm':
+                            // Ignore these for compose
+                            break;
+                        
+                        case '--name':
+                            service.container_name = tokens[++i];
+                            break;
+                        
+                        case '-p':
+                        case '--publish':
+                            service.ports.push(tokens[++i]);
+                            break;
+                        
+                        case '-v':
+                        case '--volume':
+                            service.volumes.push(tokens[++i]);
+                            break;
+                        
+                        case '-e':
+                        case '--env':
+                            service.environment.push(tokens[++i]);
+                            break;
+                        
+                        case '--restart':
+                            service.restart = tokens[++i];
+                            break;
+                        
+                        case '--net':
+                        case '--network':
+                            service.networks.push(tokens[++i]);
+                            break;
+
+                        case '--privileged':
+                            service.privileged = true;
+                            break;
+
+                        default:
+                            // Handle combined short flags like -it (split into -i -t) logic is complex, 
+                            // simplistic approach: if it looks like an image and we haven't found one, take it.
+                            break;
+                    }
+                } else {
+                    // It's not a flag.
+                    if (!imageFound) {
+                        service.image = token;
+                        imageFound = true;
+                    } else {
+                        // Everything after image is the command
+                        service.command.push(token);
+                    }
+                }
+            }
+
+            // 4. Generate YAML String
+            const serviceName = service.container_name || 'app';
+            let yaml = `version: <span class="yaml-string">'3.8'</span>\n\nservices:\n  <span class="yaml-key">${serviceName}</span>:\n`;
+
+            // Image
+            if (service.image) yaml += `    image: <span class="yaml-string">${service.image}</span>\n`;
+            
+            // Container Name
+            if (service.container_name) yaml += `    container_name: <span class="yaml-string">${service.container_name}</span>\n`;
+            
+            // Restart
+            if (service.restart) yaml += `    restart: <span class="yaml-string">${service.restart}</span>\n`;
+            
+            // Privileged
+            if (service.privileged) yaml += `    privileged: <span class="yaml-val">true</span>\n`;
+
+            // Ports
+            if (service.ports.length > 0) {
+                yaml += `    ports:\n`;
+                service.ports.forEach(p => yaml += `      - <span class="yaml-string">"${p}"</span>\n`);
+            }
+
+            // Volumes
+            if (service.volumes.length > 0) {
+                yaml += `    volumes:\n`;
+                service.volumes.forEach(v => yaml += `      - <span class="yaml-string">"${v}"</span>\n`);
+            }
+
+            // Environment
+            if (service.environment.length > 0) {
+                yaml += `    environment:\n`;
+                service.environment.forEach(e => yaml += `      - <span class="yaml-string">"${e}"</span>\n`);
+            }
+
+            // Networks
+            if (service.networks.length > 0) {
+                yaml += `    networks:\n`;
+                service.networks.forEach(n => yaml += `      - <span class="yaml-string">${n}</span>\n`);
+            }
+
+            // Command
+            if (service.command.length > 0) {
+                const cmdStr = service.command.join(' ');
+                yaml += `    command: <span class="yaml-string">"${cmdStr}"</span>\n`;
+            }
+
+            // 5. Render
+            document.getElementById('placeholder').classList.add('hidden');
+            const outEl = document.getElementById('outputYaml');
+            outEl.classList.remove('hidden');
+            outEl.innerHTML = yaml;
+        }
+    </script>
+</body>
+</html>
