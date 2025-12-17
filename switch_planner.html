@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Switch Faceplate Designer v5.1 (CLI) | Homelab Playground</title>
+    <title>Switch Designer</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -99,7 +99,7 @@
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-network-wired text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Faceplate <span class="text-obsidian-accent font-light">Designer</span></h1>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Designer</h1>
         </div>
         <div class="flex items-center gap-2">
             <button onclick="cycleSwitchSize()" id="size-btn" class="text-xs bg-obsidian-border hover:bg-white/10 text-white px-3 py-1.5 rounded transition font-mono border border-transparent hover:border-gray-500">
@@ -126,9 +126,15 @@
                     </button>
                     <input type="file" id="json-input" class="hidden" accept=".json" onchange="importJson(this)">
                 </div>
-                <button onclick="openCliModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-700 text-xs py-2 rounded flex items-center justify-center gap-2 transition shadow-lg">
-                    <i class="fa-solid fa-terminal"></i> Generate Config Commands
-                </button>
+                
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="openImporterModal()" class="bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 text-xs py-2 rounded flex items-center justify-center gap-2 transition shadow-lg">
+                        <i class="fa-solid fa-file-import text-yellow-400"></i> Import Running-Config
+                    </button>
+                    <button onclick="openCliModal()" class="bg-slate-800 hover:bg-slate-700 text-blue-400 border border-slate-700 text-xs py-2 rounded flex items-center justify-center gap-2 transition shadow-lg">
+                        <i class="fa-solid fa-terminal"></i> Generate Commands
+                    </button>
+                </div>
             </div>
 
             <div class="p-4 border-b border-obsidian-border">
@@ -172,23 +178,12 @@
                 <button onclick="setTool('erase')" id="tool-erase" class="tool-btn w-full mt-2 p-2 rounded flex items-center justify-center gap-2 text-xs border border-red-900/30 text-red-400 hover:bg-red-900/20">
                     <i class="fa-solid fa-eraser"></i> Erase / Reset Port
                 </button>
-
-                <div class="mt-4 p-3 bg-blue-900/10 border border-blue-900/30 rounded text-[10px] text-blue-200">
-                    <p class="mb-1"><strong class="text-blue-400">AP Configuration Workflow:</strong></p>
-                    <ol class="list-decimal pl-3 space-y-1">
-                        <li>Select <strong>Native</strong> tool & Mgmt VLAN. Click port (sets background).</li>
-                        <li>Select <strong>Add Tag</strong> tool & Guest/Media VLANs. Click port (adds colored bars).</li>
-                    </ol>
-                </div>
             </div>
         </aside>
 
         <main class="flex-1 overflow-auto bg-obsidian-bg relative flex flex-col items-center p-4 md:p-10">
-            
             <div id="export-area" class="w-auto inline-block min-w-0">
-                
                 <div class="bg-[#2a2a2e] rounded-sm border border-[#444] shadow-2xl relative w-fit mx-auto pr-6">
-                    
                     <div class="absolute top-0 bottom-0 -left-4 w-4 bg-[#202021] border border-[#444] rounded-l flex flex-col justify-between py-2 items-center">
                         <div class="w-2 h-3 rounded-full bg-black/60 border border-gray-600"></div>
                         <div class="w-2 h-3 rounded-full bg-black/60 border border-gray-600"></div>
@@ -199,7 +194,6 @@
                     </div>
 
                     <div class="p-3 md:p-5 flex flex-row items-center gap-8 whitespace-nowrap">
-                        
                         <div class="flex flex-col items-start gap-2 shrink-0 min-w-[80px]">
                             <div class="text-gray-400 font-bold font-mono tracking-widest text-sm uppercase">
                                 SW-<span id="model-label">24</span>
@@ -216,22 +210,17 @@
                             </div>
                         </div>
 
-                        <div id="rj45-container" class="grid gap-x-1 gap-y-5">
-                            </div>
-
+                        <div id="rj45-container" class="grid gap-x-1 gap-y-5"></div>
+                        
                         <div class="flex flex-col items-center gap-1 border-l border-white/5 pl-8 ml-auto">
                             <span class="text-[9px] text-gray-500 font-mono uppercase mb-1">SFP+ Uplinks</span>
-                            <div id="sfp-container" class="grid grid-cols-2 gap-2 p-1.5 bg-black/30 rounded border border-white/5">
-                                </div>
+                            <div id="sfp-container" class="grid grid-cols-2 gap-2 p-1.5 bg-black/30 rounded border border-white/5"></div>
                         </div>
-
                     </div>
                 </div>
 
-                <div id="export-legend" class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 hidden bg-white p-4 text-black border border-gray-300">
-                    </div>
+                <div id="export-legend" class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 hidden bg-white p-4 text-black border border-gray-300"></div>
             </div>
-
         </main>
     </div>
 
@@ -241,10 +230,7 @@
                 <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-image"></i> Export Preview</h3>
                 <button onclick="closeExportModal()" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-xmark fa-xl"></i></button>
             </div>
-            
-            <div class="flex-1 overflow-auto p-8 bg-white flex items-center justify-center" id="modal-content">
-                </div>
-            
+            <div class="flex-1 overflow-auto p-8 bg-white flex items-center justify-center" id="modal-content"></div>
             <div class="p-4 bg-obsidian-pane border-t border-obsidian-border flex flex-col md:flex-row justify-between items-center gap-4">
                 <span class="text-xs text-gray-500"><i class="fa-solid fa-circle-info mr-1"></i> Right-click image to "Copy Image" or use your screenshot tool.</span>
                 <button onclick="closeExportModal()" class="bg-obsidian-border hover:bg-white/10 text-white px-6 py-2 rounded text-sm transition">Close</button>
@@ -258,24 +244,42 @@
                 <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-terminal text-green-500"></i> Command Generator</h3>
                 <button onclick="closeCliModal()" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-xmark fa-xl"></i></button>
             </div>
-            
             <div class="p-4 bg-obsidian-bg border-b border-obsidian-border flex gap-4 items-center flex-wrap">
                 <label class="text-xs text-gray-400">Select Brand:</label>
                 <select id="cli-brand" onchange="generateCli()" class="bg-obsidian-pane text-white text-xs p-2 rounded border border-obsidian-border focus:outline-none min-w-[200px]">
-                    <option value="cisco">Cisco IOS (Catalyst)</option>
-                    <option value="netgear_m">Netgear M-Series (AVL / M4250)</option>
-                    <option value="aruba">HP Aruba (ProCurve / AOS-S)</option>
                     <option value="ruckus">Ruckus / Brocade (ICX FastIron)</option>
-                    <option value="ubiquiti">Ubiquiti EdgeSwitch</option>
-                    <option value="mikrotik">MikroTik RouterOS</option>
+                    <option value="aruba">HP Aruba (ProCurve / AOS-S)</option>
+                    <option value="netgear_m">Netgear M-Series (AVL)</option>
+                    <option value="cisco">Cisco IOS (Catalyst)</option>
                 </select>
                 <button onclick="copyCli()" class="ml-auto bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-2 rounded text-xs transition">
                     <i class="fa-regular fa-copy"></i> Copy to Clipboard
                 </button>
             </div>
-
             <div class="flex-1 overflow-auto p-4 bg-[#1e1e1e]">
                 <pre id="cli-output" class="font-mono text-xs text-green-400 whitespace-pre-wrap"></pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="importer-modal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl max-w-4xl w-full h-[80vh] flex flex-col animate-fade-in">
+            <div class="flex justify-between items-center p-4 border-b border-obsidian-border bg-obsidian-bg">
+                <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-file-import text-yellow-400"></i> Import Running-Config</h3>
+                <button onclick="closeImporterModal()" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-xmark fa-xl"></i></button>
+            </div>
+            <div class="p-4 bg-obsidian-bg border-b border-obsidian-border">
+                <p class="text-xs text-gray-400 mb-2">
+                    Paste your <code>show running-config</code> below. Supports 
+                    <span class="text-blue-400">Cisco/Netgear (Interface-based)</span> and 
+                    <span class="text-blue-400">Aruba/Ruckus (VLAN-based)</span>.
+                </p>
+                <textarea id="import-text" class="w-full h-48 bg-[#111] text-gray-300 font-mono text-xs p-4 rounded border border-[#333] focus:border-obsidian-accent focus:outline-none" placeholder="Paste config here..."></textarea>
+            </div>
+            <div class="p-4 bg-obsidian-pane flex justify-end">
+                <button onclick="parseAndLoadConfig()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded text-xs transition font-bold">
+                    <i class="fa-solid fa-check mr-2"></i> Process & Visualize
+                </button>
             </div>
         </div>
     </div>
@@ -296,13 +300,7 @@
             activeVlanId: 'vlan-1',
             currentTool: 'paint', 
             vlans: [
-                { id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b' }, 
-                { id: 'vlan-10', name: 'Voice', vid: 10, color: '#ef4444' }, 
-                { id: 'vlan-20', name: 'Data', vid: 20, color: '#3b82f6' }, 
-                { id: 'vlan-30', name: 'Guest', vid: 30, color: '#eab308' }, 
-                { id: 'vlan-50', name: 'IoT', vid: 50, color: '#22c55e' }, 
-                { id: 'vlan-99', name: 'Mgmt', vid: 99, color: '#a855f7' }, 
-                { id: 'vlan-666', name: 'WAN', vid: 666, color: '#f97316' }  
+                { id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b' }
             ],
             ports: {} 
         };
@@ -323,7 +321,7 @@
             updateSizeBtnLabel();
         }
 
-        // --- Rendering Core ---
+        // --- Core Rendering ---
         function renderVlanList() {
             vlanList.innerHTML = '';
             state.vlans.forEach(vlan => {
@@ -331,7 +329,6 @@
                 const div = document.createElement('div');
                 div.className = `flex items-center justify-between p-2 rounded cursor-pointer transition border mb-1 ${isActive ? 'bg-white/5 border-obsidian-accent' : 'border-transparent hover:bg-white/5'}`;
                 div.onclick = () => selectVlan(vlan.id);
-                // Extract VID from ID if not explicit
                 const vidDisplay = vlan.vid || vlan.id.replace('vlan-', '');
                 div.innerHTML = `
                     <div class="flex items-center gap-3">
@@ -357,7 +354,6 @@
             const columns = state.portCount / 2;
             rj45Container.style.gridTemplateColumns = `repeat(${columns}, minmax(34px, 1fr))`; 
             rj45Container.innerHTML = '';
-
             for (let col = 0; col < columns; col++) {
                 const topPort = (col * 2) + 1;
                 const botPort = (col * 2) + 2;
@@ -380,7 +376,6 @@
 
         function createPortNode(portNum, position, isSfp) {
             const portData = state.ports[portNum] || { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: false };
-            
             let baseColor = isSfp ? '#1a1a1a' : '#0d0d0d';
             let vlanName = 'Unassigned';
             
@@ -397,34 +392,21 @@
                 tagsHtml = '<div class="tag-container">';
                 portData.taggedVlans.forEach(tagId => {
                     const tagVlan = state.vlans.find(v => v.id === tagId);
-                    if(tagVlan) {
-                        tagsHtml += `<div class="tag-pip" style="background-color: ${tagVlan.color};" title="Tagged: ${tagVlan.name}"></div>`;
-                    }
+                    if(tagVlan) tagsHtml += `<div class="tag-pip" style="background-color: ${tagVlan.color};" title="Tagged: ${tagVlan.name}"></div>`;
                 });
                 tagsHtml += '</div>';
             }
 
             const wrapper = document.createElement('div');
             wrapper.className = "flex flex-col items-center gap-1 group relative";
-
             const labelVal = portData.customLabel || portNum;
-            const inputHtml = `<input 
-                type="text" 
-                value="${labelVal}" 
-                class="w-8 text-[9px] text-center bg-transparent border-none text-gray-500 font-mono focus:text-white focus:bg-obsidian-pane rounded port-label-input z-20"
-                onchange="updateLabel(${portNum}, this.value)"
-                readonly
-            >`;
-
+            const inputHtml = `<input type="text" value="${labelVal}" class="w-8 text-[9px] text-center bg-transparent border-none text-gray-500 font-mono focus:text-white focus:bg-obsidian-pane rounded port-label-input z-20" onchange="updateLabel(${portNum}, this.value)" readonly>`;
             const poeIcon = portData.isPoe ? '<i class="fa-solid fa-bolt text-yellow-400 absolute top-0.5 left-0.5 text-[9px] z-20 drop-shadow-md"></i>' : '';
 
             let portHtml = '';
             if (isSfp) {
                 portHtml = `
-                    <div class="sfp-port w-8 h-8 rounded-sm relative overflow-hidden"
-                         style="border-color: ${portData.nativeVlanId ? baseColor : '#444'}"
-                         onclick="handlePortClick(${portNum})"
-                         title="Port ${portNum}: Native ${vlanName}">
+                    <div class="sfp-port w-8 h-8 rounded-sm relative overflow-hidden" style="border-color: ${portData.nativeVlanId ? baseColor : '#444'}" onclick="handlePortClick(${portNum})" title="Port ${portNum}: Native ${vlanName}">
                          <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
                          <div class="absolute inset-0 opacity-40" style="background-color: ${portData.nativeVlanId ? baseColor : 'transparent'}"></div>
                          ${tagsHtml}
@@ -434,10 +416,7 @@
                 `;
             } else {
                 portHtml = `
-                    <div class="rj45-port w-8 h-8 rounded-sm border border-[#444] flex items-center justify-center relative overflow-hidden"
-                         style="border-color: ${portData.nativeVlanId ? baseColor : '#444'}"
-                         onclick="handlePortClick(${portNum})"
-                         title="Port ${portNum}: Native ${vlanName}">
+                    <div class="rj45-port w-8 h-8 rounded-sm border border-[#444] flex items-center justify-center relative overflow-hidden" style="border-color: ${portData.nativeVlanId ? baseColor : '#444'}" onclick="handlePortClick(${portNum})" title="Port ${portNum}: Native ${vlanName}">
                         <div class="absolute inset-0 bg-gradient-to-b from-black/80 to-transparent pointer-events-none"></div>
                         <div class="absolute inset-0 opacity-40" style="background-color: ${portData.nativeVlanId ? baseColor : 'transparent'}"></div>
                         ${tagsHtml}
@@ -447,52 +426,29 @@
                 `;
             }
 
-            if (position === 'top') {
-                wrapper.innerHTML = inputHtml + portHtml;
-            } else if (position === 'bottom') {
-                wrapper.innerHTML = portHtml + inputHtml;
-            } else {
-                wrapper.innerHTML = portHtml + `<div class="mt-1">${inputHtml}</div>`;
-            }
+            if (position === 'top') wrapper.innerHTML = inputHtml + portHtml;
+            else if (position === 'bottom') wrapper.innerHTML = portHtml + inputHtml;
+            else wrapper.innerHTML = portHtml + `<div class="mt-1">${inputHtml}</div>`;
             return wrapper;
         }
 
-        // --- Interactions ---
+        // --- Interaction Logic ---
         function handlePortClick(portNum) {
-            if (!state.ports[portNum]) {
-                state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: false };
-            }
+            if (!state.ports[portNum]) state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: false };
             const p = state.ports[portNum];
 
-            if (state.currentTool === 'paint') {
-                p.nativeVlanId = state.activeVlanId;
-            } 
+            if (state.currentTool === 'paint') p.nativeVlanId = state.activeVlanId;
             else if (state.currentTool === 'tag') {
                 if (!p.taggedVlans) p.taggedVlans = [];
                 const idx = p.taggedVlans.indexOf(state.activeVlanId);
-                if (idx > -1) {
-                    p.taggedVlans.splice(idx, 1);
-                } else {
-                    if (p.nativeVlanId !== state.activeVlanId) {
-                        p.taggedVlans.push(state.activeVlanId);
-                    }
-                }
+                if (idx > -1) p.taggedVlans.splice(idx, 1);
+                else if (p.nativeVlanId !== state.activeVlanId) p.taggedVlans.push(state.activeVlanId);
             }
-            else if (state.currentTool === 'poe') {
-                p.isPoe = !p.isPoe;
-            } 
-            else if (state.currentTool === 'erase') {
-                p.nativeVlanId = null;
-                p.taggedVlans = [];
-                p.isPoe = false;
-                p.customLabel = null;
-            } 
+            else if (state.currentTool === 'poe') p.isPoe = !p.isPoe;
+            else if (state.currentTool === 'erase') { p.nativeVlanId = null; p.taggedVlans = []; p.isPoe = false; p.customLabel = null; }
             else if (state.currentTool === 'label') {
-                const currentLabel = p.customLabel || portNum;
-                const newLabel = prompt(`Enter Label for Port ${portNum}:`, currentLabel);
-                if (newLabel !== null) {
-                    p.customLabel = (newLabel === '' || newLabel == portNum) ? null : newLabel;
-                }
+                const newLabel = prompt(`Enter Label for Port ${portNum}:`, p.customLabel || portNum);
+                if (newLabel !== null) p.customLabel = (newLabel === '' || newLabel == portNum) ? null : newLabel;
             }
             renderAllPorts();
         }
@@ -510,7 +466,6 @@
             updateSizeBtnLabel();
             renderAllPorts();
         }
-
         function updateSizeBtnLabel() { sizeBtn.innerText = `Size: ${state.portCount} Ports`; }
 
         function setTool(tool) {
@@ -522,12 +477,8 @@
             document.querySelectorAll('.tool-btn').forEach(btn => {
                 btn.className = ''; 
                 btn.classList.add(...baseClasses);
-                if(btn.id === `tool-${tool}`) {
-                     btn.classList.add(...activeClasses);
-                } else {
-                     if(btn.id !== 'tool-erase') btn.classList.add(...inactiveClasses);
-                     else btn.classList.add('border', 'border-red-900/30', 'text-red-400', 'hover:bg-red-900/20', 'w-full', 'mt-2');
-                }
+                if(btn.id === `tool-${tool}`) btn.classList.add(...activeClasses);
+                else btn.classList.add(...(btn.id !== 'tool-erase' ? inactiveClasses : ['border', 'border-red-900/30', 'text-red-400', 'hover:bg-red-900/20', 'w-full', 'mt-2']));
             });
         }
 
@@ -548,10 +499,9 @@
             selectVlan(id);
         }
 
-        function resetAll() { if(confirm("Clear all?")) { state.ports = {}; renderAllPorts(); } }
         function resetVlans() { if(confirm("Reset VLANs?")) { location.reload(); } }
 
-        // --- JSON Import/Export ---
+        // --- File I/O ---
         function downloadJson() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
             const dlAnchorElem = document.createElement('a');
@@ -567,12 +517,133 @@
             reader.onload = function(e) {
                 try {
                     const loadedState = JSON.parse(e.target.result);
-                    if (loadedState.vlans && loadedState.ports && loadedState.portCount) {
-                        state = loadedState; init(); alert('Loaded!');
-                    } else { throw new Error("Invalid"); }
+                    if (loadedState.vlans && loadedState.ports) { state = loadedState; init(); alert('Loaded!'); }
                 } catch (err) { alert('Error loading JSON.'); }
             };
             reader.readAsText(file); input.value = '';
+        }
+
+        // --- CONFIG IMPORTER (SMART DETECT) ---
+        function openImporterModal() { document.getElementById('importer-modal').classList.remove('hidden'); }
+        function closeImporterModal() { document.getElementById('importer-modal').classList.add('hidden'); }
+
+        function parseAndLoadConfig() {
+            const text = document.getElementById('import-text').value;
+            if(!text.trim()) return;
+
+            // Detect type: Interface-based (Cisco) vs VLAN-based (Aruba/Ruckus)
+            // Heuristic: If we see "untagged" or "tagged" keywords more than "switchport", assume VLAN-based.
+            const isVlanCentric = (text.match(/untagged/g) || []).length > 2;
+
+            const newVlans = [];
+            const newPorts = {};
+            const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7', '#f97316', '#ec4899', '#06b6d4'];
+            let colorIdx = 0;
+
+            // 1. VLAN PARSING (Common to both)
+            const vlanRegex = /^vlan (\d+)(?:\s+name\s+["']?([^"'\n]+)["']?)?/gm;
+            let match;
+            while ((match = vlanRegex.exec(text)) !== null) {
+                const vid = parseInt(match[1]);
+                const name = match[2] ? match[2].trim() : `VLAN ${vid}`;
+                newVlans.push({ id: `vlan-${vid}`, vid: vid, name: name, color: colors[colorIdx++ % colors.length] });
+            }
+            if (!newVlans.find(v => v.vid === 1)) newVlans.unshift({ id: 'vlan-1', vid: 1, name: 'Default', color: '#64748b' });
+
+            // 2. PORT PARSING
+            if (!isVlanCentric) {
+                // --- CISCO / NETGEAR PARSING (Interface Centric) ---
+                const interfaceSplit = text.split(/^interface /m);
+                interfaceSplit.forEach(chunk => {
+                    const headerMatch = chunk.match(/^(?:GigabitEthernet|FastEthernet|TenGigabitEthernet|Ethernet|)(\d+\/\d+\/)?(\d+)/);
+                    if (headerMatch) {
+                        const portNum = parseInt(headerMatch[2]);
+                        const desc = (chunk.match(/description "?([^"\n]+)"?/) || [])[1];
+                        const mode = (chunk.match(/switchport mode (access|trunk)/) || [])[1] || 'access';
+                        let nativeVlanId = 'vlan-1';
+                        const taggedVlanIds = [];
+
+                        if (mode === 'access') {
+                            const accMatch = chunk.match(/switchport access vlan (\d+)/);
+                            if(accMatch) nativeVlanId = `vlan-${accMatch[1]}`;
+                        } else {
+                            const nativeMatch = chunk.match(/switchport trunk native vlan (\d+)/);
+                            if(nativeMatch) nativeVlanId = `vlan-${nativeMatch[1]}`;
+                            const allowedMatch = chunk.match(/switchport trunk allowed vlan ([\d,-]+)/);
+                            if (allowedMatch) {
+                                allowedMatch[1].split(',').forEach(r => {
+                                    if(!r.includes('-')) taggedVlanIds.push(`vlan-${r}`);
+                                });
+                            }
+                        }
+                        newPorts[portNum] = { customLabel: desc, nativeVlanId: nativeVlanId, taggedVlans: taggedVlanIds, isPoe: !chunk.includes('power inline never') };
+                    }
+                });
+            } else {
+                // --- ARUBA / RUCKUS PARSING (VLAN Centric) ---
+                // Split by VLAN blocks
+                const blocks = text.split(/^vlan /m);
+                blocks.forEach(block => {
+                    const vidMatch = block.match(/^(\d+)/);
+                    if(!vidMatch) return;
+                    const vid = parseInt(vidMatch[1]);
+                    const vlanId = `vlan-${vid}`;
+                    
+                    // Parse Untagged
+                    const untaggedMatch = block.match(/untagged (?:ethe )?([\d\/\-,\s]+)/);
+                    if(untaggedMatch) parsePortList(untaggedMatch[1], newPorts, 'nativeVlanId', vlanId);
+
+                    // Parse Tagged
+                    const taggedMatch = block.match(/tagged (?:ethe )?([\d\/\-,\s]+)/);
+                    if(taggedMatch) parsePortList(taggedMatch[1], newPorts, 'taggedVlans', vlanId);
+                });
+            }
+
+            // Update State
+            state.vlans = newVlans;
+            state.ports = newPorts;
+            state.activeVlanId = newVlans[0].id;
+            
+            // Auto-size chassis
+            const maxPort = Math.max(0, ...Object.keys(newPorts).map(Number));
+            if (maxPort > 24) state.portCount = 48;
+            else if (maxPort > 16) state.portCount = 24;
+            else if (maxPort > 10) state.portCount = 16;
+            else if (maxPort > 8) state.portCount = 10;
+            else state.portCount = 8;
+            
+            updateSizeBtnLabel(); renderVlanList(); renderAllPorts(); closeImporterModal();
+            alert(`Imported ${Object.keys(newPorts).length} ports from ${isVlanCentric ? 'VLAN-centric' : 'Interface-centric'} config.`);
+        }
+
+        // Helper to expand "1-4, 10" or "1/1/1 to 1/1/4" into port numbers
+        function parsePortList(str, portObj, prop, value) {
+            // Normalize: replace ' to ' with '-' (Ruckus style range)
+            str = str.replace(/ to /g, '-');
+            const parts = str.split(/[\s,]+/);
+            
+            parts.forEach(part => {
+                // Remove Ruckus "1/1/" prefix if present to get just port num
+                // Note: This simplified logic assumes stack member 1. 
+                // A real parser would need full stack awareness, but this fits the MVP constraints.
+                const cleanPart = part.replace(/^\d+\/\d+\//, ''); 
+                
+                if (cleanPart.includes('-')) {
+                    const range = cleanPart.split('-').map(Number);
+                    for (let i = range[0]; i <= range[1]; i++) {
+                        assignPort(i, portObj, prop, value);
+                    }
+                } else {
+                    const p = parseInt(cleanPart);
+                    if (!isNaN(p)) assignPort(p, portObj, prop, value);
+                }
+            });
+        }
+
+        function assignPort(pNum, portObj, prop, value) {
+            if(!portObj[pNum]) portObj[pNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: true };
+            if(prop === 'taggedVlans') portObj[pNum].taggedVlans.push(value);
+            else portObj[pNum][prop] = value;
         }
 
         // --- Export PNG Logic ---
@@ -600,182 +671,114 @@
         }
         function closeExportModal() { document.getElementById('export-modal').classList.add('hidden'); }
 
-        // --- CLI Generation Logic ---
-        function openCliModal() {
-            document.getElementById('cli-modal').classList.remove('hidden');
-            generateCli();
-        }
+        // --- CLI Gen ---
+        function openCliModal() { document.getElementById('cli-modal').classList.remove('hidden'); generateCli(); }
         function closeCliModal() { document.getElementById('cli-modal').classList.add('hidden'); }
-
-        function getVid(vlanId) {
-            const v = state.vlans.find(x => x.id === vlanId);
-            return v ? (v.vid || v.id.replace('vlan-', '')) : 1;
-        }
-
+        function getVid(vlanId) { const v = state.vlans.find(x => x.id === vlanId); return v ? (v.vid || v.id.replace('vlan-', '')) : 1; }
+        
         function generateCli() {
             const brand = document.getElementById('cli-brand').value;
-            let output = '';
+            let output = `! --- Generated Config (${brand.toUpperCase()}) ---\n`;
             
-            // --- Helper: Get Sorted Active Port IDs ---
+            // Interfaces List for Iteration
             const portKeys = Object.keys(state.ports).map(Number).sort((a,b)=>a-b);
 
-            // --- HEADER & VLAN DB ---
-            output += `! --- Generated by Switch Faceplate Designer ---\n`;
-            output += `! --- VLAN Database ---\n`;
-
-            state.vlans.forEach(v => {
-                if(v.vid) {
-                    if(brand === 'cisco' || brand === 'aruba' || brand === 'netgear_m' || brand === 'ruckus') {
-                        output += `vlan ${v.vid}\n name "${v.name}"\n!\n`;
-                    } else if (brand === 'ubiquiti') {
-                        output += `vlan ${v.vid}\n name "${v.name}"\n exit\n`;
-                    } else if (brand === 'mikrotik') {
-                        output += `/interface bridge vlan add bridge=bridge1 vlan-ids=${v.vid} comment="${v.name}"\n`;
-                    }
-                }
-            });
-
-            output += `\n! --- Port Configurations ---\n`;
-
-            // --- STRATEGY: Interface Centric (Cisco, Netgear, Ubiquiti) ---
-            if (['cisco', 'netgear_m', 'ubiquiti', 'mikrotik'].includes(brand)) {
+            // --- RUCKUS / BROCADE (ICX) ---
+            if (brand === 'ruckus') {
+                output += `! --- VLAN Configuration ---\n`;
+                const vlanMap = {}; // Map VID -> {untagged:[], tagged:[]}
                 
+                state.vlans.forEach(v => {
+                    if(!v.vid) return;
+                    output += `vlan ${v.vid} name "${v.name}" by port\n`;
+                    // Find ports
+                    const untagged = [];
+                    const tagged = [];
+                    portKeys.forEach(p => {
+                        const port = state.ports[p];
+                        if (getVid(port.nativeVlanId) === v.vid) untagged.push(`1/1/${p}`);
+                        if (port.taggedVlans && port.taggedVlans.map(getVid).includes(v.vid)) tagged.push(`1/1/${p}`);
+                    });
+                    if(untagged.length) output += ` untagged ethe ${untagged.join(' ')}\n`;
+                    if(tagged.length) output += ` tagged ethe ${tagged.join(' ')}\n`;
+                    output += `!\n`;
+                });
+
+                output += `\n! --- Interface Details ---\n`;
+                portKeys.forEach(p => {
+                    const port = state.ports[p];
+                    if(port.customLabel || port.isPoe === false) {
+                        output += `interface ethernet 1/1/${p}\n`;
+                        if(port.customLabel) output += ` port-name "${port.customLabel}"\n`;
+                        if(port.isPoe === false) output += ` no inline power\n`;
+                        output += `!\n`;
+                    }
+                });
+            }
+
+            // --- HP ARUBA (AOS-S) ---
+            else if (brand === 'aruba') {
+                state.vlans.forEach(v => {
+                    if(!v.vid) return;
+                    output += `vlan ${v.vid}\n name "${v.name}"\n`;
+                    
+                    const untagged = [];
+                    const tagged = [];
+                    portKeys.forEach(p => {
+                        const port = state.ports[p];
+                        if (getVid(port.nativeVlanId) === v.vid) untagged.push(p);
+                        if (port.taggedVlans && port.taggedVlans.map(getVid).includes(v.vid)) tagged.push(p);
+                    });
+                    
+                    if(untagged.length) output += ` untagged ${untagged.join(',')}\n`;
+                    if(tagged.length) output += ` tagged ${tagged.join(',')}\n`;
+                    output += ` exit\n`;
+                });
+                output += `\n`;
+                portKeys.forEach(p => {
+                    const port = state.ports[p];
+                    if(port.customLabel) output += `interface ${p} name "${port.customLabel}"\n`;
+                    // PoE default is on, usually 'no power-over-ethernet' to disable
+                    if(port.isPoe === false) output += `interface ${p} no power-over-ethernet\n`;
+                });
+            }
+
+            // --- CISCO / NETGEAR (Interface Centric) ---
+            else {
+                // VLAN DB
+                state.vlans.forEach(v => {
+                    if(v.vid) output += `vlan ${v.vid}\n name "${v.name}"\n!\n`;
+                });
+                output += `\n! --- Interfaces ---\n`;
                 portKeys.forEach(pNum => {
                     const p = state.ports[pNum];
-                    if(!p.nativeVlanId && (!p.taggedVlans || p.taggedVlans.length === 0)) return; 
-
-                    const nativeVid = p.nativeVlanId ? getVid(p.nativeVlanId) : 1;
+                    if(!p.nativeVlanId && (!p.taggedVlans || !p.taggedVlans.length)) return;
+                    const nativeVid = getVid(p.nativeVlanId);
                     const taggedVids = p.taggedVlans ? p.taggedVlans.map(getVid).join(',') : '';
                     const desc = p.customLabel ? p.customLabel : `Port ${pNum}`;
 
-                    // CISCO
                     if (brand === 'cisco') {
-                        output += `interface GigabitEthernet1/0/${pNum}\n`;
-                        output += ` description ${desc}\n`;
-                        if (taggedVids) {
-                            output += ` switchport mode trunk\n`;
-                            output += ` switchport trunk native vlan ${nativeVid}\n`;
-                            output += ` switchport trunk allowed vlan ${nativeVid},${taggedVids}\n`;
-                        } else {
-                            output += ` switchport mode access\n`;
-                            output += ` switchport access vlan ${nativeVid}\n`;
-                        }
-                        if (p.isPoe === false) output += ` power inline never\n`;
+                        output += `interface Gi1/0/${pNum}\n description ${desc}\n`;
+                        if(taggedVids) output += ` switchport mode trunk\n switchport trunk native vlan ${nativeVid}\n switchport trunk allowed vlan ${nativeVid},${taggedVids}\n`;
+                        else output += ` switchport mode access\n switchport access vlan ${nativeVid}\n`;
+                        if(!p.isPoe) output += ` power inline never\n`;
                         output += `!\n`;
-                    }
-                    // NETGEAR M4250/M4300 (Modern AVL Line)
-                    else if (brand === 'netgear_m') {
-                        output += `interface 1/0/${pNum}\n`;
-                        output += ` description "${desc}"\n`;
-                        if (taggedVids) {
-                            output += ` switchport mode trunk\n`;
-                            output += ` switchport trunk native vlan ${nativeVid}\n`;
-                            output += ` switchport trunk allowed vlan ${nativeVid},${taggedVids}\n`;
-                        } else {
-                            output += ` switchport mode access\n`;
-                            output += ` switchport access vlan ${nativeVid}\n`;
-                        }
-                        if (p.isPoe === false) output += ` poe admin-mode disable\n`;
-                        output += `exit\n`;
-                    }
-                    // UBIQUITI EDGESWITCH
-                    else if (brand === 'ubiquiti') {
-                        output += `interface 0/${pNum}\n`;
-                        output += ` description "${desc}"\n`;
-                        if (taggedVids) {
-                            output += ` vlan pvid ${nativeVid}\n`;
-                            output += ` vlan participation include ${nativeVid},${taggedVids}\n`;
-                            output += ` vlan tagging ${taggedVids}\n`;
-                        } else {
-                            output += ` vlan pvid ${nativeVid}\n`;
-                            output += ` vlan participation include ${nativeVid}\n`;
-                        }
-                        if (p.isPoe === false) output += ` poe opmode shutdown\n`;
-                        output += `exit\n`;
-                    }
-                    // MIKROTIK
-                    else if (brand === 'mikrotik') {
-                        output += `/interface ethernet set [ find default-name=ether${pNum} ] comment="${desc}"\n`;
-                        output += `/interface bridge port add bridge=bridge1 interface=ether${pNum} pvid=${nativeVid}\n`;
+                    } else if (brand === 'netgear_m') {
+                         output += `interface 1/0/${pNum}\n description "${desc}"\n`;
+                         if(taggedVids) output += ` switchport mode trunk\n switchport trunk native vlan ${nativeVid}\n switchport trunk allowed vlan ${nativeVid},${taggedVids}\n`;
+                         else output += ` switchport mode access\n switchport access vlan ${nativeVid}\n`;
+                         if(!p.isPoe) output += ` poe admin-mode disable\n`;
+                         output += `exit\n`;
                     }
                 });
             }
-
-            // --- STRATEGY: VLAN Centric (Aruba AOS-S, Ruckus ICX) ---
-            else if (['aruba', 'ruckus'].includes(brand)) {
-                
-                // 1. Build a map of VlanID -> { untagged: [], tagged: [] }
-                const vlanMap = {};
-                state.vlans.forEach(v => {
-                    if(v.vid) vlanMap[v.vid] = { name: v.name, untagged: [], tagged: [] };
-                });
-
-                // 2. Populate Map
-                portKeys.forEach(pNum => {
-                    const p = state.ports[pNum];
-                    if (p.nativeVlanId) {
-                        const vid = getVid(p.nativeVlanId);
-                        if(vlanMap[vid]) vlanMap[vid].untagged.push(pNum);
-                    }
-                    if (p.taggedVlans) {
-                        p.taggedVlans.forEach(tv => {
-                            const vid = getVid(tv);
-                            if(vlanMap[vid]) vlanMap[vid].tagged.push(pNum);
-                        });
-                    }
-                    // Handle Descriptions / Names separately if needed, but usually done per interface
-                });
-
-                // 3. Generate Config by iterating VLANs
-                Object.keys(vlanMap).forEach(vid => {
-                    const vData = vlanMap[vid];
-                    if(vData.untagged.length === 0 && vData.tagged.length === 0) return;
-
-                    // ARUBA (ProCurve / AOS-S)
-                    if(brand === 'aruba') {
-                        output += `vlan ${vid}\n`;
-                        output += ` name "${vData.name}"\n`;
-                        if(vData.untagged.length > 0) output += ` untagged ${vData.untagged.join(',')}\n`;
-                        if(vData.tagged.length > 0) output += ` tagged ${vData.tagged.join(',')}\n`;
-                        output += ` exit\n`;
-                    }
-                    // RUCKUS (ICX / FastIron)
-                    else if(brand === 'ruckus') {
-                        output += `vlan ${vid} name "${vData.name}" by port\n`;
-                        if(vData.untagged.length > 0) output += ` untagged ethe 1/1/${vData.untagged.join(' ethe 1/1/')}\n`;
-                        if(vData.tagged.length > 0) output += ` tagged ethe 1/1/${vData.tagged.join(' ethe 1/1/')}\n`;
-                        output += `!\n`;
-                    }
-                });
-                
-                // Ruckus/Aruba often handle PoE/Names on Interface level separate from VLANs
-                output += `\n! --- Interface Details (PoE/Names) ---\n`;
-                portKeys.forEach(pNum => {
-                     const p = state.ports[pNum];
-                     const desc = p.customLabel || `Port ${pNum}`;
-                     if(brand === 'aruba') {
-                         output += `interface ${pNum} name "${desc}"\n`;
-                         if(p.isPoe === false) output += `interface ${pNum} no power-over-ethernet\n`;
-                     } else if(brand === 'ruckus') {
-                         output += `interface ethernet 1/1/${pNum} port-name "${desc}"\n`;
-                         if(p.isPoe === false) output += `interface ethernet 1/1/${pNum} no inline power\n`;
-                     }
-                });
-            }
-
+            
             cliOutput.textContent = output;
         }
 
-        function copyCli() {
-            const text = document.getElementById('cli-output').textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                alert('Copied to clipboard!');
-            });
-        }
+        function copyCli() { navigator.clipboard.writeText(document.getElementById('cli-output').textContent); alert('Copied!'); }
 
-        // Start
         init();
-
     </script>
 </body>
 </html>
