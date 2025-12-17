@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Switch Faceplate Designer v4 | Homelab Playground</title>
+    <title>Switch Faceplate Designer v4.2 | Homelab Playground</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -202,11 +202,11 @@
             </div>
         </aside>
 
-        <main class="flex-1 overflow-auto bg-obsidian-bg relative flex flex-col items-center justify-center p-4 md:p-10">
+        <main class="flex-1 overflow-auto bg-obsidian-bg relative flex flex-col items-center p-4 md:p-10">
             
-            <div id="export-area" class="w-full max-w-6xl">
+            <div id="export-area" class="w-auto inline-block min-w-0">
                 
-                <div class="bg-[#2a2a2e] rounded-sm border border-[#444] shadow-2xl relative mx-auto">
+                <div class="bg-[#2a2a2e] rounded-sm border border-[#444] shadow-2xl relative w-fit mx-auto pr-6">
                     
                     <div class="absolute top-0 bottom-0 -left-4 w-4 bg-[#202021] border border-[#444] rounded-l flex flex-col justify-between py-2 items-center">
                         <div class="w-2 h-3 rounded-full bg-black/60 border border-gray-600"></div>
@@ -217,9 +217,9 @@
                         <div class="w-2 h-3 rounded-full bg-black/60 border border-gray-600"></div>
                     </div>
 
-                    <div class="p-3 md:p-5 flex flex-col lg:flex-row items-center gap-4 lg:gap-8">
+                    <div class="p-3 md:p-5 flex flex-row items-center gap-8 whitespace-nowrap">
                         
-                        <div class="flex lg:flex-col items-center lg:items-start gap-4 lg:gap-2 shrink-0 min-w-[80px]">
+                        <div class="flex flex-col items-start gap-2 shrink-0 min-w-[80px]">
                             <div class="text-gray-400 font-bold font-mono tracking-widest text-sm uppercase">
                                 SW-<span id="model-label">24</span>
                             </div>
@@ -238,7 +238,7 @@
                         <div id="rj45-container" class="grid gap-x-1 gap-y-5">
                             </div>
 
-                        <div class="flex flex-col items-center gap-1 border-l border-white/5 pl-4 lg:ml-auto">
+                        <div class="flex flex-col items-center gap-1 border-l border-white/5 pl-8 ml-auto">
                             <span class="text-[9px] text-gray-500 font-mono uppercase mb-1">SFP+ Uplinks</span>
                             <div id="sfp-container" class="grid grid-cols-2 gap-2 p-1.5 bg-black/30 rounded border border-white/5">
                                 </div>
@@ -282,7 +282,6 @@
         const SFP_COUNT = 4;
         const PORT_OPTIONS = [8, 10, 16, 24, 48];
 
-        // State now supports nativeVlan (string) and taggedVlans (array)
         let state = {
             portCount: 24,
             activeVlanId: 'vlan-1',
@@ -309,7 +308,7 @@
 
         // --- Init ---
         function init() {
-            setTool('paint'); // Default tool
+            setTool('paint'); 
             renderVlanList();
             renderAllPorts();
             updateSizeBtnLabel();
@@ -343,7 +342,7 @@
 
         function renderRJ45() {
             const columns = state.portCount / 2;
-            rj45Container.style.gridTemplateColumns = `repeat(${columns}, minmax(34px, 1fr))`; // Slightly wider for tag pips
+            rj45Container.style.gridTemplateColumns = `repeat(${columns}, minmax(34px, 1fr))`; 
             rj45Container.innerHTML = '';
 
             for (let col = 0; col < columns; col++) {
@@ -368,13 +367,11 @@
         }
 
         function createPortNode(portNum, position, isSfp) {
-            // Ensure data structure exists
             const portData = state.ports[portNum] || { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: false };
             
             let baseColor = isSfp ? '#1a1a1a' : '#0d0d0d';
             let vlanName = 'Unassigned';
             
-            // 1. Determine Native Color (Background)
             if (portData.nativeVlanId) {
                 const vlan = state.vlans.find(v => v.id === portData.nativeVlanId);
                 if (vlan) {
@@ -383,7 +380,7 @@
                 }
             }
 
-            // 2. Build Tag Pips HTML
+            // Tag Pips HTML
             let tagsHtml = '';
             if (portData.taggedVlans && portData.taggedVlans.length > 0) {
                 tagsHtml = '<div class="tag-container">';
@@ -396,11 +393,9 @@
                 tagsHtml += '</div>';
             }
 
-            // Wrapper
             const wrapper = document.createElement('div');
             wrapper.className = "flex flex-col items-center gap-1 group relative";
 
-            // Label Input
             const labelVal = portData.customLabel || portNum;
             const inputHtml = `<input 
                 type="text" 
@@ -410,11 +405,11 @@
                 readonly
             >`;
 
-            // Port Visuals
+            // Updated PoE Icon placement to top-left (top-0.5 left-0.5)
+            const poeIcon = portData.isPoe ? '<i class="fa-solid fa-bolt text-yellow-400 absolute top-0.5 left-0.5 text-[9px] z-20 drop-shadow-md"></i>' : '';
+
             let portHtml = '';
-            
             if (isSfp) {
-                // SFP Style
                 portHtml = `
                     <div class="sfp-port w-8 h-8 rounded-sm relative overflow-hidden"
                          style="border-color: ${portData.nativeVlanId ? baseColor : '#444'}"
@@ -422,15 +417,12 @@
                          title="Port ${portNum}: Native ${vlanName}">
                          <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none"></div>
                          <div class="absolute inset-0 opacity-40" style="background-color: ${portData.nativeVlanId ? baseColor : 'transparent'}"></div>
-                         
                          ${tagsHtml}
-
                          <div class="z-10 w-3 h-4 bg-black/50 rounded-sm border border-white/10"></div>
-                         ${portData.isPoe ? '<i class="fa-solid fa-bolt text-yellow-400 absolute top-0.5 right-0.5 text-[8px] z-20 drop-shadow-md"></i>' : ''}
+                         ${poeIcon}
                     </div>
                 `;
             } else {
-                // RJ45 Style
                 portHtml = `
                     <div class="rj45-port w-8 h-8 rounded-sm border border-[#444] flex items-center justify-center relative overflow-hidden"
                          style="border-color: ${portData.nativeVlanId ? baseColor : '#444'}"
@@ -443,7 +435,7 @@
                         ${tagsHtml}
 
                         <div class="absolute top-1 right-1 w-1 h-1 rounded-full ${portData.nativeVlanId ? 'bg-green-500 shadow-[0_0_4px_#22c55e]' : 'bg-gray-800'}"></div>
-                        ${portData.isPoe ? '<i class="fa-solid fa-bolt text-yellow-400 absolute bottom-0.5 left-1 text-[9px] z-20 drop-shadow-md"></i>' : ''}
+                        ${poeIcon}
                     </div>
                 `;
             }
@@ -462,26 +454,20 @@
         // --- Interactions ---
 
         function handlePortClick(portNum) {
-            // Ensure object structure
             if (!state.ports[portNum]) {
                 state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: false };
             }
             const p = state.ports[portNum];
 
             if (state.currentTool === 'paint') {
-                // Set Native VLAN
                 p.nativeVlanId = state.activeVlanId;
             } 
             else if (state.currentTool === 'tag') {
-                // Toggle Tagged VLAN
                 if (!p.taggedVlans) p.taggedVlans = [];
-                
                 const idx = p.taggedVlans.indexOf(state.activeVlanId);
                 if (idx > -1) {
-                    // Remove if exists
                     p.taggedVlans.splice(idx, 1);
                 } else {
-                    // Add if not exists (and not same as native? Optional check)
                     if (p.nativeVlanId !== state.activeVlanId) {
                         p.taggedVlans.push(state.activeVlanId);
                     }
@@ -545,8 +531,6 @@
 
         function selectVlan(id) {
             state.activeVlanId = id;
-            // Auto switch to Paint if in Erase/PoE/Label mode
-            // If in Tag mode, stay in Tag mode so user can pick color then tag
             if(['erase', 'poe', 'label'].includes(state.currentTool)) {
                 setTool('paint');
             }
@@ -619,7 +603,6 @@
             legend.innerHTML = '';
             legend.classList.remove('hidden');
             
-            // Build Legend
             state.vlans.forEach(v => {
                 const item = document.createElement('div');
                 item.className = "flex items-center gap-2";
