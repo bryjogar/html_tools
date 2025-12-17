@@ -38,12 +38,13 @@
         ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #4c4c4c; }
 
-        .dragging { opacity: 0.5; transform: scale(0.95); }
+        .dragging { opacity: 0.4; transform: scale(0.98); border-style: dashed !important; border-color: #7c3aed !important; }
         .drag-over { border-color: #7c3aed !important; background: rgba(124, 58, 237, 0.05); }
         
         input:focus, textarea:focus { outline: none; border-color: #7c3aed !important; }
         
         .phase-column { min-width: 350px; width: 350px; }
+        .task-card { transition: transform 0.1s ease; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
@@ -52,10 +53,10 @@
         <div class="flex items-center gap-4">
             <i class="fa-solid fa-diagram-project text-obsidian-accent text-xl"></i>
             <div class="flex flex-col">
-                <input type="text" id="project-name" placeholder="Untitled Project" 
+                <input type="text" id="project-name" placeholder="Project Name" 
                     class="bg-transparent border-none font-bold text-white focus:ring-0 text-sm md:text-base w-48 md:w-64 p-0 leading-tight"
                     onchange="updateProjectName(this.value)">
-                <span id="global-hours" class="text-[9px] text-gray-500 font-mono uppercase tracking-tighter">Total Scope: 0 hrs</span>
+                <span id="global-hours" class="text-[9px] text-gray-500 font-mono uppercase tracking-tighter">Scope: 0 hrs</span>
             </div>
         </div>
         
@@ -116,28 +117,26 @@
     </footer>
 
     <script>
-        // Versioned key to prevent data collision with older versions
-        const STORAGE_KEY = 'hp_project_flow_v4';
+        const STORAGE_KEY = 'hp_project_flow_v5';
 
         let projectData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
-            name: "Switch Refresh Baseline",
+            name: "Implementation Plan",
             phases: [
-                { id: 'p1', title: 'Phase 1: Pre-Config', tasks: [
-                    { id: 't-surv', title: 'On-site Survey', owner: 'Tech A', dep: 'N/A', hours: 2, criteria: 'Verify rack space, power, and existing cable lengths.' }
+                { id: 'p1', title: 'Phase 1: Discovery', tasks: [
+                    { id: 'T-101', title: 'Network Audit', owner: 'Admin', dep: '', hours: 2, criteria: 'Full IP list generated.' }
                 ]}
             ]
         };
 
-        function save() {
+        function save(shouldRender = true) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(projectData));
-            renderBoard();
+            if (shouldRender) renderBoard();
         }
 
         function renderBoard() {
             document.getElementById('project-name').value = projectData.name || '';
             const board = document.getElementById('board');
             board.innerHTML = '';
-
             let grandTotal = 0;
 
             projectData.phases.forEach((phase) => {
@@ -146,8 +145,9 @@
                 
                 const col = document.createElement('div');
                 col.className = 'phase-column flex flex-col h-full bg-obsidian-pane border border-obsidian-border rounded-lg shadow-lg shrink-0';
-                col.setAttribute('ondragover', 'allowDrop(event)');
-                col.setAttribute('ondrop', `dropTask(event, '${phase.id}')`);
+                col.setAttribute('data-phase-id', phase.id);
+                col.setAttribute('ondragover', 'handleDragOver(event)');
+                col.setAttribute('ondrop', `handleDrop(event, '${phase.id}')`);
                 col.setAttribute('ondragenter', 'this.classList.add("drag-over")');
                 col.setAttribute('ondragleave', 'this.classList.remove("drag-over")');
 
@@ -159,14 +159,14 @@
                                 onchange="updatePhaseTitle('${phase.id}', this.value)">
                             <button onclick="removePhase('${phase.id}')" class="text-gray-600 hover:text-red-400 ml-2"><i class="fa-solid fa-trash-can text-xs"></i></button>
                         </div>
-                        <div class="text-[10px] text-obsidian-accent font-mono uppercase tracking-widest">
-                            Phase Effort: ${phaseTotal} hrs
-                        </div>
+                        <div class="text-[10px] text-obsidian-accent font-mono uppercase tracking-widest">Effort: ${phaseTotal} hrs</div>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-3 space-y-4">
+                    <div class="flex-1 overflow-y-auto p-3 space-y-4 task-list-container">
                         ${phase.tasks.map(task => `
-                            <div class="bg-obsidian-bg border border-obsidian-border p-3 rounded-md shadow-sm cursor-move group relative"
-                                draggable="true" ondragstart="dragTask(event, '${task.id}', '${phase.id}')">
+                            <div class="task-card bg-obsidian-bg border border-obsidian-border p-3 rounded-md shadow-sm cursor-move group relative"
+                                draggable="true" 
+                                data-task-id="${task.id}"
+                                ondragstart="handleDragStart(event, '${task.id}', '${phase.id}')">
                                 
                                 <div class="flex justify-between items-start mb-2">
                                     <input type="text" value="${task.title}" 
@@ -183,29 +183,13 @@
                                         class="w-full bg-[#121212] text-[11px] border border-obsidian-border p-2 rounded text-obsidian-text placeholder:text-gray-700 resize-none h-16 font-sans"
                                         placeholder="Success Criteria..."
                                         onchange="updateTaskField('${phase.id}', '${task.id}', 'criteria', this.value)">${task.criteria || ''}</textarea>
-                                    
                                     <div class="grid grid-cols-3 gap-2">
-                                        <div>
-                                            <label class="text-[9px] uppercase text-gray-500 block mb-0.5">Owner</label>
-                                            <input type="text" value="${task.owner}" 
-                                                class="bg-[#121212] text-[11px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono"
-                                                onchange="updateTaskField('${phase.id}', '${task.id}', 'owner', this.value)">
-                                        </div>
-                                        <div>
-                                            <label class="text-[9px] uppercase text-gray-500 block mb-0.5">Dep</label>
-                                            <input type="text" value="${task.dep}" 
-                                                class="bg-[#121212] text-[11px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono"
-                                                onchange="updateTaskField('${phase.id}', '${task.id}', 'dep', this.value)">
-                                        </div>
-                                        <div>
-                                            <label class="text-[9px] uppercase text-gray-500 block mb-0.5">Hrs</label>
-                                            <input type="number" step="0.5" value="${task.hours}" 
-                                                class="bg-[#121212] text-[11px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono"
-                                                onchange="updateTaskField('${phase.id}', '${task.id}', 'hours', this.value)">
-                                        </div>
+                                        <input type="text" value="${task.owner}" placeholder="Owner" class="bg-[#121212] text-[10px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono" onchange="updateTaskField('${phase.id}', '${task.id}', 'owner', this.value)">
+                                        <input type="text" value="${task.dep}" placeholder="Dep" class="bg-[#121212] text-[10px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono" onchange="updateTaskField('${phase.id}', '${task.id}', 'dep', this.value)">
+                                        <input type="number" step="0.5" value="${task.hours}" class="bg-[#121212] text-[10px] w-full border border-obsidian-border px-1 py-1 rounded text-obsidian-text font-mono" onchange="updateTaskField('${phase.id}', '${task.id}', 'hours', this.value)">
                                     </div>
                                 </div>
-                                <div class="absolute bottom-1 right-2 text-[8px] text-gray-700 font-mono select-none uppercase">ID: ${task.id}</div>
+                                <div class="absolute bottom-1 right-2 text-[8px] text-gray-700 font-mono select-none uppercase">${task.id}</div>
                             </div>
                         `).join('')}
                     </div>
@@ -217,23 +201,76 @@
                 `;
                 board.appendChild(col);
             });
-
-            document.getElementById('global-hours').innerText = `Total Scope: ${grandTotal} hrs`;
+            document.getElementById('global-hours').innerText = `Scope: ${grandTotal} hrs`;
         }
 
-        // --- HANDLERS ---
-        function updateProjectName(val) { projectData.name = val; save(); }
+        // --- DRAG ENGINE ---
+        let draggedTaskId = null;
+        let sourcePhaseId = null;
+
+        function handleDragStart(ev, tId, pId) {
+            draggedTaskId = tId;
+            sourcePhaseId = pId;
+            ev.dataTransfer.setData("text/plain", tId);
+            setTimeout(() => ev.target.classList.add('dragging'), 0);
+        }
+
+        function handleDragOver(ev) {
+            ev.preventDefault();
+            const container = ev.currentTarget.querySelector('.task-list-container');
+            const afterElement = getDragAfterElement(container, ev.clientY);
+            const dragging = document.querySelector('.dragging');
+            if (afterElement == null) {
+                container.appendChild(dragging);
+            } else {
+                container.insertBefore(dragging, afterElement);
+            }
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.task-card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function handleDrop(ev, targetPhaseId) {
+            ev.preventDefault();
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+            const container = ev.currentTarget.querySelector('.task-list-container');
+            const taskElements = [...container.querySelectorAll('.task-card')];
+            const newIndex = taskElements.findIndex(el => el.getAttribute('data-task-id') === draggedTaskId);
+
+            const sourcePhase = projectData.phases.find(p => p.id === sourcePhaseId);
+            const targetPhase = projectData.phases.find(p => p.id === targetPhaseId);
+            
+            const taskIndex = sourcePhase.tasks.findIndex(t => t.id === draggedTaskId);
+            const [task] = sourcePhase.tasks.splice(taskIndex, 1);
+
+            targetPhase.tasks.splice(newIndex, 0, task);
+            save();
+        }
+
+        // --- APP LOGIC ---
+        function updateProjectName(val) { projectData.name = val; save(false); }
         function updatePhaseTitle(id, val) { 
             const phase = projectData.phases.find(p => p.id === id);
             if(phase) phase.title = val;
-            save();
+            save(false);
         }
         function addPhase() {
             projectData.phases.push({ id: 'p' + Date.now(), title: 'New Phase', tasks: [] });
             save();
         }
         function removePhase(id) {
-            if(confirm('Delete phase and all contents?')) {
+            if(confirm('Delete phase?')) {
                 projectData.phases = projectData.phases.filter(p => p.id !== id);
                 save();
             }
@@ -241,10 +278,8 @@
         function addTask(phaseId) {
             const phase = projectData.phases.find(p => p.id === phaseId);
             if(phase) {
-                phase.tasks.push({ 
-                    id: Math.random().toString(36).substr(2, 4).toUpperCase(), 
-                    title: '', owner: '', dep: '', hours: 0, criteria: '' 
-                });
+                const newId = Math.random().toString(36).substr(2, 3).toUpperCase() + '-' + Math.floor(100 + Math.random() * 900);
+                phase.tasks.push({ id: newId, title: '', owner: '', dep: '', hours: 0, criteria: '' });
                 save();
             }
         }
@@ -252,8 +287,7 @@
             const phase = projectData.phases.find(p => p.id === pId);
             const task = phase.tasks.find(t => t.id === tId);
             if(task) task[field] = (field === 'hours') ? parseFloat(val) : val;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(projectData));
-            if (field === 'hours') renderBoard();
+            save(field === 'hours'); // Only re-render if hours changed for sum update
         }
         function removeTask(pId, tId) {
             const phase = projectData.phases.find(p => p.id === pId);
@@ -261,36 +295,24 @@
             save();
         }
 
-        // --- IMPORT/EXPORT ---
-
         function handleImport(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
                     const imported = JSON.parse(e.target.result);
-                    if (imported.phases && Array.isArray(imported.phases)) {
-                        projectData = imported;
-                        save();
-                        alert('Project imported successfully.');
-                    } else {
-                        throw new Error('Invalid project structure');
-                    }
-                } catch (err) {
-                    alert('Error: This is not a valid project JSON file.');
-                }
+                    if (imported.phases) { projectData = imported; save(); }
+                } catch (err) { alert('Invalid File'); }
             };
             reader.readAsText(file);
-            event.target.value = ''; // Reset input
         }
 
         function exportJSON() {
             const blob = new Blob([JSON.stringify(projectData, null, 2)], {type : 'application/json'});
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `${projectData.name.replace(/\s+/g, '_')}_baseline.json`;
+            a.download = `${projectData.name.replace(/\s+/g, '_')}.json`;
             a.click();
         }
 
@@ -298,65 +320,38 @@
             let csv = "Phase,Task ID,Task Title,Owner,Dependency,Hours,Success Criteria\n";
             projectData.phases.forEach(phase => {
                 phase.tasks.forEach(task => {
-                    const row = [
-                        `"${phase.title.replace(/"/g, '""')}"`,
-                        `"${task.id}"`,
-                        `"${task.title.replace(/"/g, '""')}"`,
-                        `"${task.owner.replace(/"/g, '""')}"`,
-                        `"${task.dep}"`,
-                        task.hours,
-                        `"${task.criteria.replace(/"/g, '""').replace(/\n/g, ' ')}"`
-                    ];
-                    csv += row.join(",") + "\n";
+                    csv += `"${phase.title}","${task.id}","${task.title}","${task.owner}","${task.dep}",${task.hours},"${task.criteria.replace(/\n/g, ' ')}"\n`;
                 });
             });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob([csv], { type: 'text/csv' });
             const link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `${projectData.name.replace(/\s+/g, '_')}_export.csv`;
+            link.download = `${projectData.name.replace(/\s+/g, '_')}.csv`;
             link.click();
         }
 
         function generatePlan() {
-            let output = `IMPLEMENTATION STRATEGY: ${projectData.name.toUpperCase()}\n`;
-            output += "=".repeat(65) + "\n\n";
-            projectData.phases.forEach((phase, i) => {
-                const total = phase.tasks.reduce((sum, t) => sum + (parseFloat(t.hours) || 0), 0);
-                output += `PHASE ${i + 1}: ${phase.title} (Est: ${total} hrs)\n` + "-".repeat(40) + "\n";
-                phase.tasks.forEach(t => {
-                    output += `[ ] [${t.id}] ${t.title || 'Untitled Task'} \n`;
-                    output += `    Lead: ${t.owner || 'N/A'} | Budget: ${t.hours} hrs | Dependency: ${t.dep || 'N/A'}\n`;
-                    if(t.criteria) output += `    Req to Close: ${t.criteria}\n`;
-                    output += `\n`;
+            let output = `PROJECT IMPLEMENTATION: ${projectData.name.toUpperCase()}\n`;
+            output += "=".repeat(60) + "\n\n";
+            projectData.phases.forEach((p, i) => {
+                const total = p.tasks.reduce((sum, t) => sum + (parseFloat(t.hours) || 0), 0);
+                output += `PHASE ${i + 1}: ${p.title} (${total} hrs)\n` + "-".repeat(30) + "\n";
+                p.tasks.forEach(t => {
+                    output += `[ ] [${t.id}] ${t.title || 'Task'} (${t.owner || '??'}) - ${t.hours}h\n`;
+                    if(t.criteria) output += `    Req: ${t.criteria}\n`;
                 });
                 output += "\n";
             });
-            document.getElementById('modal-title').innerText = "Formatted Implementation Plan";
             document.getElementById('modal-content').innerText = output;
             document.getElementById('modal').classList.remove('hidden');
         }
 
-        // --- UTILS ---
-        let draggedTaskId = null, sourcePhaseId = null;
-        function dragTask(ev, tId, pId) { draggedTaskId = tId; sourcePhaseId = pId; ev.target.classList.add('dragging'); }
-        function allowDrop(ev) { ev.preventDefault(); }
-        function dropTask(ev, targetPhaseId) {
-            ev.preventDefault();
-            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-            if (sourcePhaseId === targetPhaseId) { renderBoard(); return; }
-            const sourcePhase = projectData.phases.find(p => p.id === sourcePhaseId);
-            const targetPhase = projectData.phases.find(p => p.id === targetPhaseId);
-            const taskIndex = sourcePhase.tasks.findIndex(t => t.id === draggedTaskId);
-            const task = sourcePhase.tasks.splice(taskIndex, 1)[0];
-            targetPhase.tasks.push(task);
-            save();
-        }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
         function copyModalContent() {
             navigator.clipboard.writeText(document.getElementById('modal-content').innerText);
-            alert('Copied to clipboard!');
+            alert('Copied!');
         }
-        function clearAll() { if(confirm('Wipe project?')) { projectData = { name: "New Project", phases: [] }; save(); } }
+        function clearAll() { if(confirm('Wipe board?')) { projectData = { name: "New Project", phases: [] }; save(); } }
 
         renderBoard();
     </script>
