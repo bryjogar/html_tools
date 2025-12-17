@@ -61,7 +61,7 @@
     <main class="flex-grow overflow-y-auto p-6 md:p-12">
         <div class="max-w-6xl mx-auto space-y-12">
 
-            <div class="text-center space-y-4 py-8">
+            <div class="text-center space-y-4 py-4">
                 <h2 class="text-4xl md:text-5xl font-bold text-white tracking-tight">
                     Browser-based Utilities<br>
                     <span class="text-obsidian-accent">for Homelab Enthusiasts</span>
@@ -71,266 +71,295 @@
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-                <a href="index_link_generator.html" class="block group">
-                    <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-                                <i class="fa-solid fa-link"></i>
+            <div class="space-y-4">
+                <h3 class="text-2xl font-semibold text-white border-b border-obsidian-border pb-2">Group 1</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    
+                    <a href="subnet_calculator.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-network-wired text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
                             </div>
-                            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            <h3 class="text-xl font-semibold text-white mb-2">Subnet Calculator</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Calculate various components of CIDR subnets
+                            </p>
                         </div>
-                        <h3 class="text-xl font-semibold text-white mb-2">Index Card Generator</h3>
-                        <p class="text-sm text-gray-500 leading-relaxed">
-                            Quickly generate links to save in the index.html page
-                        </p>
-                    </div>
-                </a>
-				<a href="diff_tool.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">Diff Tool</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Compares two text based files and flags changes
-						</p>
-					</div>
-				</a>
-				<a href="docker_run_compose_generator.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">Docker Compose Generator</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Generates Docker Compose files from Docker run commands
-						</p>
-					</div>
-				</a>
-				<a href="json-yaml_converter.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">JSON - YAML Conversion</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Converts between JSON and YAML
-						</p>
-					</div>
-				</a>
-				<a href="jwt_decoder.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">JWT Decoder</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Decodes JWT 
-						</p>
-					</div>
-				</a>
-				<a href="password_generator.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">Password Generator</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Generates both random character and correct-horse-battery-staple styles
-						</p>
-					</div>
-				</a>
-				<a href="rack_unit_visualizer.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">Rack Unit Visualizer</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Drag and Drop Rack Components to visualize installation
-						</p>
-					</div>
-				</a>
-				<a href="fa_search.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">Font Awesome Search</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Search common Font Awesome icons
-						</p>
-					</div>
-				</a>
-				<a href="raid_capacity_calculator.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">RAID/ZFS Capacity Calculator</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Calculate available space in defined RAID/ZFS Configurations
-						</p>
-					</div>
-				</a>
-				<a href="ups_runtime_calculator.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">UPS Runtime Calculator</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Calculate estimated runtime for a UPS during power outage.
-						</p>
-					</div>
-				</a>
-				<a href="reverse_proxy_generator.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">Reverse Proxy Generator</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Real-time generation, support for Nginx, Traefik, and Caddy.
-						</p>
-					</div>
-				</a>
-				<a href="recipe_parser.html" class="block group">
-					<div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-						<div class="flex items-start justify-between mb-4">
-							<div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-								<i class="fa-solid fa-diagram-project text-xl"></i>
-							</div>
-							<i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-						</div>
-						<h3 class="text-xl font-semibold text-white mb-2">Recipe Scraper</h3>
-						<p class="text-sm text-gray-500 leading-relaxed">
-							Scrapes @recipe schema recipes from pages and outputs as Markdown
-						</p>
-					</div>
-				</a>
-                <a href="convert_mac.html" class="block group">
-                    <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-                                <i class="fa-solid fa-network-wired text-xl"></i>
-                            </div>
-                            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-white mb-2">MAC Formatter</h3>
-                        <p class="text-sm text-gray-500 leading-relaxed">
-                            Convert between Cisco, Colon, and Dash formats instantly. Validates length and strips invalid characters.
-                        </p>
-                    </div>
-                </a>
+                    </a>
 
-                <a href="markdown_converter.html" class="block group">
-                    <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-                                <i class="fa-solid fa-diagram-project text-xl"></i>
+                    <a href="convert_mac.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-network-wired text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
                             </div>
-                            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            <h3 class="text-xl font-semibold text-white mb-2">MAC Formatter</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Convert between Cisco, Colon, and Dash formats instantly. Validates length.
+                            </p>
                         </div>
-                        <h3 class="text-xl font-semibold text-white mb-2">Markdown Converter</h3>
-                        <p class="text-sm text-gray-500 leading-relaxed">
-                            Convert Markdown to and from HTML with preview
-                        </p>
-                    </div>
-                </a>
+                    </a>
 
-                <a href="Markdown_Link_Generator.html" class="block group">
-                    <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-                                <i class="fa-solid fa-link text-xl"></i>
+                    <a href="docker_run_compose_generator.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-brands fa-docker text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
                             </div>
-                            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            <h3 class="text-xl font-semibold text-white mb-2">Docker Compose Generator</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Generates Docker Compose files from Docker run commands
+                            </p>
                         </div>
-                        <h3 class="text-xl font-semibold text-white mb-2">Readme Linker</h3>
-                        <p class="text-sm text-gray-500 leading-relaxed">
-                            Generate perfectly formatted Markdown links for your documentation. Auto-extracts titles from URLs.
-                        </p>
-                    </div>
-                </a>
+                    </a>
 
-                <a href="cron_parser.html" class="block group">
-                    <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-                                <i class="fa-solid fa-clock text-xl"></i>
+                    <a href="reverse_proxy_generator.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-server text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
                             </div>
-                            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            <h3 class="text-xl font-semibold text-white mb-2">Reverse Proxy Generator</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Real-time generation, support for Nginx, Traefik, and Caddy.
+                            </p>
                         </div>
-                        <h3 class="text-xl font-semibold text-white mb-2">Cron Tool</h3>
-                        <p class="text-sm text-gray-500 leading-relaxed">
-                            Parse complex cron schedules into human-readable text and generate standard schedules with a GUI.
-                        </p>
-                    </div>
-                </a>
+                    </a>
 
-<a href="subnet_calculator.html" class="block group">
-    <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-        <div class="flex items-start justify-between mb-4">
-            <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-                <i class="fa-solid fa-diagram-project text-xl"></i>
+                    <a href="raid_capacity_calculator.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-hard-drive text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">RAID/ZFS Capacity Calculator</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Calculate available space in defined RAID/ZFS Configurations
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="rack_unit_visualizer.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-server text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Rack Unit Visualizer</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Drag and Drop Rack Components to visualize installation
+                            </p>
+                        </div>
+                    </a>
+
+                </div>
             </div>
-            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
-        </div>
-        <h3 class="text-xl font-semibold text-white mb-2">Subnet Calculator</h3>
-        <p class="text-sm text-gray-500 leading-relaxed">
-            Calculate various components of CIDR subnets
-        </p>
-    </div>
-</a>
 
-                <a href="mermaid.html" class="block group">
-                    <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-                                <i class="fa-solid fa-diagram-project text-xl"></i>
+            <div class="space-y-4">
+                <h3 class="text-2xl font-semibold text-white border-b border-obsidian-border pb-2">Group 2</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                    <a href="json-yaml_converter.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-code text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
                             </div>
-                            <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            <h3 class="text-xl font-semibold text-white mb-2">JSON - YAML Conversion</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Converts between JSON and YAML
+                            </p>
                         </div>
-                        <h3 class="text-xl font-semibold text-white mb-2">Mermaid Editor</h3>
-                        <p class="text-sm text-gray-500 leading-relaxed">
-                            Live preview editor for Mermaid.js diagrams. Supports Flowcharts, Sequence diagrams, and Gantt charts.
-                        </p>
-                    </div>
-                </a>
+                    </a>
 
+                    <a href="diff_tool.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-file-code text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Diff Tool</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Compares two text based files and flags changes
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="jwt_decoder.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-key text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">JWT Decoder</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Decodes JWT tokens
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="password_generator.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-lock text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Password Generator</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Generates random character and XKCD styles
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="cron_parser.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-clock text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Cron Tool</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Parse cron schedules into human-readable text
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="ups_runtime_calculator.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-plug text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">UPS Runtime Calculator</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Calculate estimated runtime during power outage.
+                            </p>
+                        </div>
+                    </a>
+
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-2xl font-semibold text-white border-b border-obsidian-border pb-2">Group 3</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                    <a href="index_link_generator.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-list text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Index Card Generator</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Quickly generate links to save in the index.html page
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="markdown_converter.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-brands fa-markdown text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Markdown Converter</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Convert Markdown to and from HTML with preview
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="Markdown_Link_Generator.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-link text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Readme Linker</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Generate formatted Markdown links for documentation
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="mermaid.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-diagram-project text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Mermaid Editor</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Live preview editor for Mermaid.js diagrams.
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="fa_search.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-brands fa-font-awesome text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Font Awesome Search</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Search common Font Awesome icons
+                            </p>
+                        </div>
+                    </a>
+
+                    <a href="recipe_parser.html" class="block group">
+                        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-utensils text-xl"></i>
+                                </div>
+                                <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-white mb-2">Recipe Scraper</h3>
+                            <p class="text-sm text-gray-500 leading-relaxed">
+                                Scrapes schema recipes and outputs as Markdown
+                            </p>
+                        </div>
+                    </a>
+
+                </div>
             </div>
 
         </div>
