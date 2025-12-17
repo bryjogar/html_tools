@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Stack Composer - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc',     // Standard Text
+                            input: '#18181b'     // Darker input bg
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Global & Layout */
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-4 md:px-6 justify-between flex-shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-layer-group text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-tight text-white">Media Stack Composer</h1>
+        </div>
+        <div class="text-xs text-gray-500 hidden md:block">
+            Generate docker-compose.yml for *arr stacks
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex flex-col md:flex-row">
+        
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 border-b md:border-b-0 md:border-r border-obsidian-border bg-obsidian-bg">
+            <div class="max-w-2xl mx-auto space-y-8">
+                
+                <section>
+                    <h2 class="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-4 border-b border-obsidian-border pb-2">
+                        <i class="fa-solid fa-hard-drive mr-2"></i>Media Services
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="flex items-center justify-between p-3 bg-obsidian-pane border border-obsidian-border rounded cursor-pointer hover:border-obsidian-accent transition-colors">
+                            <span class="font-medium text-white"><i class="fa-solid fa-tv mr-2 text-blue-400"></i>Sonarr</span>
+                            <input type="checkbox" id="chk-sonarr" class="w-5 h-5 accent-obsidian-accent rounded bg-obsidian-input border-gray-600" onchange="generate()">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-obsidian-pane border border-obsidian-border rounded cursor-pointer hover:border-obsidian-accent transition-colors">
+                            <span class="font-medium text-white"><i class="fa-solid fa-film mr-2 text-yellow-400"></i>Radarr</span>
+                            <input type="checkbox" id="chk-radarr" class="w-5 h-5 accent-obsidian-accent rounded bg-obsidian-input border-gray-600" onchange="generate()">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-obsidian-pane border border-obsidian-border rounded cursor-pointer hover:border-obsidian-accent transition-colors">
+                            <span class="font-medium text-white"><i class="fa-solid fa-music mr-2 text-green-400"></i>Lidarr</span>
+                            <input type="checkbox" id="chk-lidarr" class="w-5 h-5 accent-obsidian-accent rounded bg-obsidian-input border-gray-600" onchange="generate()">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-obsidian-pane border border-obsidian-border rounded cursor-pointer hover:border-obsidian-accent transition-colors">
+                            <span class="font-medium text-white"><i class="fa-solid fa-bolt mr-2 text-red-400"></i>Prowlarr</span>
+                            <input type="checkbox" id="chk-prowlarr" class="w-5 h-5 accent-obsidian-accent rounded bg-obsidian-input border-gray-600" checked onchange="generate()">
+                        </label>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-4 border-b border-obsidian-border pb-2">
+                        <i class="fa-solid fa-server mr-2"></i>Server & Downloader
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-xs text-gray-400">Media Player / Server</label>
+                            <div class="relative">
+                                <select id="sel-server" class="w-full bg-obsidian-input border border-obsidian-border text-white p-2 rounded appearance-none focus:border-obsidian-accent focus:outline-none" onchange="generate()">
+                                    <option value="none">None</option>
+                                    <option value="plex">Plex Media Server</option>
+                                    <option value="jellyfin">Jellyfin</option>
+                                    <option value="emby">Emby</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-xs text-gray-400">Download Client</label>
+                            <div class="relative">
+                                <select id="sel-client" class="w-full bg-obsidian-input border border-obsidian-border text-white p-2 rounded appearance-none focus:border-obsidian-accent focus:outline-none" onchange="generate()">
+                                    <option value="qbittorrent">qBittorrent</option>
+                                    <option value="transmission">Transmission</option>
+                                    <option value="deluge">Deluge</option>
+                                    <option value="sabnzbd">SABnzbd (Usenet)</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400"><i class="fa-solid fa-chevron-down text-xs"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-4 border-b border-obsidian-border pb-2">
+                        <i class="fa-solid fa-network-wired mr-2"></i>Advanced Infrastructure
+                    </h2>
+                    
+                    <div class="bg-obsidian-pane p-4 rounded border border-obsidian-border mb-4">
+                        <label class="text-xs text-gray-400 mb-2 block font-semibold">Networking Mode</label>
+                        <select id="sel-network" class="w-full bg-obsidian-input border border-obsidian-border text-white p-2 rounded mb-3 focus:border-obsidian-accent focus:outline-none" onchange="toggleNetworkFields()">
+                            <option value="bridge">Bridge (Default)</option>
+                            <option value="host">Host Mode</option>
+                            <option value="macvlan">Macvlan (Physical LAN IP)</option>
+                            <option value="external">External (Pre-existing)</option>
+                        </select>
+
+                        <div id="macvlan-fields" class="hidden space-y-2 border-t border-obsidian-border pt-3 mt-1">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-xs text-gray-500">Subnet (e.g., 192.168.1.0/24)</label>
+                                    <input type="text" id="inp-subnet" value="192.168.1.0/24" class="w-full bg-obsidian-input border border-obsidian-border text-white font-mono text-xs p-2 rounded" oninput="generate()">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">Gateway (e.g., 192.168.1.1)</label>
+                                    <input type="text" id="inp-gateway" value="192.168.1.1" class="w-full bg-obsidian-input border border-obsidian-border text-white font-mono text-xs p-2 rounded" oninput="generate()">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500">Parent Interface (e.g., eth0)</label>
+                                <input type="text" id="inp-interface" value="eth0" class="w-full bg-obsidian-input border border-obsidian-border text-white font-mono text-xs p-2 rounded" oninput="generate()">
+                            </div>
+                        </div>
+
+                        <div id="external-net-fields" class="hidden border-t border-obsidian-border pt-3 mt-1">
+                            <label class="text-xs text-gray-500">External Network Name</label>
+                            <input type="text" id="inp-ext-net-name" value="proxynet" class="w-full bg-obsidian-input border border-obsidian-border text-white font-mono text-xs p-2 rounded" oninput="generate()">
+                        </div>
+
+                        <div class="flex items-center justify-between mt-4 pt-2 border-t border-obsidian-border">
+                            <div class="flex flex-col">
+                                <span class="text-white text-sm">Use VPN (Gluetun)</span>
+                                <span class="text-xs text-gray-500">Routes Downloader via VPN container</span>
+                            </div>
+                            <label for="chk-vpn" class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="chk-vpn" class="sr-only peer" onchange="generate()">
+                                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-obsidian-accent"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="bg-obsidian-pane p-4 rounded border border-obsidian-border">
+                        <label class="flex items-center gap-2 mb-3">
+                            <input type="checkbox" id="chk-nas-vol" class="w-4 h-4 accent-obsidian-accent" checked onchange="toggleNasFields()">
+                            <span class="text-sm font-semibold text-white">Common Media Mount (/media)</span>
+                        </label>
+                        
+                        <div id="nas-fields" class="space-y-3 pl-6 border-l-2 border-obsidian-border">
+                            <div class="flex gap-4 mb-2">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="nas-type" value="bind" checked class="accent-obsidian-accent" onchange="generate()">
+                                    <span class="text-xs text-gray-300">Bind Mount (Host Path)</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" name="nas-type" value="external" class="accent-obsidian-accent" onchange="generate()">
+                                    <span class="text-xs text-gray-300">External Volume</span>
+                                </label>
+                            </div>
+                            
+                            <div>
+                                <label class="text-xs text-gray-500" id="lbl-nas-source">Host Path</label>
+                                <input type="text" id="inp-nas-source" value="/mnt/nas/media" class="w-full bg-obsidian-input border border-obsidian-border text-white font-mono text-xs p-2 rounded" oninput="generate()">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500">Container Path (Target)</label>
+                                <input type="text" id="inp-nas-target" value="/media" class="w-full bg-obsidian-input border border-obsidian-border text-white font-mono text-xs p-2 rounded" oninput="generate()">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-sm uppercase tracking-wider text-gray-500 font-semibold mb-4 border-b border-obsidian-border pb-2">
+                        <i class="fa-solid fa-folder-tree mr-2"></i>Config Directories
+                    </h2>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="text-xs text-gray-400 mb-1 block">Root Config Path (Host)</label>
+                            <input type="text" id="inp-path-config" value="./config" class="w-full bg-obsidian-input border border-obsidian-border text-white font-mono text-sm p-2 rounded focus:border-obsidian-accent focus:outline-none" oninput="generate()">
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col bg-[#1a1a1a] overflow-hidden min-h-[400px]">
+            <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4">
+                <div class="flex gap-4">
+                    <button class="text-xs font-semibold text-obsidian-accent border-b-2 border-obsidian-accent h-10 px-1">docker-compose.yml</button>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="copyToClipboard()" class="text-xs bg-white/5 hover:bg-white/10 text-white px-3 py-1 rounded transition-colors">
+                        <i class="fa-regular fa-copy mr-1"></i> Copy
+                    </button>
+                    <button onclick="downloadFile()" class="text-xs bg-obsidian-accent hover:bg-violet-600 text-white px-3 py-1 rounded transition-colors">
+                        <i class="fa-solid fa-download mr-1"></i> Download
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-auto p-4 font-mono text-sm leading-relaxed relative group">
+                <pre><code id="output-code" class="language-yaml"></code></pre>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        const IMAGES = {
+            sonarr: "lscr.io/linuxserver/sonarr:latest",
+            radarr: "lscr.io/linuxserver/radarr:latest",
+            lidarr: "lscr.io/linuxserver/lidarr:latest",
+            prowlarr: "lscr.io/linuxserver/prowlarr:latest",
+            plex: "lscr.io/linuxserver/plex:latest",
+            jellyfin: "lscr.io/linuxserver/jellyfin:latest",
+            emby: "lscr.io/linuxserver/emby:latest",
+            qbittorrent: "lscr.io/linuxserver/qbittorrent:latest",
+            transmission: "lscr.io/linuxserver/transmission:latest",
+            deluge: "lscr.io/linuxserver/deluge:latest",
+            sabnzbd: "lscr.io/linuxserver/sabnzbd:latest",
+            gluetun: "qmcgaw/gluetun"
+        };
+
+        const PORTS = {
+            sonarr: "8989",
+            radarr: "7878",
+            lidarr: "8686",
+            prowlarr: "9696",
+            plex: "32400",
+            jellyfin: "8096",
+            emby: "8096",
+            qbittorrent: "8080",
+            transmission: "9091",
+            deluge: "8112",
+            sabnzbd: "8080"
+        };
+
+        function toggleNetworkFields() {
+            const netType = document.getElementById('sel-network').value;
+            document.getElementById('macvlan-fields').classList.toggle('hidden', netType !== 'macvlan');
+            document.getElementById('external-net-fields').classList.toggle('hidden', netType !== 'external');
+            generate();
+        }
+
+        function toggleNasFields() {
+            const enabled = document.getElementById('chk-nas-vol').checked;
+            const container = document.getElementById('nas-fields');
+            if (enabled) {
+                container.classList.remove('opacity-50', 'pointer-events-none');
+            } else {
+                container.classList.add('opacity-50', 'pointer-events-none');
+            }
+            generate();
+        }
+
+        function getServiceBlock(serviceName, containerName, image, ports, envs, volumes, netConfig, dependsOn = null) {
+            let block = `  ${serviceName}:
+    image: ${image}
+    container_name: ${containerName}`;
+            
+            // Network Config logic
+            // If VPN is used for this specific service, it overrides standard networking
+            if (netConfig.vpnMode) {
+                 block += `\n    network_mode: service:gluetun`;
+            } else {
+                if (netConfig.mode === 'host') {
+                    block += `\n    network_mode: host`;
+                } else if (netConfig.mode === 'macvlan' || netConfig.mode === 'external') {
+                    block += `\n    networks:
+      - ${netConfig.networkName}`;
+                }
+            }
+
+            block += `\n    environment:
+      - PUID=\${PUID}
+      - PGID=\${PGID}
+      - TZ=\${TZ}`;
+            
+            envs.forEach(e => block += `\n      - ${e}`);
+
+            block += `\n    volumes:`;
+            volumes.forEach(v => block += `\n      - ${v}`);
+
+            // Ports: Only add if NOT using VPN and NOT using Host mode
+            // (Host mode maps all ports naturally, VPN maps via gluetun)
+            if (!netConfig.vpnMode && netConfig.mode !== 'host' && ports.length > 0) {
+                block += `\n    ports:`;
+                ports.forEach(p => block += `\n      - ${p}`);
+            }
+
+            if (dependsOn) {
+                block += `\n    depends_on:`;
+                dependsOn.forEach(d => block += `\n      - ${d}`);
+            }
+
+            block += `\n    restart: unless-stopped\n`;
+            return block;
+        }
+
+        function generate() {
+            // Inputs
+            const useSonarr = document.getElementById('chk-sonarr').checked;
+            const useRadarr = document.getElementById('chk-radarr').checked;
+            const useLidarr = document.getElementById('chk-lidarr').checked;
+            const useProwlarr = document.getElementById('chk-prowlarr').checked;
+            const useVPN = document.getElementById('chk-vpn').checked;
+            
+            const serverType = document.getElementById('sel-server').value;
+            const clientType = document.getElementById('sel-client').value;
+            const configPath = document.getElementById('inp-path-config').value || './config';
+
+            // Network Settings
+            const netMode = document.getElementById('sel-network').value;
+            const netSubnet = document.getElementById('inp-subnet').value;
+            const netGateway = document.getElementById('inp-gateway').value;
+            const netParent = document.getElementById('inp-interface').value;
+            const extNetName = document.getElementById('inp-ext-net-name').value;
+            
+            // NAS Settings
+            const useNas = document.getElementById('chk-nas-vol').checked;
+            const nasType = document.querySelector('input[name="nas-type"]:checked').value;
+            const nasSource = document.getElementById('inp-nas-source').value;
+            const nasTarget = document.getElementById('inp-nas-target').value;
+
+            // Determine Network Name to use in services
+            let activeNetworkName = "default";
+            if (netMode === 'macvlan') activeNetworkName = "lan_network";
+            if (netMode === 'external') activeNetworkName = extNetName;
+
+            // Prepare Global NAS Volume string
+            let globalVolString = "";
+            if (useNas) {
+                globalVolString = `${nasSource}:${nasTarget}`;
+            }
+
+            let yaml = `version: "3.8"
+
+services:\n`;
+
+            // 1. VPN Service (Gluetun)
+            if (useVPN) {
+                yaml += `  gluetun:
+    image: ${IMAGES.gluetun}
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - 8888:8888/tcp # HTTP proxy`;
+                
+                if (clientType) {
+                     yaml += `
+      - ${PORTS[clientType]}:${PORTS[clientType]}`;
+                }
+                
+                yaml += `
+    volumes:
+      - ${configPath}/gluetun:/gluetun`;
+
+                // Add NAS volume to VPN if needed? Usually not, but let's be safe if user downloads to NAS
+                if (useNas) yaml += `\n      - ${globalVolString}`;
+
+                yaml += `
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=wireguard`;
+
+                // Gluetun Network Config
+                if (netMode === 'macvlan' || netMode === 'external') {
+                    yaml += `\n    networks:
+      - ${activeNetworkName}`;
+                } else if (netMode === 'host') {
+                    yaml += `\n    network_mode: host`;
+                }
+
+                yaml += `\n    restart: always\n\n`;
+            }
+
+            // Helper to build service configs
+            const createConfig = (isDownloader) => {
+                return {
+                    mode: netMode,
+                    networkName: activeNetworkName,
+                    vpnMode: (isDownloader && useVPN) // Only downloader uses VPN tunnel usually
+                };
+            };
+
+            // 2. Download Client
+            if (clientType) {
+                const vols = [`${configPath}/${clientType}:/config`];
+                if(useNas) vols.push(globalVolString);
+                else vols.push(`./downloads:/data/downloads`); // Fallback if no NAS
+
+                const dlPorts = [`${PORTS[clientType]}:${PORTS[clientType]}`];
+                // Downloader always goes through VPN if enabled
+                yaml += getServiceBlock(clientType, clientType, IMAGES[clientType], dlPorts, [], vols, createConfig(true));
+                yaml += "\n";
+            }
+
+            // 3. Prowlarr
+            if (useProwlarr) {
+                yaml += getServiceBlock('prowlarr', 'prowlarr', IMAGES.prowlarr, [`${PORTS.prowlarr}:9696`], [], [`${configPath}/prowlarr:/config`], createConfig(false));
+                yaml += "\n";
+            }
+
+            // 4. Sonarr
+            if (useSonarr) {
+                const vols = [`${configPath}/sonarr:/config`];
+                if(useNas) vols.push(globalVolString);
+                yaml += getServiceBlock('sonarr', 'sonarr', IMAGES.sonarr, [`${PORTS.sonarr}:8989`], [], vols, createConfig(false));
+                yaml += "\n";
+            }
+
+            // 5. Radarr
+            if (useRadarr) {
+                const vols = [`${configPath}/radarr:/config`];
+                if(useNas) vols.push(globalVolString);
+                yaml += getServiceBlock('radarr', 'radarr', IMAGES.radarr, [`${PORTS.radarr}:7878`], [], vols, createConfig(false));
+                yaml += "\n";
+            }
+
+            // 6. Lidarr
+            if (useLidarr) {
+                const vols = [`${configPath}/lidarr:/config`];
+                if(useNas) vols.push(globalVolString);
+                yaml += getServiceBlock('lidarr', 'lidarr', IMAGES.lidarr, [`${PORTS.lidarr}:8686`], [], vols, createConfig(false));
+                yaml += "\n";
+            }
+
+            // 7. Media Server
+            if (serverType !== 'none') {
+                const vols = [`${configPath}/${serverType}:/config`];
+                if(useNas) vols.push(globalVolString);
+                
+                const serverEnvs = [];
+                if (serverType === 'plex') serverEnvs.push('VERSION=docker');
+
+                let block = getServiceBlock(serverType, serverType, IMAGES[serverType], [`${PORTS[serverType]}:${PORTS[serverType]}`], serverEnvs, vols, createConfig(false));
+                 if(serverType === 'plex' || serverType === 'jellyfin') {
+                   block = block.replace("    restart:", `    # devices:\n    #   - /dev/dri:/dev/dri\n    restart:`);
+                }
+                yaml += block + "\n";
+            }
+
+            // TOP LEVEL NETWORKS
+            if (netMode === 'macvlan') {
+                yaml += `networks:
+  ${activeNetworkName}:
+    driver: macvlan
+    driver_opts:
+      parent: ${netParent}
+    ipam:
+      config:
+        - subnet: ${netSubnet}
+          gateway: ${netGateway}\n`;
+            } else if (netMode === 'external') {
+                yaml += `networks:
+  ${activeNetworkName}:
+    external: true\n`;
+            }
+
+            // TOP LEVEL VOLUMES (Only if using external volume for NAS)
+            if (useNas && nasType === 'external') {
+                yaml += `\nvolumes:
+  ${nasSource}:
+    external: true`;
+            }
+
+            renderCode(yaml);
+        }
+
+        function renderCode(code) {
+            const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            document.getElementById('output-code').innerHTML = escaped;
+        }
+
+        function copyToClipboard() {
+            const code = document.getElementById('output-code').innerText;
+            navigator.clipboard.writeText(code);
+        }
+
+        function downloadFile() {
+            const code = document.getElementById('output-code').innerText;
+            const blob = new Blob([code], { type: "text/yaml" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "docker-compose.yml";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Initialize
+        toggleNetworkFields();
+        generate();
+
+    </script>
+</body>
+</html>
