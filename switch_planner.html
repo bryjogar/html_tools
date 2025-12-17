@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Switch Designer v17 | Homelab Playground</title>
+    <title>Switch Designer v18 (Dell Support) | Homelab Playground</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -108,7 +108,7 @@
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-network-wired text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Designer <span class="text-obsidian-accent font-light">v17</span></h1>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Designer <span class="text-obsidian-accent font-light">v18</span></h1>
         </div>
         <div class="flex items-center gap-2">
             <button onclick="cycleSwitchSize()" id="size-btn" class="text-xs bg-obsidian-border hover:bg-white/10 text-white px-3 py-1.5 rounded transition font-mono border border-transparent hover:border-gray-500">
@@ -264,6 +264,7 @@
                     <option value="netgear_m">Netgear M-Series (AV Line)</option>
                     <option value="ruckus">Ruckus (ICX)</option>
                     <option value="aruba">HP Aruba (ProCurve)</option>
+                    <option value="dell">Dell (PowerConnect)</option>
                 </select>
                 <button onclick="copyCli()" class="ml-auto bg-obsidian-accent text-white px-4 py-2 rounded text-xs"><i class="fa-regular fa-copy"></i> Copy</button>
             </div>
@@ -413,7 +414,6 @@
         function handlePortClick(portNum) {
             if (!state.ports[portNum]) state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
             const p = state.ports[portNum];
-            
             const isSfp = portNum > state.portCount; 
 
             if (state.currentTool === 'paint') p.nativeVlanId = state.activeVlanId;
@@ -423,10 +423,7 @@
                 if (idx > -1) p.taggedVlans.splice(idx, 1);
                 else if (p.nativeVlanId !== state.activeVlanId) p.taggedVlans.push(state.activeVlanId);
             }
-            else if (state.currentTool === 'poe' && !isSfp) {
-                // Toggle Logic
-                p.isPoe = (p.isPoe === false) ? true : false;
-            }
+            else if (state.currentTool === 'poe' && !isSfp) p.isPoe = (p.isPoe === false) ? true : false;
             else if (state.currentTool === 'lag') {
                 if (state.activeLagId) p.lagId = (p.lagId === state.activeLagId) ? null : state.activeLagId;
             }
@@ -509,10 +506,14 @@
             const text = document.getElementById('import-text').value;
             if(!text.trim()) return;
 
-            let brand = 'netgear'; // Default fallback
+            let brand = 'netgear';
             if(text.includes('J9772A') || text.includes('aruba-central') || text.includes('no untagged')) brand = 'hp';
             else if(text.includes('stack unit') || text.includes('by port') || text.includes('ruckuswireless')) brand = 'ruckus';
             else if(text.includes('vlan participation') || text.includes('M4300') || text.includes('vlan pvid')) brand = 'netgear';
+            else if(text.includes('PowerConnect') || text.includes('interface ethernet 1/g')) brand = 'dell';
+            
+            // Allow unrecognized if user just pastes junk, but warn
+            if (brand === 'netgear' && !text.includes('interface')) { alert("Warning: Could not auto-detect brand. Assuming Netgear/Generic."); }
 
             const newVlans = [];
             const newPorts = {};
@@ -550,7 +551,6 @@
                     if(!newPorts[p]) newPorts[p] = { nativeVlanId:null, taggedVlans:[], customLabel:null, isPoe:undefined };
                     newPorts[p].customLabel = m[2];
                 }
-                // HP PoE parsing
                 const noPoeRegex = /interface (\d+)\s*\n\s*no power-over-ethernet/gm;
                 while ((m = noPoeRegex.exec(text)) !== null) {
                     const p = parseInt(m[1]);
@@ -578,7 +578,6 @@
                     const untagged = block.match(/untagged (.*)/);
                     if(untagged) parseRuckusPorts(untagged[1], newPorts, 'nativeVlanId', vlanId);
                 });
-                // Ruckus PoE
                 const intBlocks = text.split(/^interface ethernet /m);
                 intBlocks.forEach(block => {
                     const pMatch = block.match(/^1\/1\/(\d+)/);
@@ -608,6 +607,58 @@
                         if(pvid) newPorts[p].nativeVlanId = `vlan-${pvid}`;
                         if(tagging) parsePortList(tagging, newPorts, 'taggedVlans', null, p);
                         if(chunk.includes('poe admin-mode disable')) newPorts[p].isPoe = false;
+                    }
+                });
+            
+            } else if (brand === 'dell') {
+                // VLAN DB (IDs)
+                const vlanDbRegex = /vlan database\s+vlan ([\d,\-]+)/;
+                const vdbMatch = text.match(vlanDbRegex);
+                if(vdbMatch) {
+                    parsePortList(vdbMatch[1], {temp:'holder'}, 'temp', 'temp'); // Just to expand ranges if needed, but we need IDs
+                    // Simplified: Split by comma, check ranges
+                    vdbMatch[1].split(',').forEach(part => {
+                        if(part.includes('-')) {
+                            const [start, end] = part.split('-').map(Number);
+                            for(let i=start; i<=end; i++) {
+                                if(!newVlans.find(v=>v.vid===i)) newVlans.push({ id: `vlan-${i}`, vid: i, name: `VLAN ${i}`, color: colors[colorIdx++ % colors.length] });
+                            }
+                        } else {
+                            const i = parseInt(part);
+                            if(!newVlans.find(v=>v.vid===i)) newVlans.push({ id: `vlan-${i}`, vid: i, name: `VLAN ${i}`, color: colors[colorIdx++ % colors.length] });
+                        }
+                    });
+                }
+                // VLAN Names
+                const vIntRegex = /^interface vlan (\d+)\s+name "(.*)"/gm;
+                while ((m = vIntRegex.exec(text)) !== null) {
+                    const vid = parseInt(m[1]);
+                    const name = m[2];
+                    const v = newVlans.find(v => v.vid === vid);
+                    if(v) v.name = name;
+                }
+                // Interfaces
+                const intSplit = text.split(/^interface ethernet 1\/g/m);
+                intSplit.forEach(chunk => {
+                    const pNumMatch = chunk.match(/^(\d+)/);
+                    if(pNumMatch) {
+                        const p = parseInt(pNumMatch[1]);
+                        if(!newPorts[p]) newPorts[p] = { nativeVlanId:null, taggedVlans:[], customLabel:null, isPoe:undefined };
+                        
+                        // Access
+                        const accMatch = chunk.match(/switchport access vlan (\d+)/);
+                        if(accMatch) newPorts[p].nativeVlanId = `vlan-${accMatch[1]}`;
+                        
+                        // General (Trunk)
+                        if(chunk.includes('switchport mode general')) {
+                            const pvid = chunk.match(/switchport general pvid (\d+)/);
+                            if(pvid) newPorts[p].nativeVlanId = `vlan-${pvid[1]}`;
+                            
+                            const taggedMatches = chunk.matchAll(/switchport general allowed vlan add ([\d,\-]+) tagged/g);
+                            for (const tagMatch of taggedMatches) {
+                                parsePortList(tagMatch[1], newPorts, 'taggedVlans', null, p);
+                            }
+                        }
                     }
                 });
             }
@@ -707,6 +758,7 @@
                 });
                 out += `interface vlan 1\n ip address ${g.ip.split('/')[0]} ${ipMask(g.ip.split('/')[1])}\n exit\n`;
                 out += `ip route 0.0.0.0 0.0.0.0 ${g.gateway}\n`;
+            
             } else if (brand === 'ruckus') {
                 out += `hostname ${g.hostname}\n! LAGs\n`;
                 state.lags.forEach(l => {
@@ -741,7 +793,6 @@
                 ports.forEach(p => {
                     if(p <= state.portCount) out += `interface ethernet 1/1/${p}\n stp-bpdu-guard\n!\n`;
                 });
-                // RUCKUS INTERFACE LOOP (Labels + PoE)
                 out += `! Interface Config (PoE/Labels)\n`;
                 ports.forEach(p => {
                     const port = state.ports[p];
@@ -753,6 +804,7 @@
                     }
                 });
                 out += `interface ve 1\n ip address ${g.ip}\n!\nip route 0.0.0.0/0 ${g.gateway}\n`;
+            
             } else if (brand === 'aruba') {
                 out += `hostname "${g.hostname}"\n! Enable RSTP\nspanning-tree force-version rstp-operation\n`;
                 state.lags.forEach(l => {
@@ -782,7 +834,6 @@
                     out += `loop-protect 1-${state.portCount}\n`;
                     out += `spanning-tree 1-${state.portCount} bpdu-protection\n`;
                 }
-                // ARUBA INTERFACE LOOP (Labels + PoE)
                 out += `! Interface Config (PoE/Labels)\n`;
                 ports.forEach(p => {
                     const port = state.ports[p];
@@ -790,6 +841,26 @@
                     if(port.isPoe === false) out += `interface ${p}\n   no power-over-ethernet\n   exit\n`;
                 });
                 out += `ip default-gateway ${g.gateway}\n`;
+            
+            } else if (brand === 'dell') {
+                out += `hostname "${g.hostname}"\n`;
+                out += `vlan database\nvlan ${state.vlans.map(v=>v.vid).join(',')}\nexit\n`;
+                state.vlans.forEach(v => out += `interface vlan ${v.vid}\nname "${v.name}"\nexit\n`);
+                ports.forEach(p => {
+                    const port = state.ports[p];
+                    const n = getVid(port.nativeVlanId);
+                    const ts = port.taggedVlans.map(getVid).join(',');
+                    out += `interface ethernet 1/g${p}\n`;
+                    if(ts) {
+                        out += `switchport mode general\nswitchport general pvid ${n}\n`;
+                        out += `switchport general allowed vlan add ${n}\n`;
+                        out += `switchport general allowed vlan add ${ts} tagged\n`;
+                    } else {
+                        out += `switchport access vlan ${n}\n`;
+                    }
+                    if(p <= state.portCount) out += `spanning-tree portfast\n`;
+                    out += `exit\n!\n`;
+                });
             }
             cliOutput.textContent = out;
         }
