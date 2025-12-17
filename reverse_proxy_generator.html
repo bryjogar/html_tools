@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reverse Proxy Config Generator - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b4b4b;
+        }
+        
+        /* Syntax highlighting simple mimic */
+        .token-keyword { color: #c586c0; }
+        .token-string { color: #ce9178; }
+        .token-number { color: #b5cea8; }
+        .token-comment { color: #6a9955; }
+        .token-tag { color: #569cd6; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-6 justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-server text-obsidian-accent text-xl"></i>
+            <h1 class="font-semibold text-lg tracking-wide text-gray-200">ProxyConfig<span class="text-obsidian-accent">Gen</span></h1>
+        </div>
+        <div class="text-xs text-gray-500 font-mono">
+            Nginx • Traefik • Caddy
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        
+        <aside class="w-full md:w-96 bg-obsidian-pane border-r border-obsidian-border flex flex-col shrink-0 overflow-y-auto z-10">
+            <div class="p-6 space-y-6">
+                
+                <div>
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Configuration</h2>
+                    
+                    <div class="mb-4">
+                        <label class="block text-xs text-gray-500 mb-1">Service Name / Subdomain</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-globe absolute left-3 top-2.5 text-gray-600 text-xs"></i>
+                            <input type="text" id="inputSubdomain" value="plex" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 pl-8 text-sm font-mono text-white focus:border-obsidian-accent focus:outline-none transition-colors"
+                                placeholder="e.g. plex">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-xs text-gray-500 mb-1">Base Domain</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-network-wired absolute left-3 top-2.5 text-gray-600 text-xs"></i>
+                            <input type="text" id="inputDomain" value="homelab.local" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 pl-8 text-sm font-mono text-white focus:border-obsidian-accent focus:outline-none transition-colors"
+                                placeholder="e.g. example.com">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-xs text-gray-500 mb-1">Target IP / Hostname</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-laptop absolute left-3 top-2.5 text-gray-600 text-xs"></i>
+                            <input type="text" id="inputIP" value="192.168.1.10" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 pl-8 text-sm font-mono text-white focus:border-obsidian-accent focus:outline-none transition-colors"
+                                placeholder="e.g. 127.0.0.1">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-xs text-gray-500 mb-1">Target Port</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-door-open absolute left-3 top-2.5 text-gray-600 text-xs"></i>
+                            <input type="number" id="inputPort" value="32400" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 pl-8 text-sm font-mono text-white focus:border-obsidian-accent focus:outline-none transition-colors"
+                                placeholder="e.g. 8080">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between p-3 bg-obsidian-bg border border-obsidian-border rounded">
+                        <span class="text-sm text-gray-400">Enable SSL/TLS</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="checkSSL" class="sr-only peer" checked>
+                            <div class="w-9 h-5 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-obsidian-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-obsidian-accent"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-violet-500/10 border border-obsidian-accent/20 rounded text-xs text-violet-200">
+                    <i class="fa-solid fa-circle-info mr-2"></i>
+                    Configs update automatically as you type.
+                </div>
+
+            </div>
+        </aside>
+
+        <section class="flex-1 flex flex-col bg-obsidian-bg relative">
+            
+            <div class="h-10 bg-obsidian-bg border-b border-obsidian-border flex items-end px-4 gap-1">
+                <button onclick="switchTab('nginx')" id="tab-nginx" class="tab-btn px-4 py-2 text-sm text-white border-b-2 border-obsidian-accent bg-obsidian-pane/50 hover:bg-obsidian-pane transition-colors rounded-t">
+                    <img src="https://nginx.org/favicon.ico" class="w-3 h-3 inline mr-1 opacity-70 grayscale-0" alt=""> Nginx
+                </button>
+                <button onclick="switchTab('traefik')" id="tab-traefik" class="tab-btn px-4 py-2 text-sm text-gray-500 border-b-2 border-transparent hover:text-gray-300 hover:bg-obsidian-pane/30 transition-colors rounded-t">
+                    <i class="fa-solid fa-container-storage mr-1"></i> Traefik
+                </button>
+                <button onclick="switchTab('caddy')" id="tab-caddy" class="tab-btn px-4 py-2 text-sm text-gray-500 border-b-2 border-transparent hover:text-gray-300 hover:bg-obsidian-pane/30 transition-colors rounded-t">
+                    <i class="fa-solid fa-lock mr-1"></i> Caddy
+                </button>
+            </div>
+
+            <div class="flex-1 relative overflow-hidden group">
+                <button onclick="copyToClipboard()" class="absolute top-4 right-4 z-20 bg-obsidian-pane border border-obsidian-border text-gray-400 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded text-xs transition-all opacity-0 group-hover:opacity-100 flex items-center gap-2">
+                    <i class="fa-regular fa-copy"></i> 
+                    <span id="copyText">Copy Config</span>
+                </button>
+
+                <div class="absolute inset-0 overflow-auto p-6">
+                    <pre class="font-mono text-sm leading-relaxed"><code id="codeOutput" class="language-nginx">
+</code></pre>
+                </div>
+            </div>
+
+            <div class="h-8 bg-obsidian-pane border-t border-obsidian-border flex items-center px-4 justify-between text-xs text-gray-600 font-mono">
+                <span id="statusLine">Ready</span>
+                <span>UTF-8</span>
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // State
+        let currentTab = 'nginx';
+        
+        // DOM Elements
+        const inputs = {
+            subdomain: document.getElementById('inputSubdomain'),
+            domain: document.getElementById('inputDomain'),
+            ip: document.getElementById('inputIP'),
+            port: document.getElementById('inputPort'),
+            ssl: document.getElementById('checkSSL')
+        };
+        const output = document.getElementById('codeOutput');
+        const statusLine = document.getElementById('statusLine');
+
+        // Event Listeners
+        Object.values(inputs).forEach(input => {
+            input.addEventListener('input', generateConfig);
+            input.addEventListener('change', generateConfig);
+        });
+
+        // Tab Switching Logic
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update Tab UI
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('text-white', 'border-obsidian-accent', 'bg-obsidian-pane/50');
+                btn.classList.add('text-gray-500', 'border-transparent');
+            });
+            
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            activeBtn.classList.remove('text-gray-500', 'border-transparent');
+            activeBtn.classList.add('text-white', 'border-obsidian-accent', 'bg-obsidian-pane/50');
+            
+            generateConfig();
+        }
+
+        // Generators
+        function generateNginx(data) {
+            const protocol = data.ssl ? 'https' : 'http';
+            const listenPort = data.ssl ? '443 ssl' : '80';
+            
+            let config = `<span class="token-comment"># Nginx Server Block for ${data.subdomain}.${data.domain}</span>
+<span class="token-keyword">server</span> {
+    <span class="token-keyword">listen</span> <span class="token-number">${listenPort}</span>;
+    <span class="token-keyword">server_name</span> <span class="token-string">${data.subdomain}.${data.domain}</span>;
+`;
+
+            if (data.ssl) {
+                config += `
+    <span class="token-comment"># SSL Configuration (Adjust paths)</span>
+    <span class="token-keyword">ssl_certificate</span> <span class="token-string">/etc/nginx/ssl/live/${data.domain}/fullchain.pem</span>;
+    <span class="token-keyword">ssl_certificate_key</span> <span class="token-string">/etc/nginx/ssl/live/${data.domain}/privkey.pem</span>;
+`;
+            }
+
+            config += `
+    <span class="token-keyword">location</span> / {
+        <span class="token-keyword">proxy_pass</span> <span class="token-string">http://${data.ip}:${data.port}</span>;
+        <span class="token-keyword">proxy_set_header</span> Host $host;
+        <span class="token-keyword">proxy_set_header</span> X-Real-IP $remote_addr;
+        <span class="token-keyword">proxy_set_header</span> X-Forwarded-For $proxy_add_x_forwarded_for;
+        <span class="token-keyword">proxy_set_header</span> X-Forwarded-Proto $scheme;
+        
+        <span class="token-comment"># WebSocket Support (Optional)</span>
+        <span class="token-keyword">proxy_http_version</span> 1.1;
+        <span class="token-keyword">proxy_set_header</span> Upgrade $http_upgrade;
+        <span class="token-keyword">proxy_set_header</span> Connection "upgrade";
+    }
+}`;
+            return config;
+        }
+
+        function generateTraefik(data) {
+            // Traefik typically uses docker-compose labels
+            const serviceName = data.subdomain.replace(/[^a-zA-Z0-9]/g, '');
+            const entrypoint = data.ssl ? 'websecure' : 'web';
+            
+            let config = `<span class="token-comment"># Docker Compose Labels for Traefik</span>
+<span class="token-keyword">services</span>:
+  <span class="token-tag">${serviceName}</span>:
+    <span class="token-keyword">image</span>: <span class="token-string">your-image:latest</span>
+    <span class="token-keyword">labels</span>:
+      - <span class="token-string">"traefik.enable=true"</span>
+      - <span class="token-string">"traefik.http.routers.${serviceName}.rule=Host(\`${data.subdomain}.${data.domain}\`)"</span>
+      - <span class="token-string">"traefik.http.routers.${serviceName}.entrypoints=${entrypoint}"</span>
+      - <span class="token-string">"traefik.http.services.${serviceName}.loadbalancer.server.port=${data.port}"</span>`;
+
+            if (data.ssl) {
+                config += `
+      - <span class="token-string">"traefik.http.routers.${serviceName}.tls=true"</span>
+      - <span class="token-string">"traefik.http.routers.${serviceName}.tls.certresolver=myresolver"</span>`;
+            }
+            
+            return config;
+        }
+
+        function generateCaddy(data) {
+            let config = `<span class="token-comment"># Caddyfile Entry</span>
+<span class="token-tag">${data.subdomain}.${data.domain}</span> {
+    <span class="token-keyword">reverse_proxy</span> <span class="token-string">${data.ip}:${data.port}</span>`;
+
+            if (!data.ssl) {
+                config += `
+    <span class="token-comment"># Disable automatic HTTPS if needed (uncommon for Caddy)</span>
+    <span class="token-keyword">tls</span> off`;
+            }
+
+            config += `
+}`;
+            return config;
+        }
+
+        // Main Logic
+        function generateConfig() {
+            const data = {
+                subdomain: inputs.subdomain.value || 'app',
+                domain: inputs.domain.value || 'local',
+                ip: inputs.ip.value || '127.0.0.1',
+                port: inputs.port.value || '80',
+                ssl: inputs.ssl.checked
+            };
+
+            let code = '';
+            if (currentTab === 'nginx') {
+                code = generateNginx(data);
+                statusLine.innerText = `Generating Nginx Block for port ${data.port}`;
+            } else if (currentTab === 'traefik') {
+                code = generateTraefik(data);
+                statusLine.innerText = `Generating Docker Labels for ${data.subdomain}`;
+            } else if (currentTab === 'caddy') {
+                code = generateCaddy(data);
+                statusLine.innerText = `Generating Caddyfile for ${data.subdomain}.${data.domain}`;
+            }
+
+            output.innerHTML = code;
+        }
+
+        // Utilities
+        function copyToClipboard() {
+            const codeText = output.innerText;
+            navigator.clipboard.writeText(codeText).then(() => {
+                const btnText = document.getElementById('copyText');
+                const originalText = btnText.innerText;
+                
+                btnText.innerText = 'Copied!';
+                setTimeout(() => {
+                    btnText.innerText = originalText;
+                }, 2000);
+            });
+        }
+
+        // Initial Run
+        generateConfig();
+
+    </script>
+</body>
+</html>

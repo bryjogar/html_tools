@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rack Visualizer v2 | Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            accentHover: '#6d28d9',
+                            text: '#cccccc',     // Standard Text
+                            slot: '#2a2a2b',     // Empty slot bg
+                            slotHover: '#353536' // Hover slot bg
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #505050; }
+
+        body { background-color: #1e1e1e; color: #cccccc; }
+
+        /* Dragging visuals */
+        .dragging { opacity: 0.5; cursor: move; }
+
+        .rack-slot {
+            height: 40px; /* Base height for 1U */
+            transition: background-color 0.1s;
+        }
+
+        /* Device styling in rack */
+        .racked-device {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            cursor: grab;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .racked-device:active {
+            cursor: grabbing;
+            transform: scale(1.01);
+            z-index: 50;
+        }
+
+        /* Highlight valid drop zones */
+        .drag-over-highlight {
+            background-color: rgba(124, 58, 237, 0.3) !important; /* obsidian-accent with opacity */
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden font-sans bg-obsidian-bg text-obsidian-text selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-6 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-server text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide">Rack<span class="text-white">Visualizer</span></h1>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 text-sm bg-black/20 px-3 py-1.5 rounded border border-obsidian-border">
+                <span class="text-gray-500">Usage:</span>
+                <span id="usage-stats" class="font-mono text-obsidian-accent font-bold">0U / 42U</span>
+            </div>
+            
+            <div class="h-6 w-px bg-obsidian-border"></div>
+
+            <select id="rack-size-select" class="bg-obsidian-bg border border-obsidian-border text-sm rounded px-3 py-1.5 focus:outline-none focus:border-obsidian-accent text-gray-300">
+                <option value="42">42U Full Rack</option>
+                <option value="24">24U Half Rack</option>
+                <option value="12">12U Mini Rack</option>
+            </select>
+
+            <button onclick="exportToImage()" class="bg-obsidian-pane hover:bg-obsidian-border border border-obsidian-border text-gray-300 px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-2" title="Export as PNG">
+                <i class="fa-solid fa-camera"></i> Export
+            </button>
+
+            <button onclick="resetRack()" class="text-gray-400 hover:text-red-400 transition-colors px-2" title="Clear All">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex flex-1 overflow-hidden relative">
+        
+        <aside class="w-80 bg-obsidian-pane border-r border-obsidian-border flex flex-col shrink-0 z-10 shadow-xl">
+            <div class="p-5 border-b border-obsidian-border">
+                <h2 class="text-xs uppercase tracking-wider text-gray-500 font-bold mb-4">Add Device</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Device Name</label>
+                        <input type="text" id="dev-name" placeholder="e.g. Dell R720" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-sm font-mono focus:border-obsidian-accent focus:outline-none text-white">
+                    </div>
+
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-400 mb-1">Height (U)</label>
+                            <input type="number" id="dev-u" value="1" min="1" max="10" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-sm font-mono focus:border-obsidian-accent focus:outline-none text-white">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-gray-400 mb-1">Color</label>
+                            <div class="flex gap-2 mt-1.5">
+                                <button type="button" onclick="selectColor(this, 'bg-slate-700')" class="color-btn w-6 h-6 rounded-full bg-slate-700 border-2 border-white ring-2 ring-obsidian-accent"></button>
+                                <button type="button" onclick="selectColor(this, 'bg-blue-900')" class="color-btn w-6 h-6 rounded-full bg-blue-900 border-2 border-transparent"></button>
+                                <button type="button" onclick="selectColor(this, 'bg-emerald-900')" class="color-btn w-6 h-6 rounded-full bg-emerald-900 border-2 border-transparent"></button>
+                                <button type="button" onclick="selectColor(this, 'bg-rose-900')" class="color-btn w-6 h-6 rounded-full bg-rose-900 border-2 border-transparent"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="createDevice()" class="w-full bg-obsidian-accent hover:bg-obsidian-accentHover text-white py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20">
+                        <i class="fa-solid fa-plus"></i> Create Block
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 bg-obsidian-bg/50">
+                <h2 class="text-xs uppercase tracking-wider text-gray-500 font-bold mb-3 flex justify-between">
+                    <span>Staging Area</span>
+                    <span class="text-[10px] normal-case font-normal opacity-50">Drag items to rack</span>
+                </h2>
+                <div id="staging-area" class="space-y-3 min-h-[100px]">
+                    <div draggable="true" ondragstart="handleDragStart(event)" data-u="2" data-name="Server (2U)" data-color="bg-slate-700" class="device-card cursor-move bg-slate-700 border border-white/10 rounded p-3 shadow-sm hover:ring-1 hover:ring-obsidian-accent group relative">
+                        <div class="flex justify-between items-center pointer-events-none">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-black/30 w-8 h-8 rounded flex items-center justify-center font-mono font-bold text-sm text-white">2U</div>
+                                <span class="font-medium text-sm text-white">Generic Server</span>
+                            </div>
+                            <i class="fa-solid fa-grip-vertical text-white/20 group-hover:text-white/50"></i>
+                        </div>
+                    </div>
+
+                    <div draggable="true" ondragstart="handleDragStart(event)" data-u="1" data-name="Switch (1U)" data-color="bg-blue-900" class="device-card cursor-move bg-blue-900 border border-white/10 rounded p-3 shadow-sm hover:ring-1 hover:ring-obsidian-accent group relative">
+                        <div class="flex justify-between items-center pointer-events-none">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-black/30 w-8 h-8 rounded flex items-center justify-center font-mono font-bold text-sm text-white">1U</div>
+                                <span class="font-medium text-sm text-white">Agg Switch</span>
+                            </div>
+                            <i class="fa-solid fa-grip-vertical text-white/20 group-hover:text-white/50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="flex-1 bg-black/20 flex justify-center overflow-y-auto p-8 relative" id="rack-viewport">
+            
+            <div id="rack-capture-target" class="relative bg-obsidian-pane border-x border-obsidian-border shadow-2xl flex flex-col items-center py-4 select-none h-fit w-[600px]">
+                
+                <div class="w-full text-center border-b border-obsidian-border pb-2 mb-2">
+                    <span class="text-xs text-gray-600 font-mono">TOP OF RACK</span>
+                </div>
+
+                <div id="rack-grid" class="relative bg-obsidian-bg w-[500px] border border-obsidian-border relative">
+                    </div>
+
+                <div class="w-full text-center border-t border-obsidian-border pt-2 mt-2">
+                    <span class="text-xs text-gray-600 font-mono">BOTTOM OF RACK</span>
+                </div>
+
+                <div class="mt-4 text-[10px] text-gray-700 font-mono">homelabplayground.com</div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // State
+        let currentRackSize = 42;
+        let selectedColor = 'bg-slate-700';
+        // Stores placed items: { id: timestamp, name, uSize, topU, color }
+        let placedItems = []; 
+
+        // DOM Elements
+        const rackGrid = document.getElementById('rack-grid');
+        const stagingArea = document.getElementById('staging-area');
+        const rackSizeSelect = document.getElementById('rack-size-select');
+        const usageStats = document.getElementById('usage-stats');
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            renderRack();
+            updateStats();
+        });
+
+        rackSizeSelect.addEventListener('change', (e) => {
+            if(placedItems.length > 0) {
+                if(!confirm("Changing rack size will clear current layout. Continue?")) {
+                    e.target.value = currentRackSize;
+                    return;
+                }
+            }
+            currentRackSize = parseInt(e.target.value);
+            placedItems = [];
+            renderRack();
+            updateStats();
+        });
+
+        // --- Core Functions ---
+
+        function renderRack() {
+            rackGrid.innerHTML = '';
+            // We clear grid content but we must re-render any items in `placedItems` if we were just redrawing slots
+            // But usually renderRack is called on reset/resize.
+            
+            // Render Slots: We render from Top (Max U) down to Bottom (1 U)
+            for (let i = currentRackSize; i >= 1; i--) {
+                const slot = document.createElement('div');
+                slot.className = `rack-slot w-full border-b border-white/5 flex items-center justify-between px-4 text-xs font-mono text-gray-600 hover:bg-white/5 transition-colors relative group`;
+                slot.style.height = '40px'; 
+                slot.dataset.u = i;
+                
+                // Drop Events on Slot
+                slot.addEventListener('dragover', handleDragOver);
+                slot.addEventListener('dragleave', handleDragLeave);
+                slot.addEventListener('drop', handleDrop);
+
+                // Visuals
+                slot.innerHTML = `
+                    <div class="pointer-events-none select-none w-full h-full flex items-center justify-between opacity-30 group-hover:opacity-100">
+                        <span>${i}</span>
+                        <div class="h-1 w-1 bg-gray-700 rounded-full"></div>
+                        <div class="h-1 w-1 bg-gray-700 rounded-full"></div>
+                        <span>${i}</span>
+                    </div>
+                `;
+                rackGrid.appendChild(slot);
+            }
+        }
+
+        function createDevice() {
+            const nameInput = document.getElementById('dev-name');
+            const name = nameInput.value || 'Unknown Device';
+            const u = parseInt(document.getElementById('dev-u').value) || 1;
+            
+            // Build Staging Element
+            const el = document.createElement('div');
+            el.draggable = true;
+            el.className = `device-card cursor-move ${selectedColor} border border-white/10 rounded p-3 shadow-sm hover:ring-1 hover:ring-obsidian-accent group relative mb-3`;
+            el.dataset.u = u;
+            el.dataset.name = name;
+            el.dataset.color = selectedColor;
+            el.setAttribute('ondragstart', 'handleDragStart(event)');
+
+            el.innerHTML = `
+                <div class="flex justify-between items-center pointer-events-none">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-black/30 w-8 h-8 rounded flex items-center justify-center font-mono font-bold text-sm text-white">${u}U</div>
+                        <span class="font-medium text-sm truncate max-w-[150px] text-white">${name}</span>
+                    </div>
+                    <div class="flex gap-2 pointer-events-auto">
+                         <button onclick="this.closest('.device-card').remove()" class="text-white/20 hover:text-red-400"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+                <i class="fa-solid fa-grip-vertical text-white/20 group-hover:text-white/50 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            `;
+            
+            stagingArea.prepend(el);
+            nameInput.value = ''; // Reset input
+        }
+
+        // --- Drag & Drop Logic ---
+
+        function handleDragStart(e) {
+            const target = e.target.closest('[draggable="true"]');
+            
+            // Gather data
+            const dragData = {
+                uSize: parseInt(target.dataset.u),
+                name: target.dataset.name,
+                color: target.dataset.color,
+                origin: target.dataset.origin || 'staging', // 'staging' or 'rack'
+                id: target.dataset.id || null // Only present if dragging from rack
+            };
+
+            e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+            e.dataTransfer.effectAllowed = 'copyMove';
+            
+            // Visual feedback
+            setTimeout(() => target.classList.add('invisible'), 0); // Hide original while dragging
+            
+            // Store reference for dragend cleanup
+            window.draggedElement = target;
+        }
+
+        // Global dragend listener to restore visibility if drop fails
+        document.addEventListener('dragend', (e) => {
+            if (window.draggedElement) {
+                window.draggedElement.classList.remove('invisible');
+                window.draggedElement = null;
+            }
+            // Cleanup highlights
+            document.querySelectorAll('.drag-over-highlight').forEach(el => el.classList.remove('drag-over-highlight'));
+        });
+
+        function handleDragOver(e) {
+            e.preventDefault(); 
+            const slot = e.target.closest('.rack-slot');
+            if (!slot) return;
+            
+            // Highlight the slot
+            slot.classList.add('drag-over-highlight');
+        }
+
+        function handleDragLeave(e) {
+            const slot = e.target.closest('.rack-slot');
+            if (slot) slot.classList.remove('drag-over-highlight');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const slot = e.target.closest('.rack-slot');
+            
+            // Cleanup highlights
+            document.querySelectorAll('.drag-over-highlight').forEach(s => s.classList.remove('drag-over-highlight'));
+
+            if (!slot) return;
+
+            const targetTopU = parseInt(slot.dataset.u);
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const uSize = data.uSize;
+
+            // 1. Bounds Check
+            const targetBottomU = targetTopU - uSize + 1;
+            if (targetBottomU < 1) {
+                alert(`Not enough space! This ${uSize}U device extends below the rack.`);
+                return;
+            }
+
+            // 2. Collision Check
+            // If we are moving an existing item, we must ignore its OLD position during collision check
+            const movingId = data.origin === 'rack' ? parseInt(data.id) : null;
+
+            const hasCollision = placedItems.some(item => {
+                if (movingId && item.id === movingId) return false; // Ignore self if moving
+
+                const itemTop = item.topU;
+                const itemBottom = item.topU - item.uSize + 1;
+                
+                // Overlap logic: StartA <= EndB && EndA >= StartB
+                return (targetBottomU <= itemTop && targetTopU >= itemBottom);
+            });
+
+            if (hasCollision) {
+                alert("Collision detected! Slot is occupied.");
+                return;
+            }
+
+            // 3. Execute Move/Place
+            if (data.origin === 'rack') {
+                // Remove old instance first
+                removeItem(movingId, false); // false = don't update stats yet
+            }
+
+            addItemToRack(data, targetTopU);
+        }
+
+        function addItemToRack(data, topU) {
+            const id = data.origin === 'rack' ? parseInt(data.id) : Date.now();
+            
+            const newItem = {
+                id: id,
+                name: data.name,
+                uSize: data.uSize,
+                color: data.color,
+                topU: topU
+            };
+
+            placedItems.push(newItem);
+            renderPlacedItem(newItem);
+            updateStats();
+        }
+
+        function renderPlacedItem(item) {
+            // Calculate absolute position
+            const heightPx = item.uSize * 40;
+            const topPx = (currentRackSize - item.topU) * 40;
+
+            const el = document.createElement('div');
+            el.id = `item-${item.id}`;
+            // Added draggable attributes
+            el.draggable = true;
+            el.dataset.u = item.uSize;
+            el.dataset.name = item.name;
+            el.dataset.color = item.color;
+            el.dataset.origin = 'rack';
+            el.dataset.id = item.id;
+            
+            el.addEventListener('dragstart', handleDragStart);
+
+            el.className = `absolute left-0 right-0 m-1 racked-device ${item.color} rounded border border-white/20 flex flex-col justify-center px-4 text-xs shadow-lg animate-in fade-in zoom-in duration-200 select-none`;
+            el.style.height = `${heightPx - 8}px`; // -8 for margin
+            el.style.top = `${topPx}px`;
+
+            // Inner Content
+            el.innerHTML = `
+                <div class="flex justify-between items-center h-full pointer-events-none">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="bg-black/30 px-2 py-1 rounded font-mono font-bold text-white">${item.uSize}U</div>
+                        <div class="font-medium truncate flex flex-col">
+                            <span class="text-white font-bold">${item.name}</span>
+                            <span class="text-white/50 text-[10px] font-mono">U${item.topU - item.uSize + 1} - U${item.topU}</span>
+                        </div>
+                    </div>
+                    <button onclick="event.preventDefault(); removeItem(${item.id}, true)" class="pointer-events-auto text-white/30 hover:text-red-400 transition-colors p-2 z-20" title="Remove">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                <div class="absolute inset-x-0 top-0 h-4 flex justify-center items-start pt-1 opacity-0 hover:opacity-100 transition-opacity cursor-grab">
+                    <div class="w-8 h-1 bg-white/20 rounded-full"></div>
+                </div>
+                <div class="absolute inset-x-4 bottom-1 h-1 bg-black/20 rounded-full"></div>
+            `;
+
+            rackGrid.appendChild(el);
+        }
+
+        function removeItem(id, shouldUpdateStats = true) {
+            placedItems = placedItems.filter(i => i.id !== id);
+            const el = document.getElementById(`item-${id}`);
+            if(el) el.remove();
+            if(shouldUpdateStats) updateStats();
+        }
+
+        function resetRack() {
+            if(confirm("Clear the entire rack?")) {
+                placedItems = [];
+                // Remove all absolute items (keep grid slots)
+                const devices = rackGrid.querySelectorAll('.racked-device');
+                devices.forEach(d => d.remove());
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            const used = placedItems.reduce((acc, item) => acc + item.uSize, 0);
+            usageStats.innerText = `${used}U / ${currentRackSize}U`;
+            
+            const pct = (used / currentRackSize) * 100;
+            if(pct > 90) usageStats.className = "font-mono text-red-400 font-bold";
+            else if(pct > 50) usageStats.className = "font-mono text-yellow-400 font-bold";
+            else usageStats.className = "font-mono text-obsidian-accent font-bold";
+        }
+
+        // --- Export Feature ---
+        
+        async function exportToImage() {
+            const element = document.getElementById('rack-capture-target');
+            const btn = document.querySelector('button[onclick="exportToImage()"]');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+            
+            try {
+                // html2canvas config
+                const canvas = await html2canvas(element, {
+                    backgroundColor: '#252526', // Match obsidian-pane
+                    scale: 2, // Retina quality
+                    logging: false,
+                    useCORS: true
+                });
+
+                // Trigger Download
+                const link = document.createElement('a');
+                link.download = `homelab-rack-${new Date().toISOString().split('T')[0]}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (err) {
+                console.error(err);
+                alert("Failed to export image. Check console for details.");
+            } finally {
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // --- UI Utilities ---
+        
+        function selectColor(btn, colorClass) {
+            document.querySelectorAll('.color-btn').forEach(b => {
+                b.classList.remove('ring-2', 'ring-obsidian-accent', 'border-white');
+                b.classList.add('border-transparent');
+            });
+            btn.classList.remove('border-transparent');
+            btn.classList.add('border-white', 'ring-2', 'ring-obsidian-accent');
+            selectedColor = colorClass;
+        }
+
+    </script>
+</body>
+</html>

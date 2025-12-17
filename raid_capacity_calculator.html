@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAID/ZFS Capacity Calculator - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc',     // Standard Text
+                            success: '#10b981',  // Green
+                            danger: '#ef4444',   // Red
+                            warning: '#f59e0b'   // Amber
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Webkit Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b4b4b; 
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #7c3aed;
+            cursor: pointer;
+            margin-top: -6px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #3c3c3c;
+            border-radius: 2px;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .radio-card:checked + div {
+            border-color: #7c3aed;
+            background-color: rgba(124, 58, 237, 0.1);
+        }
+        
+        .radio-card:checked + div .check-icon {
+            opacity: 1;
+        }
+
+        /* Bar Animation */
+        .capacity-bar {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-6 shrink-0 z-20 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-obsidian-accent/20 flex items-center justify-center text-obsidian-accent">
+                <i class="fa-solid fa-server"></i>
+            </div>
+            <h1 class="font-bold text-lg tracking-tight text-white">RAID/ZFS Calculator</h1>
+        </div>
+        <div class="ml-auto text-xs text-gray-500 font-mono hidden sm:block">
+            v1.0.0
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        
+        <section class="flex-1 lg:w-5/12 lg:flex-none flex flex-col border-b lg:border-b-0 lg:border-r border-obsidian-border bg-obsidian-bg overflow-y-auto">
+            <div class="p-6 space-y-8 max-w-2xl mx-auto w-full">
+                
+                <div class="space-y-3">
+                    <label class="text-sm font-semibold text-gray-400 uppercase tracking-wider">1. Drive Size</label>
+                    <div class="flex gap-4">
+                        <div class="relative flex-1">
+                            <input type="number" id="driveSize" value="12" min="1" step="1" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border text-white px-4 py-3 rounded focus:outline-none focus:border-obsidian-accent font-mono text-lg transition-colors">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">Size</span>
+                        </div>
+                        <div class="w-32">
+                            <select id="driveUnit" class="w-full h-full bg-obsidian-pane border border-obsidian-border text-white px-4 rounded focus:outline-none focus:border-obsidian-accent cursor-pointer font-mono">
+                                <option value="TB">TB</option>
+                                <option value="GB">GB</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex justify-between items-end">
+                        <label class="text-sm font-semibold text-gray-400 uppercase tracking-wider">2. Drive Count</label>
+                        <span id="driveCountDisplay" class="font-mono text-obsidian-accent text-2xl font-bold">4 Drives</span>
+                    </div>
+                    <div class="bg-obsidian-pane p-4 rounded border border-obsidian-border">
+                        <input type="range" id="driveCount" min="1" max="64" value="4" class="w-full mb-2">
+                        <div class="flex justify-between text-xs text-gray-600 font-mono">
+                            <span>1</span>
+                            <span>16</span>
+                            <span>32</span>
+                            <span>48</span>
+                            <span>64</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-sm font-semibold text-gray-400 uppercase tracking-wider">3. Topology</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="raidOptions">
+                        </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="flex-1 bg-[#1a1a1a] flex flex-col overflow-y-auto relative">
+            <div class="p-6 lg:p-10 space-y-8 max-w-4xl mx-auto w-full h-full flex flex-col justify-center">
+
+                <div id="alertBox" class="hidden bg-red-900/20 border border-red-900/50 text-red-200 p-4 rounded flex items-start gap-3">
+                    <i class="fa-solid fa-triangle-exclamation mt-1"></i>
+                    <div>
+                        <h4 class="font-bold text-sm">Configuration Error</h4>
+                        <p id="alertMsg" class="text-sm opacity-80 mt-1">Error message here.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="statsGrid">
+                    <div class="bg-obsidian-pane border border-obsidian-border p-5 rounded flex flex-col gap-1 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+                        <span class="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Raw Capacity</span>
+                        <span id="rawCapacity" class="text-2xl font-mono text-white font-bold">0 TB</span>
+                        <span class="text-gray-600 text-xs">Sum of all drives</span>
+                    </div>
+
+                    <div class="bg-obsidian-pane border border-obsidian-border p-5 rounded flex flex-col gap-1 relative overflow-hidden group ring-1 ring-obsidian-accent/50">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-obsidian-accent/10 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+                        <span class="text-obsidian-accent text-xs font-bold uppercase tracking-wider">Usable Capacity</span>
+                        <span id="usableCapacity" class="text-3xl font-mono text-white font-bold">0 TB</span>
+                        <span class="text-gray-500 text-xs">Actual storage space</span>
+                    </div>
+
+                    <div class="bg-obsidian-pane border border-obsidian-border p-5 rounded flex flex-col gap-1 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+                        <span class="text-gray-500 text-xs font-bold uppercase tracking-wider">Storage Efficiency</span>
+                        <span id="efficiencyPct" class="text-2xl font-mono text-white font-bold">0%</span>
+                        <span class="text-gray-600 text-xs">Usable / Raw</span>
+                    </div>
+                </div>
+
+                <div class="space-y-2 opacity-100 transition-opacity" id="visualsContainer">
+                    <div class="flex justify-between text-xs font-mono text-gray-500 mb-1">
+                        <span>Capacity Breakdown</span>
+                        <span id="lostText">Lost: 0 TB</span>
+                    </div>
+                    <div class="h-8 w-full bg-obsidian-pane rounded-full overflow-hidden flex border border-obsidian-border relative">
+                        <div id="barUsable" class="h-full bg-obsidian-accent capacity-bar flex items-center justify-center text-[10px] font-bold text-white whitespace-nowrap overflow-hidden" style="width: 0%">
+                        </div>
+                        <div id="barLost" class="h-full bg-gray-700 capacity-bar relative" style="width: 0%">
+                            <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, #000 5px, #000 10px);"></div>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 justify-center mt-2">
+                        <div class="flex items-center gap-2 text-xs text-gray-400">
+                            <div class="w-3 h-3 bg-obsidian-accent rounded-sm"></div> Usable
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-gray-400">
+                            <div class="w-3 h-3 bg-gray-700 rounded-sm relative overflow-hidden">
+                                <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, #000 2px, #000 4px);"></div>
+                            </div> Parity / Mirror
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane/50 border border-obsidian-border rounded p-6">
+                    <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-gray-400"></i> Protection & Details
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                        <div>
+                            <span class="block text-gray-500 text-xs uppercase mb-1">Fault Tolerance</span>
+                            <div id="faultTolerance" class="text-white font-mono">0 Drives</div>
+                            <p class="text-gray-500 text-xs mt-1">Number of drives that can fail without data loss.</p>
+                        </div>
+                        <div>
+                            <span class="block text-gray-500 text-xs uppercase mb-1">Read/Write Profile</span>
+                            <div id="rwProfile" class="text-white">Generic</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // Constants
+        const KB = 1000;
+        const MB = KB * 1000;
+        const GB = MB * 1000;
+        const TB = GB * 1000;
+
+        // RAID Definitions
+        const raidTypes = [
+            {
+                id: 'raid0',
+                name: 'RAID 0 (Stripe)',
+                desc: 'Maximum speed and capacity, zero redundancy.',
+                minDrives: 1,
+                icon: 'fa-bolt',
+                calc: (n, s) => ({ usable: n * s, lost: 0, tolerance: '0 Drives (Risk High)', profile: 'Excellent Read/Write, but risky.' })
+            },
+            {
+                id: 'raid1',
+                name: 'RAID 1 (Mirror)',
+                desc: 'Simple mirroring. 50% efficiency (2 drives) or less.',
+                minDrives: 2,
+                icon: 'fa-clone',
+                calc: (n, s) => ({ usable: s, lost: (n - 1) * s, tolerance: `${n - 1} Drive(s)`, profile: 'Excellent Read, Moderate Write.' })
+            },
+            {
+                id: 'raid5',
+                name: 'RAID 5 / RAID-Z1',
+                desc: 'Striping with single parity. Balanced performance.',
+                minDrives: 3,
+                icon: 'fa-layer-group',
+                calc: (n, s) => ({ usable: (n - 1) * s, lost: s, tolerance: '1 Drive', profile: 'Good Read, Slower Write (Parity calc).' })
+            },
+            {
+                id: 'raid6',
+                name: 'RAID 6 / RAID-Z2',
+                desc: 'Striping with double parity. High availability.',
+                minDrives: 4,
+                icon: 'fa-shield-virus',
+                calc: (n, s) => ({ usable: (n - 2) * s, lost: s * 2, tolerance: '2 Drives', profile: 'Good Read, Slower Write (Double Parity).' })
+            },
+            {
+                id: 'raidz3',
+                name: 'RAID-Z3',
+                desc: 'Triple parity. Extreme redundancy for large arrays.',
+                minDrives: 5,
+                icon: 'fa-dungeon',
+                calc: (n, s) => ({ usable: (n - 3) * s, lost: s * 3, tolerance: '3 Drives', profile: 'Good Read, Slowest Write.' })
+            },
+            {
+                id: 'raid10',
+                name: 'RAID 10',
+                desc: 'Stripe of Mirrors. Speed + Redundancy.',
+                minDrives: 4,
+                check: (n) => n % 2 === 0, // Must be even
+                icon: 'fa-cubes',
+                calc: (n, s) => ({ usable: (n / 2) * s, lost: (n / 2) * s, tolerance: 'Up to N/2 (1 per pair)', profile: 'Excellent Read, Excellent Write.' })
+            }
+        ];
+
+        // State
+        const state = {
+            size: 12,
+            unit: 'TB',
+            count: 4,
+            raid: 'raid5'
+        };
+
+        // DOM Elements
+        const els = {
+            driveSize: document.getElementById('driveSize'),
+            driveUnit: document.getElementById('driveUnit'),
+            driveCount: document.getElementById('driveCount'),
+            driveCountDisplay: document.getElementById('driveCountDisplay'),
+            raidOptions: document.getElementById('raidOptions'),
+            rawCapacity: document.getElementById('rawCapacity'),
+            usableCapacity: document.getElementById('usableCapacity'),
+            efficiencyPct: document.getElementById('efficiencyPct'),
+            barUsable: document.getElementById('barUsable'),
+            barLost: document.getElementById('barLost'),
+            lostText: document.getElementById('lostText'),
+            faultTolerance: document.getElementById('faultTolerance'),
+            rwProfile: document.getElementById('rwProfile'),
+            alertBox: document.getElementById('alertBox'),
+            alertMsg: document.getElementById('alertMsg'),
+            visualsContainer: document.getElementById('visualsContainer'),
+            statsGrid: document.getElementById('statsGrid')
+        };
+
+        // Initialization
+        function init() {
+            renderRaidOptions();
+            attachListeners();
+            calculate();
+        }
+
+        function renderRaidOptions() {
+            els.raidOptions.innerHTML = raidTypes.map(r => `
+                <label class="cursor-pointer relative group">
+                    <input type="radio" name="raid" value="${r.id}" class="radio-card sr-only" ${state.raid === r.id ? 'checked' : ''}>
+                    <div class="h-full border border-obsidian-border bg-obsidian-pane p-4 rounded hover:border-obsidian-accent/50 transition-all flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2 text-white font-bold text-sm">
+                                <i class="fa-solid ${r.icon} text-gray-500 group-hover:text-obsidian-accent transition-colors"></i>
+                                ${r.name}
+                            </div>
+                            <i class="fa-solid fa-circle-check text-obsidian-accent opacity-0 check-icon transition-opacity"></i>
+                        </div>
+                        <p class="text-xs text-gray-500 leading-relaxed">${r.desc}</p>
+                    </div>
+                </label>
+            `).join('');
+
+            // Re-attach listeners to new radio buttons
+            document.querySelectorAll('input[name="raid"]').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    state.raid = e.target.value;
+                    calculate();
+                });
+            });
+        }
+
+        function attachListeners() {
+            els.driveSize.addEventListener('input', (e) => { state.size = parseFloat(e.target.value) || 0; calculate(); });
+            els.driveUnit.addEventListener('change', (e) => { state.unit = e.target.value; calculate(); });
+            els.driveCount.addEventListener('input', (e) => { 
+                state.count = parseInt(e.target.value); 
+                els.driveCountDisplay.textContent = `${state.count} Drive${state.count !== 1 ? 's' : ''}`;
+                calculate(); 
+            });
+        }
+
+        function formatBytes(value, unit) {
+            // value is currently in user's selected unit (TB or GB)
+            // convert to TB for display logic if unit is GB
+            let tbValue = unit === 'GB' ? value / 1000 : value;
+            
+            if (tbValue >= 1) {
+                return `${tbValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})} TB`;
+            } else {
+                return `${(tbValue * 1000).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})} GB`;
+            }
+        }
+
+        function calculate() {
+            const raid = raidTypes.find(r => r.id === state.raid);
+            if (!raid) return;
+
+            // Clear errors
+            els.alertBox.classList.add('hidden');
+            els.visualsContainer.style.opacity = '1';
+            els.statsGrid.style.opacity = '1';
+
+            // Validate Requirements
+            let error = null;
+            if (state.count < raid.minDrives) {
+                error = `${raid.name} requires at least ${raid.minDrives} drives.`;
+            } else if (raid.check && !raid.check(state.count)) {
+                error = `${raid.name} requires an even number of drives.`;
+            }
+
+            if (error) {
+                els.alertBox.classList.remove('hidden');
+                els.alertMsg.textContent = error;
+                els.visualsContainer.style.opacity = '0.3';
+                els.statsGrid.style.opacity = '0.5';
+                
+                // Zero out
+                els.rawCapacity.textContent = '-';
+                els.usableCapacity.textContent = '-';
+                els.efficiencyPct.textContent = '-';
+                els.barUsable.style.width = '0%';
+                els.barLost.style.width = '0%';
+                return;
+            }
+
+            // Calculation Logic
+            // We work in the user's unit (let's say "Units")
+            const raw = state.count * state.size;
+            const result = raid.calc(state.count, state.size);
+            
+            // Render
+            els.rawCapacity.textContent = formatBytes(raw, state.unit);
+            els.usableCapacity.textContent = formatBytes(result.usable, state.unit);
+            
+            const efficiency = (result.usable / raw) * 100;
+            els.efficiencyPct.textContent = `${efficiency.toFixed(1)}%`;
+
+            // Bar Widths
+            els.barUsable.style.width = `${efficiency}%`;
+            els.barLost.style.width = `${100 - efficiency}%`;
+            
+            // Bar Text
+            if (efficiency > 15) {
+                els.barUsable.textContent = formatBytes(result.usable, state.unit);
+            } else {
+                els.barUsable.textContent = '';
+            }
+
+            els.lostText.textContent = `Lost: ${formatBytes(result.lost, state.unit)}`;
+            els.faultTolerance.textContent = result.tolerance;
+            els.rwProfile.textContent = result.profile;
+        }
+
+        // Run
+        init();
+
+    </script>
+</body>
+</html>
