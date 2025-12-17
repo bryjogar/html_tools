@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Napkin Topology Builder - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Prevent text selection on canvas dragging */
+        canvas {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Tooltip styling */
+        .tool-btn.active {
+            background-color: rgba(124, 58, 237, 0.2);
+            color: #a78bfa;
+            border-color: #7c3aed;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-diagram-project text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide hidden md:block">Napkin<span class="text-gray-500 font-normal">Topology</span></h1>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <button onclick="actions.exportImage()" class="px-3 py-1.5 text-xs font-mono bg-obsidian-border hover:bg-obsidian-accent/20 border border-transparent hover:border-obsidian-accent rounded transition-all">
+                <i class="fa-solid fa-camera mr-1"></i> PNG
+            </button>
+            <button onclick="actions.exportJSON()" class="px-3 py-1.5 text-xs font-mono bg-obsidian-border hover:bg-obsidian-accent/20 border border-transparent hover:border-obsidian-accent rounded transition-all">
+                <i class="fa-solid fa-file-code mr-1"></i> SAVE
+            </button>
+            <button onclick="actions.importJSON()" class="px-3 py-1.5 text-xs font-mono bg-obsidian-border hover:bg-obsidian-accent/20 border border-transparent hover:border-obsidian-accent rounded transition-all">
+                <i class="fa-solid fa-upload mr-1"></i> LOAD
+            </button>
+            <button onclick="actions.clearCanvas()" class="px-3 py-1.5 text-xs font-mono bg-red-900/20 hover:bg-red-900/50 text-red-400 border border-transparent rounded transition-all ml-2">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        <aside class="md:w-20 w-full h-16 md:h-full bg-obsidian-pane border-b md:border-b-0 md:border-r border-obsidian-border flex md:flex-col items-center justify-center md:justify-start gap-4 p-2 shrink-0 z-10 overflow-x-auto md:overflow-y-auto">
+            
+            <div class="flex md:flex-col gap-2 border-r md:border-r-0 md:border-b border-obsidian-border pr-4 md:pr-0 md:pb-4 mr-2 md:mr-0 md:mb-2 shrink-0">
+                <button id="tool-select" onclick="setMode('select')" class="tool-btn active w-10 h-10 rounded flex items-center justify-center border border-transparent hover:bg-white/5 transition-colors" title="Move/Select Mode">
+                    <i class="fa-solid fa-arrow-pointer"></i>
+                </button>
+                <button id="tool-connect" onclick="setMode('connect')" class="tool-btn w-10 h-10 rounded flex items-center justify-center border border-transparent hover:bg-white/5 transition-colors" title="Connect Mode">
+                    <i class="fa-solid fa-bezier-curve"></i>
+                </button>
+            </div>
+
+            <div class="flex md:flex-col gap-3 shrink-0 pb-4">
+                <div class="draggable-item cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100 hover:text-obsidian-accent transition-all flex flex-col items-center gap-1" draggable="true" ondragstart="dragStart(event)" data-type="cloud">
+                    <i class="fa-solid fa-cloud text-xl"></i>
+                    <span class="text-[10px] hidden md:block">Cloud</span>
+                </div>
+                <div class="draggable-item cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100 hover:text-obsidian-accent transition-all flex flex-col items-center gap-1" draggable="true" ondragstart="dragStart(event)" data-type="firewall">
+                    <i class="fa-solid fa-shield-halved text-xl"></i>
+                    <span class="text-[10px] hidden md:block">Firewall</span>
+                </div>
+                <div class="draggable-item cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100 hover:text-obsidian-accent transition-all flex flex-col items-center gap-1" draggable="true" ondragstart="dragStart(event)" data-type="switch">
+                    <i class="fa-solid fa-network-wired text-xl"></i>
+                    <span class="text-[10px] hidden md:block">Switch</span>
+                </div>
+                <div class="draggable-item cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100 hover:text-obsidian-accent transition-all flex flex-col items-center gap-1" draggable="true" ondragstart="dragStart(event)" data-type="server">
+                    <i class="fa-solid fa-server text-xl"></i>
+                    <span class="text-[10px] hidden md:block">Server</span>
+                </div>
+                <div class="draggable-item cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100 hover:text-obsidian-accent transition-all flex flex-col items-center gap-1" draggable="true" ondragstart="dragStart(event)" data-type="ap">
+                    <i class="fa-solid fa-wifi text-xl"></i>
+                    <span class="text-[10px] hidden md:block">AP</span>
+                </div>
+                <div class="draggable-item cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100 hover:text-obsidian-accent transition-all flex flex-col items-center gap-1" draggable="true" ondragstart="dragStart(event)" data-type="laptop">
+                    <i class="fa-solid fa-laptop text-xl"></i>
+                    <span class="text-[10px] hidden md:block">Client</span>
+                </div>
+                <div class="draggable-item cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100 hover:text-obsidian-accent transition-all flex flex-col items-center gap-1" draggable="true" ondragstart="dragStart(event)" data-type="camera">
+                    <i class="fa-solid fa-video text-xl"></i>
+                    <span class="text-[10px] hidden md:block">Camera</span>
+                </div>
+                <div class="draggable-item cursor-grab active:cursor-grabbing opacity-70 hover:opacity-100 hover:text-obsidian-accent transition-all flex flex-col items-center gap-1" draggable="true" ondragstart="dragStart(event)" data-type="ups">
+                    <i class="fa-solid fa-car-battery text-xl"></i>
+                    <span class="text-[10px] hidden md:block">UPS</span>
+                </div>
+            </div>
+            
+            <div class="md:hidden text-[10px] text-gray-500 ml-auto pr-2">
+                Tap tool to switch
+            </div>
+        </aside>
+
+        <div id="canvas-container" class="flex-1 relative bg-obsidian-bg overflow-hidden cursor-crosshair">
+            <div class="absolute top-4 left-4 pointer-events-none opacity-50 text-xs font-mono z-10">
+                <div id="mode-display" class="text-obsidian-accent font-bold mb-1">MODE: SELECT</div>
+                <div class="text-[10px]">Double Click Device: Rename</div>
+                <div class="text-[10px]">Double Click Line: Edit Ports</div>
+                <div class="text-[10px]">Del/Bksp: Delete Selected</div>
+            </div>
+            
+            <canvas id="topologyCanvas"></canvas>
+        </div>
+
+    </main>
+
+    <div id="modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl w-full max-w-lg flex flex-col">
+            <div class="p-4 border-b border-obsidian-border flex justify-between items-center">
+                <h3 id="modal-title" class="text-white font-bold">Data</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-4 flex-1">
+                <textarea id="modal-input" class="w-full h-48 bg-obsidian-bg border border-obsidian-border rounded p-2 font-mono text-xs text-obsidian-text focus:border-obsidian-accent outline-none resize-none hidden"></textarea>
+                
+                <div id="rename-container" class="hidden">
+                    <label class="block text-xs text-gray-500 mb-1">Device Name</label>
+                    <input type="text" id="rename-input" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:border-obsidian-accent outline-none" placeholder="Enter new label...">
+                </div>
+
+                <div id="port-container" class="hidden flex flex-col gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Source Port (Device A)</label>
+                        <input type="text" id="port-src-input" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:border-obsidian-accent outline-none font-mono" placeholder="e.g. Eth0">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Target Port (Device B)</label>
+                        <input type="text" id="port-tgt-input" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:border-obsidian-accent outline-none font-mono" placeholder="e.g. Port 7">
+                    </div>
+                    <div class="text-[10px] text-gray-600 italic">
+                        <i class="fa-solid fa-circle-info mr-1"></i>
+                        Clear text to remove label.
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-obsidian-border flex justify-end gap-2">
+                <button onclick="closeModal()" class="px-4 py-2 rounded text-sm hover:bg-white/5 transition-colors">Cancel</button>
+                <button id="modal-action-btn" class="px-4 py-2 bg-obsidian-accent text-white rounded text-sm hover:bg-opacity-90 transition-colors">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // --- Configuration & State ---
+        const canvas = document.getElementById('topologyCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        let nodes = [];
+        let links = []; 
+        let nextId = 1;
+        
+        let currentMode = 'select'; // 'select' or 'connect'
+        let selectedNode = null;
+        let selectedLink = null;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let connectionStartNode = null;
+        
+        const iconMap = {
+            'cloud':    { code: '\uf0c2', label: 'Internet' },
+            'firewall': { code: '\uf3ed', label: 'Firewall' },
+            'switch':   { code: '\uf6ff', label: 'Switch' },
+            'server':   { code: '\uf233', label: 'Server' },
+            'ap':       { code: '\uf1eb', label: 'WAP' },
+            'laptop':   { code: '\uf109', label: 'PC' },
+            'camera':   { code: '\uf03d', label: 'Camera' },
+            'ups':      { code: '\uf5df', label: 'UPS' }
+        };
+
+        const NODE_RADIUS = 25;
+
+        // --- Initialization ---
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+        setTimeout(resizeCanvas, 50);
+
+        document.fonts.ready.then(function() {
+            draw();
+        });
+
+        // --- Math Helpers ---
+        function getDistToLine(point, lineStart, lineEnd) {
+            const A = point.x - lineStart.x;
+            const B = point.y - lineStart.y;
+            const C = lineEnd.x - lineStart.x;
+            const D = lineEnd.y - lineStart.y;
+
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = -1;
+            if (lenSq !== 0) 
+                param = dot / lenSq;
+
+            let xx, yy;
+
+            if (param < 0) {
+                xx = lineStart.x;
+                yy = lineStart.y;
+            }
+            else if (param > 1) {
+                xx = lineEnd.x;
+                yy = lineEnd.y;
+            }
+            else {
+                xx = lineStart.x + param * C;
+                yy = lineStart.y + param * D;
+            }
+
+            const dx = point.x - xx;
+            const dy = point.y - yy;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // --- Drawing System ---
+        function draw() {
+            // Clear Background
+            ctx.fillStyle = '#1e1e1e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Grid (Subtle)
+            ctx.strokeStyle = '#252526';
+            ctx.lineWidth = 1;
+            const gridSize = 40;
+            for(let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for(let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // Draw Links
+            links.forEach(link => {
+                const source = nodes.find(n => n.id === link.source);
+                const target = nodes.find(n => n.id === link.target);
+                
+                if (source && target) {
+                    ctx.beginPath();
+                    ctx.moveTo(source.x, source.y);
+                    ctx.lineTo(target.x, target.y);
+                    
+                    // Highlight selected link
+                    if (selectedLink === link) {
+                        ctx.strokeStyle = '#7c3aed';
+                        ctx.lineWidth = 3;
+                    } else {
+                        ctx.strokeStyle = '#555';
+                        ctx.lineWidth = 2;
+                    }
+                    ctx.stroke();
+
+                    // --- Draw Port Labels ---
+                    const angle = Math.atan2(target.y - source.y, target.x - source.x);
+                    
+                    // CHANGED: Increased offset from 15 to 40
+                    const offset = NODE_RADIUS + 40; 
+
+                    // Helper to draw text background for readability
+                    const drawLabel = (text, x, y, ang) => {
+                        if (!text) return;
+                        ctx.save();
+                        ctx.font = '10px "Fira Code", monospace';
+                        const metrics = ctx.measureText(text);
+                        const bgPad = 2;
+                        
+                        // Background
+                        ctx.translate(x, y);
+                        
+                        ctx.fillStyle = '#252526';
+                        ctx.fillRect(-metrics.width/2 - bgPad, -5 - bgPad, metrics.width + bgPad*2, 10 + bgPad*2);
+                        
+                        ctx.fillStyle = '#a78bfa'; // violet-300
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(text, 0, 0);
+                        ctx.restore();
+                    };
+
+                    // Source Label
+                    if (link.srcLabel) {
+                        drawLabel(link.srcLabel, source.x + Math.cos(angle) * offset, source.y + Math.sin(angle) * offset, angle);
+                    }
+
+                    // Target Label
+                    if (link.tgtLabel) {
+                        // Angle from target back to source is angle + PI
+                        drawLabel(link.tgtLabel, target.x + Math.cos(angle + Math.PI) * offset, target.y + Math.sin(angle + Math.PI) * offset, angle);
+                    }
+                }
+            });
+
+            // Draw Connection Line (Interactive)
+            if (currentMode === 'connect' && connectionStartNode && window.lastMousePos) {
+                ctx.beginPath();
+                ctx.moveTo(connectionStartNode.x, connectionStartNode.y);
+                ctx.lineTo(window.lastMousePos.x, window.lastMousePos.y);
+                ctx.strokeStyle = '#7c3aed';
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Draw Nodes
+            nodes.forEach(node => {
+                const isSelected = (selectedNode === node);
+                const isConnectStart = (connectionStartNode === node);
+
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = isSelected ? '#3c3c3c' : '#252526';
+                if (isConnectStart) ctx.fillStyle = '#4c1d95';
+                ctx.fill();
+                
+                ctx.strokeStyle = isSelected ? '#7c3aed' : '#3c3c3c';
+                ctx.lineWidth = isSelected ? 2 : 1;
+                ctx.stroke();
+
+                ctx.fillStyle = isSelected ? '#fff' : '#7c3aed';
+                if (isConnectStart) ctx.fillStyle = '#fff';
+                ctx.font = '900 20px "Font Awesome 6 Free"';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const iconChar = iconMap[node.type] ? iconMap[node.type].code : '?';
+                ctx.fillText(iconChar, node.x, node.y);
+
+                ctx.fillStyle = '#cccccc';
+                ctx.font = '12px Inter, sans-serif';
+                ctx.fillText(node.label, node.x, node.y + NODE_RADIUS + 15);
+            });
+        }
+
+        // --- Interaction Logic ---
+        
+        window.setMode = (mode) => {
+            currentMode = mode;
+            document.getElementById('tool-select').classList.toggle('active', mode === 'select');
+            document.getElementById('tool-connect').classList.toggle('active', mode === 'connect');
+            document.getElementById('mode-display').innerText = `MODE: ${mode.toUpperCase()}`;
+            connectionStartNode = null;
+            selectedNode = null;
+            selectedLink = null;
+            draw();
+        };
+
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = evt.changedTouches ? evt.changedTouches[0].clientX : evt.clientX;
+            const clientY = evt.changedTouches ? evt.changedTouches[0].clientY : evt.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function getNodeAt(pos) {
+            for (let i = nodes.length - 1; i >= 0; i--) {
+                const node = nodes[i];
+                if (Math.hypot(node.x - pos.x, node.y - pos.y) <= NODE_RADIUS) return node;
+            }
+            return null;
+        }
+
+        function getLinkAt(pos) {
+            const tolerance = 10;
+            for (let link of links) {
+                const s = nodes.find(n => n.id === link.source);
+                const t = nodes.find(n => n.id === link.target);
+                if (s && t) {
+                    if (getDistToLine(pos, s, t) < tolerance) {
+                        return link;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // --- Event Listeners ---
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); }, {passive: false});
+
+        canvas.addEventListener('mousemove', handlePointerMove);
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handlePointerMove(e); }, {passive: false});
+
+        canvas.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); handlePointerUp(e); }, {passive: false});
+        
+        // Double Click Handler
+        canvas.addEventListener('dblclick', (e) => {
+            const pos = getMousePos(e);
+            
+            // 1. Check Node
+            const node = getNodeAt(pos);
+            if (node) {
+                actions.renameNode(node);
+                return;
+            }
+
+            // 2. Check Link
+            const link = getLinkAt(pos);
+            if (link) {
+                actions.editLink(link);
+            }
+        });
+
+        window.lastMousePos = {x:0, y:0};
+
+        function handlePointerDown(e) {
+            const pos = getMousePos(e);
+            const node = getNodeAt(pos);
+
+            if (currentMode === 'select') {
+                if (node) {
+                    selectedNode = node;
+                    selectedLink = null;
+                    isDragging = true;
+                    dragOffset = { x: pos.x - node.x, y: pos.y - node.y };
+                } else {
+                    selectedNode = null;
+                    const link = getLinkAt(pos);
+                    selectedLink = link || null;
+                }
+            } else if (currentMode === 'connect') {
+                if (node) {
+                    if (!connectionStartNode) {
+                        connectionStartNode = node;
+                    } else {
+                        if (connectionStartNode !== node) {
+                            const exists = links.some(l => 
+                                (l.source === connectionStartNode.id && l.target === node.id) ||
+                                (l.source === node.id && l.target === connectionStartNode.id)
+                            );
+                            if (!exists) {
+                                links.push({ source: connectionStartNode.id, target: node.id, srcLabel: '', tgtLabel: '' });
+                            }
+                        }
+                        connectionStartNode = null;
+                    }
+                } else {
+                    connectionStartNode = null;
+                }
+            }
+            draw();
+        }
+
+        function handlePointerMove(e) {
+            const pos = getMousePos(e);
+            window.lastMousePos = pos;
+            if (currentMode === 'select' && isDragging && selectedNode) {
+                selectedNode.x = pos.x - dragOffset.x;
+                selectedNode.y = pos.y - dragOffset.y;
+            }
+            draw();
+        }
+
+        function handlePointerUp(e) {
+            isDragging = false;
+        }
+
+        window.dragStart = (e) => { e.dataTransfer.setData("type", e.target.dataset.type); };
+
+        container.addEventListener('dragover', (e) => e.preventDefault());
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const type = e.dataTransfer.getData("type");
+            const rect = canvas.getBoundingClientRect();
+            if (iconMap[type]) {
+                nodes.push({
+                    id: nextId++,
+                    type: type,
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                    label: iconMap[type].label
+                });
+                draw();
+            }
+        });
+
+        // Delete Logic
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+                if (selectedNode) {
+                    links = links.filter(l => l.source !== selectedNode.id && l.target !== selectedNode.id);
+                    nodes = nodes.filter(n => n !== selectedNode);
+                    selectedNode = null;
+                    draw();
+                } else if (selectedLink) {
+                    links = links.filter(l => l !== selectedLink);
+                    selectedLink = null;
+                    draw();
+                }
+            }
+        });
+
+        // --- Modal/Actions ---
+        const modal = document.getElementById('modal-overlay');
+        const modalTitle = document.getElementById('modal-title');
+        const modalInput = document.getElementById('modal-input');
+        const modalActionBtn = document.getElementById('modal-action-btn');
+        
+        // Input Groups
+        const renameContainer = document.getElementById('rename-container');
+        const renameInput = document.getElementById('rename-input');
+        
+        const portContainer = document.getElementById('port-container');
+        const portSrcInput = document.getElementById('port-src-input');
+        const portTgtInput = document.getElementById('port-tgt-input');
+
+        window.closeModal = () => {
+            modal.classList.add('hidden');
+        };
+
+        function resetModal() {
+            modalInput.classList.add('hidden');
+            renameContainer.classList.add('hidden');
+            portContainer.classList.add('hidden');
+        }
+
+        window.actions = {
+            clearCanvas: () => {
+                if(confirm('Clear entire topology?')) {
+                    nodes = []; links = []; nextId = 1; draw();
+                }
+            },
+            exportJSON: () => {
+                resetModal();
+                modalInput.classList.remove('hidden');
+                modalTitle.innerText = "Copy JSON";
+                modalInput.value = JSON.stringify({ nodes, links, nextId }, null, 2);
+                modalActionBtn.innerText = "Close";
+                modalActionBtn.onclick = closeModal;
+                modal.classList.remove('hidden');
+                modalInput.select();
+            },
+            importJSON: () => {
+                resetModal();
+                modalInput.classList.remove('hidden');
+                modalTitle.innerText = "Paste JSON";
+                modalInput.value = "";
+                modalActionBtn.innerText = "Load";
+                modalActionBtn.onclick = () => {
+                    try {
+                        const data = JSON.parse(modalInput.value);
+                        if (data.nodes && data.links) {
+                            nodes = data.nodes; links = data.links;
+                            nextId = data.nextId || 100;
+                            draw(); closeModal();
+                        }
+                    } catch(e) { alert("Invalid JSON"); }
+                };
+                modal.classList.remove('hidden');
+            },
+            renameNode: (node) => {
+                resetModal();
+                renameContainer.classList.remove('hidden');
+                modalTitle.innerText = "Rename Device";
+                renameInput.value = node.label;
+                modalActionBtn.innerText = "Save";
+                modalActionBtn.onclick = () => {
+                    node.label = renameInput.value || node.label;
+                    draw(); closeModal();
+                };
+                modal.classList.remove('hidden');
+                renameInput.focus();
+            },
+            editLink: (link) => {
+                resetModal();
+                portContainer.classList.remove('hidden');
+                modalTitle.innerText = "Edit Connections";
+                
+                // Pre-fill inputs
+                portSrcInput.value = link.srcLabel || "";
+                portTgtInput.value = link.tgtLabel || "";
+                
+                modalActionBtn.innerText = "Save";
+                modalActionBtn.onclick = () => {
+                    link.srcLabel = portSrcInput.value;
+                    link.tgtLabel = portTgtInput.value;
+                    draw();
+                    closeModal();
+                };
+                modal.classList.remove('hidden');
+                portSrcInput.focus();
+            },
+            exportImage: () => {
+                const link = document.createElement('a');
+                link.download = 'topology-napkin.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            }
+        };
+
+        // Mobile hack for adding nodes
+        document.querySelectorAll('.draggable-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const type = item.dataset.type;
+                nodes.push({
+                    id: nextId++,
+                    type: type,
+                    x: canvas.width/2 + (Math.random()*40-20),
+                    y: canvas.height/2 + (Math.random()*40-20),
+                    label: iconMap[type].label
+                });
+                draw();
+            });
+        });
+
+    </script>
+</body>
+</html>
