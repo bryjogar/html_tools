@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FontAwesome Explorer - Homelab Playground</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',       // Main background
+                            pane: '#252526',     // Headers/Panels
+                            border: '#3c3c3c',   // Borders
+                            accent: '#7c3aed',   // Violet Primary
+                            text: '#cccccc'      // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400&display=swap');
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 5px;
+            border: 2px solid #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Toast Animation */
+        @keyframes slideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .toast-enter {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        .toast-exit {
+            animation: fadeOut 0.3s ease-in forwards;
+        }
+
+        .icon-card:hover .copy-hint {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-6 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-obsidian-accent flex items-center justify-center text-white">
+                <i class="fa-solid fa-icons"></i>
+            </div>
+            <h1 class="font-semibold text-lg tracking-tight text-white">Icon Finder</h1>
+        </div>
+        <div class="flex items-center gap-4 text-sm">
+            <div class="bg-obsidian-bg px-3 py-1 rounded border border-obsidian-border text-xs font-mono text-gray-500">
+                FA v6.4.0
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        
+        <div class="bg-obsidian-pane border-b border-obsidian-border p-4 flex flex-col md:flex-row gap-4 items-center shrink-0">
+            <div class="relative w-full max-w-2xl">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"></i>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="Search icons (e.g., arrow, user, facebook)..." 
+                    class="w-full bg-obsidian-bg border border-obsidian-border text-obsidian-text pl-10 pr-4 py-2 rounded focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600 font-mono text-sm"
+                >
+            </div>
+            
+            <div class="flex gap-2">
+                <button onclick="filterType('all')" class="filter-btn active px-3 py-1.5 rounded text-xs font-medium border border-obsidian-border bg-obsidian-accent text-white hover:opacity-90 transition-colors">All</button>
+                <button onclick="filterType('solid')" class="filter-btn px-3 py-1.5 rounded text-xs font-medium border border-obsidian-border bg-obsidian-bg hover:bg-white/5 transition-colors">Solid</button>
+                <button onclick="filterType('regular')" class="filter-btn px-3 py-1.5 rounded text-xs font-medium border border-obsidian-border bg-obsidian-bg hover:bg-white/5 transition-colors">Regular</button>
+                <button onclick="filterType('brands')" class="filter-btn px-3 py-1.5 rounded text-xs font-medium border border-obsidian-border bg-obsidian-bg hover:bg-white/5 transition-colors">Brands</button>
+            </div>
+            
+            <div class="ml-auto text-xs text-gray-500 font-mono hidden md:block" id="countDisplay">
+                Loading...
+            </div>
+        </div>
+
+        <div id="iconGrid" class="flex-1 overflow-y-auto p-6 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-4 content-start">
+            </div>
+
+        <div id="emptyState" class="hidden absolute inset-0 flex flex-col items-center justify-center text-gray-600">
+            <i class="fa-solid fa-ghost text-4xl mb-4 opacity-50"></i>
+            <p>No icons found.</p>
+        </div>
+
+    </main>
+
+    <div id="toast" class="fixed bottom-12 right-6 bg-obsidian-pane border border-obsidian-accent text-white px-4 py-3 rounded shadow-2xl flex items-center gap-3 transform translate-y-24 opacity-0 transition-all z-50">
+        <i class="fa-solid fa-check-circle text-green-400"></i>
+        <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wider font-bold">Copied to Clipboard</p>
+            <p id="toastText" class="font-mono text-xs mt-1 text-obsidian-accent">class="..."</p>
+        </div>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-10">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // Data: A curated list of popular icons to ensure standalone functionality
+        const iconData = [
+            // Web App / UI (Solid)
+            { name: 'house', type: 'solid', cls: 'fa-solid fa-house' },
+            { name: 'magnifying-glass', type: 'solid', cls: 'fa-solid fa-magnifying-glass' },
+            { name: 'user', type: 'solid', cls: 'fa-solid fa-user' },
+            { name: 'check', type: 'solid', cls: 'fa-solid fa-check' },
+            { name: 'download', type: 'solid', cls: 'fa-solid fa-download' },
+            { name: 'image', type: 'solid', cls: 'fa-solid fa-image' },
+            { name: 'phone', type: 'solid', cls: 'fa-solid fa-phone' },
+            { name: 'bars', type: 'solid', cls: 'fa-solid fa-bars' },
+            { name: 'envelope', type: 'solid', cls: 'fa-solid fa-envelope' },
+            { name: 'star', type: 'solid', cls: 'fa-solid fa-star' },
+            { name: 'location-dot', type: 'solid', cls: 'fa-solid fa-location-dot' },
+            { name: 'music', type: 'solid', cls: 'fa-solid fa-music' },
+            { name: 'wand-magic-sparkles', type: 'solid', cls: 'fa-solid fa-wand-magic-sparkles' },
+            { name: 'heart', type: 'solid', cls: 'fa-solid fa-heart' },
+            { name: 'arrow-right', type: 'solid', cls: 'fa-solid fa-arrow-right' },
+            { name: 'circle-xmark', type: 'solid', cls: 'fa-solid fa-circle-xmark' },
+            { name: 'bomb', type: 'solid', cls: 'fa-solid fa-bomb' },
+            { name: 'poo', type: 'solid', cls: 'fa-solid fa-poo' },
+            { name: 'camera', type: 'solid', cls: 'fa-solid fa-camera' },
+            { name: 'gears', type: 'solid', cls: 'fa-solid fa-gears' },
+            { name: 'trash', type: 'solid', cls: 'fa-solid fa-trash' },
+            { name: 'share-nodes', type: 'solid', cls: 'fa-solid fa-share-nodes' },
+            { name: 'lock', type: 'solid', cls: 'fa-solid fa-lock' },
+            { name: 'lock-open', type: 'solid', cls: 'fa-solid fa-lock-open' },
+            { name: 'cloud', type: 'solid', cls: 'fa-solid fa-cloud' },
+            { name: 'eye', type: 'solid', cls: 'fa-solid fa-eye' },
+            { name: 'eye-slash', type: 'solid', cls: 'fa-solid fa-eye-slash' },
+            { name: 'shield-halved', type: 'solid', cls: 'fa-solid fa-shield-halved' },
+            { name: 'file', type: 'solid', cls: 'fa-solid fa-file' },
+            { name: 'folder', type: 'solid', cls: 'fa-solid fa-folder' },
+            { name: 'calendar', type: 'solid', cls: 'fa-solid fa-calendar' },
+            { name: 'code', type: 'solid', cls: 'fa-solid fa-code' },
+            { name: 'terminal', type: 'solid', cls: 'fa-solid fa-terminal' },
+            { name: 'server', type: 'solid', cls: 'fa-solid fa-server' },
+            { name: 'database', type: 'solid', cls: 'fa-solid fa-database' },
+            { name: 'microchip', type: 'solid', cls: 'fa-solid fa-microchip' },
+            { name: 'wifi', type: 'solid', cls: 'fa-solid fa-wifi' },
+            { name: 'ethernet', type: 'solid', cls: 'fa-solid fa-ethernet' },
+            { name: 'battery-full', type: 'solid', cls: 'fa-solid fa-battery-full' },
+            { name: 'bell', type: 'solid', cls: 'fa-solid fa-bell' },
+            { name: 'bolt', type: 'solid', cls: 'fa-solid fa-bolt' },
+            { name: 'book', type: 'solid', cls: 'fa-solid fa-book' },
+            { name: 'bookmark', type: 'solid', cls: 'fa-solid fa-bookmark' },
+            { name: 'briefcase', type: 'solid', cls: 'fa-solid fa-briefcase' },
+            { name: 'bug', type: 'solid', cls: 'fa-solid fa-bug' },
+            { name: 'building', type: 'solid', cls: 'fa-solid fa-building' },
+            { name: 'calculator', type: 'solid', cls: 'fa-solid fa-calculator' },
+            { name: 'chart-pie', type: 'solid', cls: 'fa-solid fa-chart-pie' },
+            { name: 'chart-line', type: 'solid', cls: 'fa-solid fa-chart-line' },
+            { name: 'circle-info', type: 'solid', cls: 'fa-solid fa-circle-info' },
+            { name: 'circle-question', type: 'solid', cls: 'fa-solid fa-circle-question' },
+            { name: 'clipboard', type: 'solid', cls: 'fa-solid fa-clipboard' },
+            { name: 'clock', type: 'solid', cls: 'fa-solid fa-clock' },
+            { name: 'clone', type: 'solid', cls: 'fa-solid fa-clone' },
+            { name: 'compass', type: 'solid', cls: 'fa-solid fa-compass' },
+            { name: 'copy', type: 'solid', cls: 'fa-solid fa-copy' },
+            { name: 'credit-card', type: 'solid', cls: 'fa-solid fa-credit-card' },
+            { name: 'cube', type: 'solid', cls: 'fa-solid fa-cube' },
+            { name: 'cubes', type: 'solid', cls: 'fa-solid fa-cubes' },
+            { name: 'desktop', type: 'solid', cls: 'fa-solid fa-desktop' },
+            { name: 'ellipsis', type: 'solid', cls: 'fa-solid fa-ellipsis' },
+            { name: 'ellipsis-vertical', type: 'solid', cls: 'fa-solid fa-ellipsis-vertical' },
+            { name: 'eraser', type: 'solid', cls: 'fa-solid fa-eraser' },
+            { name: 'file-arrow-up', type: 'solid', cls: 'fa-solid fa-file-arrow-up' },
+            { name: 'filter', type: 'solid', cls: 'fa-solid fa-filter' },
+            { name: 'fingerprint', type: 'solid', cls: 'fa-solid fa-fingerprint' },
+            { name: 'fire', type: 'solid', cls: 'fa-solid fa-fire' },
+            { name: 'flag', type: 'solid', cls: 'fa-solid fa-flag' },
+            { name: 'flask', type: 'solid', cls: 'fa-solid fa-flask' },
+            { name: 'gamepad', type: 'solid', cls: 'fa-solid fa-gamepad' },
+            { name: 'gauge-high', type: 'solid', cls: 'fa-solid fa-gauge-high' },
+            { name: 'ghost', type: 'solid', cls: 'fa-solid fa-ghost' },
+            { name: 'gift', type: 'solid', cls: 'fa-solid fa-gift' },
+            { name: 'globe', type: 'solid', cls: 'fa-solid fa-globe' },
+            { name: 'graduation-cap', type: 'solid', cls: 'fa-solid fa-graduation-cap' },
+            { name: 'hard-drive', type: 'solid', cls: 'fa-solid fa-hard-drive' },
+            { name: 'headphones', type: 'solid', cls: 'fa-solid fa-headphones' },
+            { name: 'hourglass', type: 'solid', cls: 'fa-solid fa-hourglass' },
+            { name: 'key', type: 'solid', cls: 'fa-solid fa-key' },
+            { name: 'keyboard', type: 'solid', cls: 'fa-solid fa-keyboard' },
+            { name: 'laptop', type: 'solid', cls: 'fa-solid fa-laptop' },
+            { name: 'layer-group', type: 'solid', cls: 'fa-solid fa-layer-group' },
+            { name: 'lightbulb', type: 'solid', cls: 'fa-solid fa-lightbulb' },
+            { name: 'link', type: 'solid', cls: 'fa-solid fa-link' },
+            { name: 'list', type: 'solid', cls: 'fa-solid fa-list' },
+            { name: 'magnet', type: 'solid', cls: 'fa-solid fa-magnet' },
+            { name: 'map', type: 'solid', cls: 'fa-solid fa-map' },
+            { name: 'microphone', type: 'solid', cls: 'fa-solid fa-microphone' },
+            { name: 'mobile', type: 'solid', cls: 'fa-solid fa-mobile' },
+            { name: 'money-bill', type: 'solid', cls: 'fa-solid fa-money-bill' },
+            { name: 'moon', type: 'solid', cls: 'fa-solid fa-moon' },
+            { name: 'palette', type: 'solid', cls: 'fa-solid fa-palette' },
+            { name: 'paper-plane', type: 'solid', cls: 'fa-solid fa-paper-plane' },
+            { name: 'paperclip', type: 'solid', cls: 'fa-solid fa-paperclip' },
+            { name: 'pen', type: 'solid', cls: 'fa-solid fa-pen' },
+            { name: 'pencil', type: 'solid', cls: 'fa-solid fa-pencil' },
+            { name: 'power-off', type: 'solid', cls: 'fa-solid fa-power-off' },
+            { name: 'print', type: 'solid', cls: 'fa-solid fa-print' },
+            { name: 'puzzle-piece', type: 'solid', cls: 'fa-solid fa-puzzle-piece' },
+            { name: 'qrcode', type: 'solid', cls: 'fa-solid fa-qrcode' },
+            { name: 'robot', type: 'solid', cls: 'fa-solid fa-robot' },
+            { name: 'rocket', type: 'solid', cls: 'fa-solid fa-rocket' },
+            { name: 'rotate', type: 'solid', cls: 'fa-solid fa-rotate' },
+            { name: 'save', type: 'solid', cls: 'fa-solid fa-save' },
+            { name: 'screwdriver-wrench', type: 'solid', cls: 'fa-solid fa-screwdriver-wrench' },
+            { name: 'shop', type: 'solid', cls: 'fa-solid fa-shop' },
+            { name: 'shuffle', type: 'solid', cls: 'fa-solid fa-shuffle' },
+            { name: 'signal', type: 'solid', cls: 'fa-solid fa-signal' },
+            { name: 'sitemap', type: 'solid', cls: 'fa-solid fa-sitemap' },
+            { name: 'skull', type: 'solid', cls: 'fa-solid fa-skull' },
+            { name: 'sliders', type: 'solid', cls: 'fa-solid fa-sliders' },
+            { name: 'sort', type: 'solid', cls: 'fa-solid fa-sort' },
+            { name: 'square-share-nodes', type: 'solid', cls: 'fa-solid fa-square-share-nodes' },
+            { name: 'stopwatch', type: 'solid', cls: 'fa-solid fa-stopwatch' },
+            { name: 'tag', type: 'solid', cls: 'fa-solid fa-tag' },
+            { name: 'tags', type: 'solid', cls: 'fa-solid fa-tags' },
+            { name: 'thumbs-up', type: 'solid', cls: 'fa-solid fa-thumbs-up' },
+            { name: 'thumbs-down', type: 'solid', cls: 'fa-solid fa-thumbs-down' },
+            { name: 'thumbtack', type: 'solid', cls: 'fa-solid fa-thumbtack' },
+            { name: 'ticket', type: 'solid', cls: 'fa-solid fa-ticket' },
+            { name: 'toggle-on', type: 'solid', cls: 'fa-solid fa-toggle-on' },
+            { name: 'toolbox', type: 'solid', cls: 'fa-solid fa-toolbox' },
+            { name: 'trophy', type: 'solid', cls: 'fa-solid fa-trophy' },
+            { name: 'truck', type: 'solid', cls: 'fa-solid fa-truck' },
+            { name: 'umbrella', type: 'solid', cls: 'fa-solid fa-umbrella' },
+            { name: 'unlock', type: 'solid', cls: 'fa-solid fa-unlock' },
+            { name: 'upload', type: 'solid', cls: 'fa-solid fa-upload' },
+            { name: 'user-secret', type: 'solid', cls: 'fa-solid fa-user-secret' },
+            { name: 'users', type: 'solid', cls: 'fa-solid fa-users' },
+            { name: 'video', type: 'solid', cls: 'fa-solid fa-video' },
+            { name: 'volume-high', type: 'solid', cls: 'fa-solid fa-volume-high' },
+            { name: 'wallet', type: 'solid', cls: 'fa-solid fa-wallet' },
+            { name: 'wrench', type: 'solid', cls: 'fa-solid fa-wrench' },
+            { name: 'xmark', type: 'solid', cls: 'fa-solid fa-xmark' },
+
+            // Regular
+            { name: 'user', type: 'regular', cls: 'fa-regular fa-user' },
+            { name: 'heart', type: 'regular', cls: 'fa-regular fa-heart' },
+            { name: 'star', type: 'regular', cls: 'fa-regular fa-star' },
+            { name: 'circle', type: 'regular', cls: 'fa-regular fa-circle' },
+            { name: 'square', type: 'regular', cls: 'fa-regular fa-square' },
+            { name: 'file', type: 'regular', cls: 'fa-regular fa-file' },
+            { name: 'folder', type: 'regular', cls: 'fa-regular fa-folder' },
+            { name: 'clipboard', type: 'regular', cls: 'fa-regular fa-clipboard' },
+            { name: 'calendar', type: 'regular', cls: 'fa-regular fa-calendar' },
+            { name: 'clock', type: 'regular', cls: 'fa-regular fa-clock' },
+            { name: 'comment', type: 'regular', cls: 'fa-regular fa-comment' },
+            { name: 'compass', type: 'regular', cls: 'fa-regular fa-compass' },
+            { name: 'envelope', type: 'regular', cls: 'fa-regular fa-envelope' },
+            { name: 'eye', type: 'regular', cls: 'fa-regular fa-eye' },
+            { name: 'face-smile', type: 'regular', cls: 'fa-regular fa-face-smile' },
+            { name: 'bell', type: 'regular', cls: 'fa-regular fa-bell' },
+            { name: 'bookmark', type: 'regular', cls: 'fa-regular fa-bookmark' },
+            { name: 'building', type: 'regular', cls: 'fa-regular fa-building' },
+            { name: 'credit-card', type: 'regular', cls: 'fa-regular fa-credit-card' },
+            { name: 'gem', type: 'regular', cls: 'fa-regular fa-gem' },
+            { name: 'hand', type: 'regular', cls: 'fa-regular fa-hand' },
+            { name: 'id-card', type: 'regular', cls: 'fa-regular fa-id-card' },
+            { name: 'image', type: 'regular', cls: 'fa-regular fa-image' },
+            { name: 'keyboard', type: 'regular', cls: 'fa-regular fa-keyboard' },
+            { name: 'lightbulb', type: 'regular', cls: 'fa-regular fa-lightbulb' },
+            { name: 'map', type: 'regular', cls: 'fa-regular fa-map' },
+            { name: 'money-bill-1', type: 'regular', cls: 'fa-regular fa-money-bill-1' },
+            { name: 'moon', type: 'regular', cls: 'fa-regular fa-moon' },
+            { name: 'paper-plane', type: 'regular', cls: 'fa-regular fa-paper-plane' },
+            { name: 'sun', type: 'regular', cls: 'fa-regular fa-sun' },
+            { name: 'thumbs-up', type: 'regular', cls: 'fa-regular fa-thumbs-up' },
+
+            // Brands
+            { name: 'github', type: 'brands', cls: 'fa-brands fa-github' },
+            { name: 'twitter', type: 'brands', cls: 'fa-brands fa-twitter' },
+            { name: 'facebook', type: 'brands', cls: 'fa-brands fa-facebook' },
+            { name: 'instagram', type: 'brands', cls: 'fa-brands fa-instagram' },
+            { name: 'linkedin', type: 'brands', cls: 'fa-brands fa-linkedin' },
+            { name: 'discord', type: 'brands', cls: 'fa-brands fa-discord' },
+            { name: 'docker', type: 'brands', cls: 'fa-brands fa-docker' },
+            { name: 'aws', type: 'brands', cls: 'fa-brands fa-aws' },
+            { name: 'google', type: 'brands', cls: 'fa-brands fa-google' },
+            { name: 'apple', type: 'brands', cls: 'fa-brands fa-apple' },
+            { name: 'microsoft', type: 'brands', cls: 'fa-brands fa-microsoft' },
+            { name: 'linux', type: 'brands', cls: 'fa-brands fa-linux' },
+            { name: 'android', type: 'brands', cls: 'fa-brands fa-android' },
+            { name: 'youtube', type: 'brands', cls: 'fa-brands fa-youtube' },
+            { name: 'twitch', type: 'brands', cls: 'fa-brands fa-twitch' },
+            { name: 'slack', type: 'brands', cls: 'fa-brands fa-slack' },
+            { name: 'stack-overflow', type: 'brands', cls: 'fa-brands fa-stack-overflow' },
+            { name: 'reddit', type: 'brands', cls: 'fa-brands fa-reddit' },
+            { name: 'paypal', type: 'brands', cls: 'fa-brands fa-paypal' },
+            { name: 'stripe', type: 'brands', cls: 'fa-brands fa-stripe' },
+            { name: 'bitcoin', type: 'brands', cls: 'fa-brands fa-bitcoin' },
+            { name: 'wordpress', type: 'brands', cls: 'fa-brands fa-wordpress' },
+            { name: 'react', type: 'brands', cls: 'fa-brands fa-react' },
+            { name: 'node', type: 'brands', cls: 'fa-brands fa-node' },
+            { name: 'python', type: 'brands', cls: 'fa-brands fa-python' },
+            { name: 'js', type: 'brands', cls: 'fa-brands fa-js' },
+            { name: 'html5', type: 'brands', cls: 'fa-brands fa-html5' },
+            { name: 'css3', type: 'brands', cls: 'fa-brands fa-css3' },
+            { name: 'sass', type: 'brands', cls: 'fa-brands fa-sass' },
+            { name: 'rust', type: 'brands', cls: 'fa-brands fa-rust' },
+            { name: 'php', type: 'brands', cls: 'fa-brands fa-php' },
+            { name: 'npm', type: 'brands', cls: 'fa-brands fa-npm' },
+            { name: 'chrome', type: 'brands', cls: 'fa-brands fa-chrome' },
+            { name: 'firefox', type: 'brands', cls: 'fa-brands fa-firefox' },
+            { name: 'safari', type: 'brands', cls: 'fa-brands fa-safari' },
+            { name: 'edge', type: 'brands', cls: 'fa-brands fa-edge' },
+            { name: 'ubuntu', type: 'brands', cls: 'fa-brands fa-ubuntu' },
+            { name: 'windows', type: 'brands', cls: 'fa-brands fa-windows' },
+        ];
+
+        let currentFilter = 'all';
+
+        const grid = document.getElementById('iconGrid');
+        const searchInput = document.getElementById('searchInput');
+        const emptyState = document.getElementById('emptyState');
+        const countDisplay = document.getElementById('countDisplay');
+        const buttons = document.querySelectorAll('.filter-btn');
+
+        // Initial Render
+        renderIcons(iconData);
+
+        // Search Listener
+        searchInput.addEventListener('input', (e) => {
+            handleSearch(e.target.value);
+        });
+
+        // Filter Function
+        function filterType(type) {
+            currentFilter = type;
+            
+            // Update Buttons
+            buttons.forEach(btn => {
+                if(btn.textContent.toLowerCase() === type) {
+                    btn.classList.add('bg-obsidian-accent', 'text-white', 'border-obsidian-border');
+                    btn.classList.remove('bg-obsidian-bg', 'text-gray-400');
+                } else {
+                    btn.classList.remove('bg-obsidian-accent', 'text-white');
+                    btn.classList.add('bg-obsidian-bg', 'border-obsidian-border');
+                }
+            });
+
+            handleSearch(searchInput.value);
+        }
+
+        // Search/Filter Logic
+        function handleSearch(query) {
+            const lowerQuery = query.toLowerCase();
+            
+            const filtered = iconData.filter(icon => {
+                const matchesSearch = icon.name.includes(lowerQuery) || icon.cls.includes(lowerQuery);
+                const matchesType = currentFilter === 'all' || icon.type === currentFilter;
+                return matchesSearch && matchesType;
+            });
+
+            renderIcons(filtered);
+        }
+
+        // Render Function
+        function renderIcons(icons) {
+            grid.innerHTML = '';
+            countDisplay.textContent = `${icons.length} Icons`;
+
+            if (icons.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                
+                // Fragment for performance
+                const fragment = document.createDocumentFragment();
+
+                icons.forEach(icon => {
+                    const div = document.createElement('div');
+                    div.className = 'icon-card group relative bg-obsidian-pane border border-obsidian-border rounded p-4 flex flex-col items-center justify-center gap-3 hover:border-obsidian-accent hover:shadow-[0_0_15px_rgba(124,58,237,0.15)] transition-all cursor-pointer h-32';
+                    div.onclick = () => copyToClipboard(`<i class="${icon.cls}"></i>`);
+
+                    // Icon
+                    const i = document.createElement('i');
+                    i.className = `${icon.cls} text-3xl text-gray-400 group-hover:text-obsidian-accent group-hover:scale-110 transition-transform duration-300`;
+                    
+                    // Name
+                    const span = document.createElement('span');
+                    span.className = 'text-xs text-gray-500 font-mono text-center truncate w-full px-2 group-hover:text-gray-300';
+                    span.textContent = icon.name;
+
+                    // Copy Hint
+                    const hint = document.createElement('div');
+                    hint.className = 'copy-hint absolute inset-0 bg-obsidian-bg/90 flex flex-col items-center justify-center opacity-0 transition-opacity duration-200 rounded';
+                    hint.innerHTML = `<span class="text-obsidian-accent font-bold text-xs mb-1">COPY HTML</span><span class="text-[10px] text-gray-500 font-mono"><i class="${icon.cls}"></i></span>`;
+
+                    div.appendChild(i);
+                    div.appendChild(span);
+                    div.appendChild(hint);
+                    fragment.appendChild(div);
+                });
+
+                grid.appendChild(fragment);
+            }
+        }
+
+        // Copy Function
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(text);
+            });
+        }
+
+        // Toast Logic
+        let toastTimeout;
+        const toast = document.getElementById('toast');
+        const toastText = document.getElementById('toastText');
+
+        function showToast(text) {
+            toastText.textContent = text;
+            
+            // Reset animation
+            toast.classList.remove('toast-enter', 'toast-exit');
+            void toast.offsetWidth; // trigger reflow
+            
+            toast.classList.add('toast-enter');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-exit');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
