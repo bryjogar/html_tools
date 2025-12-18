@@ -205,22 +205,78 @@
     </footer>
 
     <script>
-        // --- Data Source ---
+        // --- Data Source (Significantly Expanded) ---
         const database = {
             breakfast: {
-                cuisine: ['American', 'British', 'French', 'Mexican', 'Healthy', 'Southern', 'German'],
-                protein: ['Scrambled Eggs', 'Bacon', 'Sausage Links', 'Greek Yogurt', 'Smoked Salmon', 'Tofu Scramble', 'Fried Egg', 'Poached Egg', 'Chorizo', 'Black Beans'],
-                side: ['Buttered Toast', 'Hashbrowns', 'Fruit Salad', 'Pancakes', 'Avocado', 'Oatmeal', 'Croissant', 'Grits', 'Sautéed Spinach', 'Bagel']
+                cuisine: [
+                    'American', 'British', 'French', 'Mexican', 'Healthy', 'Southern', 'German', 
+                    'Japanese (Traditional)', 'Middle Eastern', 'Scandinavian', 'Canadian', 
+                    'Spanish', 'Tex-Mex', 'Australian', 'Turkish', 'Swiss'
+                ],
+                protein: [
+                    'Scrambled Eggs', 'Bacon', 'Sausage Links', 'Greek Yogurt', 'Smoked Salmon', 
+                    'Tofu Scramble', 'Fried Egg', 'Poached Egg', 'Chorizo', 'Black Beans', 
+                    'Ham Steak', 'Prosciutto', 'Kielbasa', 'Corned Beef Hash', 'Chicken Sausage', 
+                    'Turkey Bacon', 'Lox', 'Soft Boiled Eggs', 'Cottage Cheese', 'Refried Beans', 
+                    'Steak Tips', 'Crab Meat', 'Breakfast Patty', 'Egg Whites', 'Sardines'
+                ],
+                side: [
+                    'Buttered Toast', 'Hashbrowns', 'Fruit Salad', 'Pancakes', 'Avocado', 
+                    'Oatmeal', 'Croissant', 'Grits', 'Sautéed Spinach', 'Bagel', 
+                    'Home Fries', 'Biscuits', 'Roasted Tomatoes', 'Sautéed Mushrooms', 
+                    'Baked Beans', 'English Muffin', 'Grapefruit Half', 'Scones', 
+                    'Waffles', 'French Toast Sticks', 'Melon Slices', 'Sliced Tomatoes', 
+                    'Cucumber Salad', 'Rice Bowl', 'Miso Soup', 'Chilaquiles Chips', 
+                    'Banana Bread', 'Yogurt Parfait', 'Hard Cheese Slice', 'Pickled Herring'
+                ]
             },
             lunch: {
-                cuisine: ['Italian', 'Mexican', 'Chinese', 'Indian', 'American', 'Mediterranean', 'Thai', 'Japanese', 'Greek', 'Vietnamese'],
-                protein: ['Grilled Chicken', 'Turkey Slices', 'Tuna Salad', 'Hard Boiled Eggs', 'Tofu', 'Hummus', 'Shrimp', 'Black Beans', 'Salami'],
-                side: ['Side Salad', 'Apple Slices', 'Chips', 'Carrot Sticks', 'Quinoa', 'Soup Cup', 'Coleslaw', 'Edamame', 'Pita Bread', 'Fries']
+                cuisine: [
+                    'Italian', 'Mexican', 'Chinese', 'Indian', 'American', 'Mediterranean', 
+                    'Thai', 'Japanese', 'Greek', 'Vietnamese', 'Korean', 'Lebanese', 
+                    'Caribbean', 'French Bistro', 'Deli Style', 'Soul Food', 'Hawaiian', 
+                    'Vegetarian', 'Vegan', 'Paleo', 'Keto'
+                ],
+                protein: [
+                    'Grilled Chicken', 'Turkey Slices', 'Tuna Salad', 'Hard Boiled Eggs', 'Tofu', 
+                    'Hummus', 'Shrimp', 'Black Beans', 'Salami', 'Roast Beef Cold Cuts', 
+                    'Falafel', 'Quinoa Patty', 'Chickpeas', 'Grilled Halloumi', 'Seared Tuna', 
+                    'Chicken Thighs', 'Pulled Pork', 'Smoked Turkey', 'Lentils', 'Tempeh Strips', 
+                    'Chicken Salad', 'Egg Salad', 'Meatloaf Slice', 'Bratwurst', 'Cod Fish Sticks'
+                ],
+                side: [
+                    'Side Salad', 'Apple Slices', 'Potato Chips', 'Carrot Sticks', 'Quinoa', 
+                    'Soup Cup', 'Coleslaw', 'Edamame', 'Pita Bread', 'French Fries', 
+                    'Sweet Potato Fries', 'Pasta Salad', 'Cottage Cheese', 'Cucumber Slices', 
+                    'Celery & Peanut Butter', 'Pretzels', 'Fruit Cup', 'Granola Bar', 
+                    'String Cheese', 'Pickle Spear', 'Roasted Chickpeas', 'Spring Rolls', 
+                    'Gyoza (3pc)', 'Naan Bread', 'Gazpacho', 'Onion Rings', 'Tater Tots', 'Zucchini Chips'
+                ]
             },
             dinner: {
-                cuisine: ['Italian', 'Mexican', 'Chinese', 'Indian', 'American', 'Mediterranean', 'Thai', 'Japanese', 'French', 'BBQ', 'Cajun'],
-                protein: ['Steak', 'Roast Chicken', 'Salmon Filet', 'Pork Chops', 'Lentil Stew', 'Ground Beef', 'Meatballs', 'Cod', 'Lamb', 'Tempeh'],
-                side: ['Mashed Potatoes', 'Roasted Broccoli', 'Caesar Salad', 'Garlic Bread', 'Steamed Rice', 'Asparagus', 'Mac & Cheese', 'Corn on Cob', 'Green Beans', 'Risotto']
+                cuisine: [
+                    'Italian', 'Mexican', 'Chinese', 'Indian', 'American', 'Mediterranean', 
+                    'Thai', 'Japanese', 'French', 'BBQ', 'Cajun', 'Ethiopian', 'Moroccan', 
+                    'Peruvian', 'Brazilian', 'German', 'Russian', 'Spanish Tapas', 'Korean BBQ', 
+                    'Vietnamese', 'Filipino', 'Fusion', 'Polynesian', 'Creole'
+                ],
+                protein: [
+                    'Steak (Ribeye)', 'Roast Chicken', 'Salmon Filet', 'Pork Chops', 'Lentil Stew', 
+                    'Ground Beef', 'Meatballs', 'Cod', 'Lamb Chops', 'Tempeh', 
+                    'Duck Breast', 'Short Ribs', 'Scallops', 'Trout', 'Venison', 
+                    'Seitan', 'Shrimp Skewers', 'Pulled Pork', 'Beef Brisket', 'Chicken Parmesan', 
+                    'Crab Cakes', 'Lobster Tail', 'Turkey Burgers', 'Plant-Based Burger', 
+                    'Catfish', 'Swordfish', 'Halibut', 'Clams/Mussels', 'Veal Cutlet'
+                ],
+                side: [
+                    'Mashed Potatoes', 'Roasted Broccoli', 'Caesar Salad', 'Garlic Bread', 'Steamed Rice', 
+                    'Asparagus', 'Mac & Cheese', 'Corn on Cob', 'Green Beans', 'Risotto', 
+                    'Polenta', 'Ratatouille', 'Naan Bread', 'Fried Plantains', 'Couscous', 
+                    'Bok Choy', 'Sautéed Kale', 'Roasted Root Veggies', 'Sweet Potato Mash', 
+                    'Creamed Spinach', 'Brussels Sprouts', 'Scalloped Potatoes', 'Wild Rice Pilaf', 
+                    'Glazed Carrots', 'Stuffed Peppers', 'Potato Salad', 'Onion Rings', 
+                    'Fried Okra', 'Refried Beans', 'Mexican Street Corn', 'Kimchi', 'Pickled Radish'
+                ]
             }
         };
 
@@ -307,7 +363,7 @@
                     let pool = (key === 'side1' || key === 'side2') ? dataset.side : dataset[key];
                     let finalValue = getRandomItem(pool);
 
-                    // Prevent duplicate sides
+                    // Prevent duplicate sides (Standard check)
                     if (key === 'side2' && !locks.side1.checked && finalValue === els.side1.innerText) {
                         let safety = 0;
                         while (finalValue === els.side1.innerText && safety < 10) {
