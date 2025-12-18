@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obsidian Pomodoro | Homelab Playground</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      
+                            pane: '#252526',    
+                            border: '#3c3c3c',  
+                            accent: '#7c3aed',  
+                            accentHover: '#6d28d9',
+                            text: '#cccccc'     
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Smooth transitions */
+        .transition-all-300 {
+            transition: all 0.3s ease-in-out;
+        }
+        
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #7c3aed;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #3c3c3c;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 flex-shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-hourglass-half text-obsidian-accent text-lg"></i>
+            <h1 class="font-semibold text-white tracking-wide">Obsidian Focus</h1>
+        </div>
+        <button id="settingsBtn" class="text-obsidian-text hover:text-white transition-colors p-2">
+            <i class="fa-solid fa-gear"></i>
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto flex flex-col items-center justify-center p-4 relative">
+        
+        <div class="w-full max-w-md flex flex-col items-center gap-8 z-10">
+            
+            <div class="flex p-1 bg-obsidian-pane rounded-full border border-obsidian-border">
+                <button onclick="switchMode('pomodoro')" id="btn-pomodoro" class="px-4 py-2 rounded-full text-xs md:text-sm font-medium transition-all-300 bg-obsidian-accent text-white">Pomodoro</button>
+                <button onclick="switchMode('shortBreak')" id="btn-shortBreak" class="px-4 py-2 rounded-full text-xs md:text-sm font-medium transition-all-300 hover:text-white text-gray-400">Short Break</button>
+                <button onclick="switchMode('longBreak')" id="btn-longBreak" class="px-4 py-2 rounded-full text-xs md:text-sm font-medium transition-all-300 hover:text-white text-gray-400">Long Break</button>
+            </div>
+
+            <div class="relative group cursor-default">
+                <div class="text-8xl md:text-9xl font-mono font-bold text-white tracking-tighter tabular-nums" id="timerDisplay">25:00</div>
+                <div class="text-center text-obsidian-accent text-sm font-mono mt-2 opacity-0 group-hover:opacity-100 transition-opacity" id="statusText">READY TO FOCUS</div>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <button id="toggleBtn" class="w-16 h-16 rounded-full bg-obsidian-accent hover:bg-obsidian-accentHover text-white flex items-center justify-center text-2xl shadow-lg shadow-purple-900/20 transition-all active:scale-95">
+                    <i class="fa-solid fa-play ml-1" id="toggleIcon"></i>
+                </button>
+                
+                <button onclick="resetTimer()" class="w-12 h-12 rounded-full bg-obsidian-pane border border-obsidian-border hover:bg-white/5 text-gray-400 hover:text-white flex items-center justify-center text-lg transition-all active:scale-95">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+
+            <div class="mt-8 max-w-sm text-center">
+                <blockquote class="text-sm italic text-gray-400 min-h-[60px] flex flex-col justify-center" id="quote-container">
+                    <span id="quote-text">"Patience is bitter, but its fruit is sweet."</span>
+                    <footer class="text-xs text-obsidian-accent mt-2 not-italic" id="quote-author">- Aristotle</footer>
+                </blockquote>
+                <button onclick="fetchQuote()" class="mt-2 text-xs text-gray-600 hover:text-gray-400 transition-colors">
+                    <i class="fa-solid fa-shuffle mr-1"></i> New Quote
+                </button>
+            </div>
+        </div>
+
+        <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-xl w-full max-w-sm shadow-2xl transform scale-95 opacity-0 transition-all duration-200" id="settingsPanel">
+                <div class="flex justify-between items-center p-4 border-b border-obsidian-border">
+                    <h2 class="text-white font-semibold"><i class="fa-solid fa-sliders mr-2 text-obsidian-accent"></i>Settings</h2>
+                    <button id="closeSettings" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <div class="space-y-4">
+                        <label class="flex justify-between text-sm text-gray-300">
+                            <span>Pomodoro</span>
+                            <span class="font-mono text-obsidian-accent" id="val-pomodoro">25 m</span>
+                        </label>
+                        <input type="range" min="1" max="60" value="25" id="input-pomodoro" oninput="updateSettingVal('pomodoro', this.value)">
+
+                        <label class="flex justify-between text-sm text-gray-300">
+                            <span>Short Break</span>
+                            <span class="font-mono text-obsidian-accent" id="val-shortBreak">5 m</span>
+                        </label>
+                        <input type="range" min="1" max="30" value="5" id="input-shortBreak" oninput="updateSettingVal('shortBreak', this.value)">
+
+                        <label class="flex justify-between text-sm text-gray-300">
+                            <span>Long Break</span>
+                            <span class="font-mono text-obsidian-accent" id="val-longBreak">15 m</span>
+                        </label>
+                        <input type="range" min="5" max="60" value="15" id="input-longBreak" oninput="updateSettingVal('longBreak', this.value)">
+                    </div>
+
+                    <div class="border-t border-obsidian-border pt-4">
+                         <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-300">Sound</span>
+                            <button id="soundToggle" onclick="toggleSound()" class="text-obsidian-accent hover:text-white transition-colors">
+                                <i class="fa-solid fa-volume-high text-lg" id="soundIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            mode: 'pomodoro', // pomodoro | shortBreak | longBreak
+            timeLeft: 25 * 60,
+            isRunning: false,
+            timerId: null,
+            soundEnabled: true,
+            durations: {
+                pomodoro: 25,
+                shortBreak: 5,
+                longBreak: 15
+            }
+        };
+
+        // --- DOM Elements ---
+        const els = {
+            display: document.getElementById('timerDisplay'),
+            status: document.getElementById('statusText'),
+            toggleBtn: document.getElementById('toggleBtn'),
+            toggleIcon: document.getElementById('toggleIcon'),
+            settingsModal: document.getElementById('settingsModal'),
+            settingsPanel: document.getElementById('settingsPanel'),
+            soundIcon: document.getElementById('soundIcon'),
+            quoteText: document.getElementById('quote-text'),
+            quoteAuthor: document.getElementById('quote-author')
+        };
+
+        // --- Audio Context (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playAlert() {
+            if (!state.soundEnabled) return;
+            
+            // Resume context if suspended (browser policy)
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+            oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5); // Drop to A4
+
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // --- Timer Logic ---
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            els.display.textContent = formatTime(state.timeLeft);
+            document.title = `${formatTime(state.timeLeft)} - Obsidian Focus`;
+        }
+
+        function tick() {
+            if (state.timeLeft > 0) {
+                state.timeLeft--;
+                updateDisplay();
+            } else {
+                completeTimer();
+            }
+        }
+
+        function completeTimer() {
+            pauseTimer();
+            playAlert();
+            els.status.textContent = "TIME'S UP!";
+            els.status.style.opacity = '1';
+            fetchQuote(); // New quote on completion
+        }
+
+        function toggleTimer() {
+            if (state.isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            if (state.isRunning) return;
+            state.isRunning = true;
+            els.toggleIcon.classList.remove('fa-play');
+            els.toggleIcon.classList.add('fa-pause');
+            els.status.style.opacity = '0'; // Hide status when running
+            
+            // Audio context must be resumed on user interaction
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            state.timerId = setInterval(tick, 1000);
+        }
+
+        function pauseTimer() {
+            state.isRunning = false;
+            els.toggleIcon.classList.remove('fa-pause');
+            els.toggleIcon.classList.add('fa-play');
+            clearInterval(state.timerId);
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            state.timeLeft = state.durations[state.mode] * 60;
+            updateDisplay();
+            els.status.textContent = "READY TO FOCUS";
+            els.status.style.opacity = '0';
+        }
+
+        function switchMode(mode) {
+            // Update UI Tabs
+            ['pomodoro', 'shortBreak', 'longBreak'].forEach(m => {
+                const btn = document.getElementById(`btn-${m}`);
+                if (m === mode) {
+                    btn.classList.remove('text-gray-400', 'hover:text-white');
+                    btn.classList.add('bg-obsidian-accent', 'text-white');
+                } else {
+                    btn.classList.add('text-gray-400', 'hover:text-white');
+                    btn.classList.remove('bg-obsidian-accent', 'text-white');
+                }
+            });
+
+            state.mode = mode;
+            // Update Status Text based on mode
+            const statusMap = {
+                'pomodoro': 'READY TO FOCUS',
+                'shortBreak': 'TAKE A BREATHER',
+                'longBreak': 'REST & RECHARGE'
+            };
+            els.status.textContent = statusMap[mode];
+            resetTimer();
+        }
+
+        // --- Settings Logic ---
+        function updateSettingVal(key, val) {
+            document.getElementById(`val-${key}`).textContent = `${val} m`;
+            state.durations[key] = parseInt(val);
+            if (state.mode === key && !state.isRunning) {
+                resetTimer();
+            }
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            if (state.soundEnabled) {
+                els.soundIcon.classList.remove('fa-volume-xmark');
+                els.soundIcon.classList.add('fa-volume-high');
+                els.soundIcon.parentElement.classList.add('text-obsidian-accent');
+                playAlert(); // Test sound
+            } else {
+                els.soundIcon.classList.remove('fa-volume-high');
+                els.soundIcon.classList.add('fa-volume-xmark');
+                els.soundIcon.parentElement.classList.remove('text-obsidian-accent');
+                els.soundIcon.parentElement.classList.add('text-gray-500');
+            }
+        }
+
+        // Modal Handling
+        const settingsBtn = document.getElementById('settingsBtn');
+        const closeSettings = document.getElementById('closeSettings');
+
+        settingsBtn.addEventListener('click', () => {
+            els.settingsModal.classList.remove('hidden');
+            // Small timeout to allow display:block to apply before opacity transition
+            setTimeout(() => {
+                els.settingsPanel.classList.remove('scale-95', 'opacity-0');
+                els.settingsPanel.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        });
+
+        function closeSettingsModal() {
+            els.settingsPanel.classList.remove('scale-100', 'opacity-100');
+            els.settingsPanel.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                els.settingsModal.classList.add('hidden');
+            }, 200);
+        }
+
+        closeSettings.addEventListener('click', closeSettingsModal);
+        els.settingsModal.addEventListener('click', (e) => {
+            if (e.target === els.settingsModal) closeSettingsModal();
+        });
+
+        // --- Quote Logic ---
+        const fallbackQuotes = [
+            { q: "The only way to do great work is to love what you do.", a: "Steve Jobs" },
+            { q: "It always seems impossible until it's done.", a: "Nelson Mandela" },
+            { q: "Don't watch the clock; do what it does. Keep going.", a: "Sam Levenson" },
+            { q: "Quality is not an act, it is a habit.", a: "Aristotle" },
+            { q: "Focus on being productive instead of busy.", a: "Tim Ferriss" },
+            { q: "Simplicity is the ultimate sophistication.", a: "Leonardo da Vinci" },
+            { q: "Lost time is never found again.", a: "Benjamin Franklin" }
+        ];
+
+        async function fetchQuote() {
+            els.quoteText.style.opacity = 0;
+            els.quoteAuthor.style.opacity = 0;
+
+            let quoteData = { quote: "", author: "" };
+
+            try {
+                // Using dummyjson as it's fairly reliable and free
+                const response = await fetch('https://dummyjson.com/quotes/random');
+                if (!response.ok) throw new Error('Network error');
+                const data = await response.json();
+                quoteData = { quote: data.quote, author: data.author };
+            } catch (error) {
+                // Fallback to local
+                const random = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+                quoteData = { quote: random.q, author: random.a };
+            }
+
+            setTimeout(() => {
+                els.quoteText.textContent = `"${quoteData.quote}"`;
+                els.quoteAuthor.textContent = `- ${quoteData.author}`;
+                els.quoteText.style.opacity = 1;
+                els.quoteAuthor.style.opacity = 1;
+            }, 300);
+        }
+
+        // --- Initialization ---
+        els.toggleBtn.addEventListener('click', toggleTimer);
+        
+        // Initial setup
+        fetchQuote();
+        updateDisplay();
+    </script>
+</body>
+</html>
