@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Table Architect - Homelab Playground</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b4b4b; 
+        }
+
+        /* Custom Input Styles */
+        .cell-input {
+            background: transparent;
+            width: 100%;
+            height: 100%;
+            border: none;
+            color: #cccccc;
+            outline: none;
+            padding: 8px;
+            font-family: 'Fira Code', monospace;
+            min-width: 120px;
+        }
+        .cell-input:focus {
+            background: #2d2d2d;
+            box-shadow: inset 0 0 0 1px #7c3aed;
+        }
+
+        /* Grid Lines */
+        .editor-table td, .editor-table th {
+            border: 1px solid #3c3c3c;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-table-columns text-obsidian-accent text-lg"></i>
+            <h1 class="font-bold text-white tracking-wide">MD Table Architect</h1>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="resetTable()" class="px-3 py-1.5 rounded text-xs font-medium bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/30">
+                <i class="fa-solid fa-trash-can mr-1"></i> Reset
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <div class="flex-1 flex flex-col min-w-0 border-b md:border-b-0 md:border-r border-obsidian-border">
+            <div class="bg-obsidian-pane/50 p-3 border-b border-obsidian-border flex flex-wrap gap-2 items-center justify-between">
+                <div class="text-xs font-mono text-gray-500 uppercase font-bold tracking-wider">Visual Editor</div>
+                <div class="flex gap-2">
+                    <button onclick="addRow()" class="px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white rounded text-xs transition-colors shadow-lg shadow-violet-900/20">
+                        <i class="fa-solid fa-plus mr-1"></i> Row
+                    </button>
+                    <button onclick="addColumn()" class="px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white rounded text-xs transition-colors shadow-lg shadow-violet-900/20">
+                        <i class="fa-solid fa-plus mr-1"></i> Col
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto bg-obsidian-bg p-4" id="grid-container">
+                <table class="editor-table w-full border-collapse" id="visual-grid">
+                    </table>
+            </div>
+            
+            <div class="p-2 bg-obsidian-pane/30 border-t border-obsidian-border text-[10px] text-gray-500 text-center">
+                Click alignment icons (Top Row) to toggle Left/Center/Right
+            </div>
+        </div>
+
+        <div class="flex-1 md:w-1/3 md:flex-none md:max-w-lg flex flex-col min-w-0 bg-[#1a1a1a]">
+            <div class="bg-obsidian-pane/50 p-3 border-b border-obsidian-border flex items-center justify-between">
+                <div class="text-xs font-mono text-gray-500 uppercase font-bold tracking-wider">Markdown Output</div>
+                <button onclick="copyToClipboard()" id="copy-btn" class="px-3 py-1 bg-white/5 hover:bg-white/10 text-gray-300 rounded text-xs border border-obsidian-border transition-all">
+                    <i class="fa-regular fa-clone mr-1"></i> Copy
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-auto relative group">
+                <textarea id="markdown-output" readonly 
+                    class="w-full h-full bg-transparent text-gray-300 font-mono text-xs p-4 resize-none focus:outline-none whitespace-pre leading-relaxed"></textarea>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        const DEFAULT_ROWS = 3;
+        const DEFAULT_COLS = 3;
+
+        let tableState = {
+            headers: ['Item', 'Description', 'Qty'],
+            rows: [
+                ['Apple', 'Fresh red fruit', '5'],
+                ['Banana', 'Yellow source of potassium', '12']
+            ],
+            alignments: ['left', 'left', 'right'] // 'left', 'center', 'right'
+        };
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderGrid();
+            generateMarkdown();
+        });
+
+        // --- Core Logic ---
+
+        function renderGrid() {
+            const table = document.getElementById('visual-grid');
+            table.innerHTML = '';
+
+            // 1. Controls Row (Alignment)
+            const controlRow = document.createElement('tr');
+            controlRow.className = 'bg-obsidian-pane';
+            
+            // Empty cell for row actions column
+            controlRow.appendChild(createCell('th', '', 'w-10 border-none'));
+
+            tableState.alignments.forEach((align, index) => {
+                const th = document.createElement('th');
+                th.className = 'p-1 text-center bg-obsidian-pane cursor-pointer hover:bg-white/5 select-none w-40';
+                th.title = "Click to cycle alignment";
+                th.onclick = () => cycleAlignment(index);
+                
+                let iconClass = 'fa-align-left';
+                if(align === 'center') iconClass = 'fa-align-center';
+                if(align === 'right') iconClass = 'fa-align-right';
+
+                th.innerHTML = `
+                    <div class="flex items-center justify-between px-2">
+                        <span class="text-[10px] text-gray-500">COL ${index + 1}</span>
+                        <i class="fa-solid ${iconClass} text-obsidian-accent text-xs"></i>
+                        <button onclick="deleteColumn(event, ${index})" class="text-gray-600 hover:text-red-400 p-1">
+                            <i class="fa-solid fa-xmark text-[10px]"></i>
+                        </button>
+                    </div>
+                `;
+                controlRow.appendChild(th);
+            });
+            table.appendChild(controlRow);
+
+            // 2. Header Row
+            const headerRow = document.createElement('tr');
+            // Header label cell
+            const headerLabel = document.createElement('td');
+            headerLabel.className = 'text-center bg-obsidian-pane border-r border-obsidian-border';
+            headerLabel.innerHTML = '<i class="fa-solid fa-heading text-gray-500 text-xs"></i>';
+            headerRow.appendChild(headerLabel);
+
+            tableState.headers.forEach((text, index) => {
+                const td = document.createElement('td');
+                td.className = 'bg-obsidian-pane/20';
+                const input = createInput(text, (val) => {
+                    tableState.headers[index] = val;
+                    generateMarkdown();
+                }, true); // bold for header
+                td.appendChild(input);
+                headerRow.appendChild(td);
+            });
+            table.appendChild(headerRow);
+
+            // 3. Data Rows
+            tableState.rows.forEach((row, rIndex) => {
+                const tr = document.createElement('tr');
+                
+                // Delete Row Button
+                const delTd = document.createElement('td');
+                delTd.className = 'text-center bg-obsidian-pane border-r border-obsidian-border hover:bg-red-900/20 cursor-pointer group transition-colors';
+                delTd.onclick = () => deleteRow(rIndex);
+                delTd.innerHTML = '<i class="fa-solid fa-minus text-gray-600 group-hover:text-red-400 text-[10px]"></i>';
+                tr.appendChild(delTd);
+
+                row.forEach((text, cIndex) => {
+                    const td = document.createElement('td');
+                    const input = createInput(text, (val) => {
+                        tableState.rows[rIndex][cIndex] = val;
+                        generateMarkdown();
+                    });
+                    td.appendChild(input);
+                    tr.appendChild(td);
+                });
+                table.appendChild(tr);
+            });
+        }
+
+        function createCell(type, content, classes = '') {
+            const cell = document.createElement(type);
+            cell.className = classes;
+            cell.innerHTML = content;
+            return cell;
+        }
+
+        function createInput(value, onChange, isHeader = false) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = value;
+            input.className = `cell-input ${isHeader ? 'font-bold text-violet-300' : ''}`;
+            input.oninput = (e) => onChange(e.target.value);
+            return input;
+        }
+
+        // --- Logic: Markdown Generation ---
+
+        function generateMarkdown() {
+            if (tableState.headers.length === 0) {
+                document.getElementById('markdown-output').value = "";
+                return;
+            }
+
+            // 1. Calculate Max Widths per Column
+            const colWidths = tableState.headers.map((h, i) => {
+                let max = h.length;
+                // Check all rows for this col
+                tableState.rows.forEach(row => {
+                    if (row[i] && row[i].length > max) max = row[i].length;
+                });
+                // Minimum width for separation dashes (at least 3 chars '---')
+                return Math.max(max, 3); 
+            });
+
+            let md = "";
+
+            // 2. Build Header
+            md += "|";
+            tableState.headers.forEach((h, i) => {
+                md += " " + padString(h, colWidths[i], tableState.alignments[i]) + " |";
+            });
+            md += "\n";
+
+            // 3. Build Separator
+            md += "|";
+            tableState.alignments.forEach((align, i) => {
+                const w = colWidths[i];
+                let dash = "";
+                if (align === 'left') {
+                    dash = ":" + "-".repeat(w); // :--- (pad right with extra dash if needed to match w, wait logic below)
+                    // Actually, standard is :---, width is w. 
+                    // To align purely visually in raw text, we construct dashes based on width.
+                    // Left: :---
+                    // Center: :---:
+                    // Right: ---:
+                    
+                    // Width includes the colons.
+                    // w=3, left -> :--
+                    dash = ":" + "-".repeat(w); // extra char?
+                    // Let's keep it simple for Markdown parsers: parsers don't care about exact dash length, 
+                    // but we want visual alignment.
+                    dash = ":" + "-".repeat(w - 1) + " "; // Alignment logic for pretty print
+                    // Actually, let's just make the dashes fill the width
+                    dash = ":" + "-".repeat(w + 1); // Standard pad
+                } 
+                
+                // Let's do specific Pretty Print Logic
+                // Total Space = colWidths[i] + 2 (padding spaces)
+                // Left (:---)
+                // Center (:---:)
+                // Right (---:)
+                
+                let segment = "";
+                if (align === 'left') {
+                    segment = ":" + "-".repeat(colWidths[i]);
+                } else if (align === 'right') {
+                    segment = "-".repeat(colWidths[i]) + ":";
+                } else {
+                    segment = ":" + "-".repeat(colWidths[i] - 1) + ":";
+                }
+                md += segment + "|";
+            });
+            
+            // Re-doing Separator logic for perfect visual alignment in Obsidian
+            // Obsidian tables look best when pipes align. 
+            // Header: | Name   |
+            // Sep:    | :----- |
+            
+            md = ""; // Reset
+            
+            // ROW 1: Headers
+            md += "|";
+            tableState.headers.forEach((h, i) => {
+                md += " " + h.padEnd(colWidths[i], ' ') + " |";
+            });
+            md += "\n";
+
+            // ROW 2: Separators
+            md += "|";
+            tableState.alignments.forEach((align, i) => {
+                const w = colWidths[i];
+                let s = "";
+                if (align === 'left') {
+                    s = ":" + "-".repeat(w - 1);
+                } else if (align === 'right') {
+                    s = "-".repeat(w - 1) + ":";
+                } else {
+                    s = ":" + "-".repeat(w - 2) + ":";
+                }
+                md += " " + s + " |";
+            });
+            md += "\n";
+
+            // ROW 3+: Data
+            tableState.rows.forEach(row => {
+                md += "|";
+                row.forEach((cell, i) => {
+                    // Logic to pad based on alignment (Visual Pretty Print)
+                    // Even if markdown renders correctly without padding, Obsidian users love aligned pipes.
+                    // Left align text in raw view usually looks best, but let's try to match alignment setting.
+                    
+                    // Actually, it's safer to always padEnd (Left align visually) for raw reading 
+                    // unless it's numbers. But let's stick to standard Left visual padding for ease of reading.
+                    md += " " + cell.padEnd(colWidths[i], ' ') + " |";
+                });
+                md += "\n";
+            });
+
+            document.getElementById('markdown-output').value = md;
+        }
+
+        // Helper: Though we used padEnd above, this handles if we wanted real alignment visual logic
+        function padString(str, width, align) {
+            // For the raw text file, we usually want left alignment for readability 
+            // regardless of render alignment.
+            return str.padEnd(width, ' ');
+        }
+
+
+        // --- Actions ---
+
+        function addRow() {
+            const newRow = new Array(tableState.headers.length).fill('');
+            tableState.rows.push(newRow);
+            renderGrid();
+            generateMarkdown();
+            scrollToBottom();
+        }
+
+        function deleteRow(index) {
+            tableState.rows.splice(index, 1);
+            renderGrid();
+            generateMarkdown();
+        }
+
+        function addColumn() {
+            tableState.headers.push('Header');
+            tableState.alignments.push('left');
+            tableState.rows.forEach(row => row.push(''));
+            renderGrid();
+            generateMarkdown();
+            scrollToRight();
+        }
+
+        function deleteColumn(e, index) {
+            e.stopPropagation(); // Prevent alignment cycle
+            if (tableState.headers.length <= 1) return; // Prevent deleting last col
+            
+            tableState.headers.splice(index, 1);
+            tableState.alignments.splice(index, 1);
+            tableState.rows.forEach(row => row.splice(index, 1));
+            renderGrid();
+            generateMarkdown();
+        }
+
+        function cycleAlignment(index) {
+            const map = { 'left': 'center', 'center': 'right', 'right': 'left' };
+            tableState.alignments[index] = map[tableState.alignments[index]];
+            renderGrid();
+            generateMarkdown();
+        }
+
+        function resetTable() {
+            if(confirm("Clear all data?")) {
+                tableState.headers = ['Header 1', 'Header 2'];
+                tableState.alignments = ['left', 'left'];
+                tableState.rows = [['', '']];
+                renderGrid();
+                generateMarkdown();
+            }
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById("markdown-output");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText.value);
+
+            const btn = document.getElementById("copy-btn");
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check mr-1 text-green-400"></i> Copied';
+            btn.classList.add('border-green-500/50', 'text-green-400');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalContent;
+                btn.classList.remove('border-green-500/50', 'text-green-400');
+            }, 2000);
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('grid-container');
+            // Timeout allows DOM to update
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 50);
+        }
+
+        function scrollToRight() {
+            const container = document.getElementById('grid-container');
+            setTimeout(() => {
+                container.scrollLeft = container.scrollWidth;
+            }, 50);
+        }
+
+    </script>
+</body>
+</html>
