@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rare Book Scout - Homelab Playground</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Utilities */
+        .glass-panel {
+            background: rgba(37, 37, 38, 0.95);
+            backdrop-filter: blur(4px);
+        }
+        
+        .loader {
+            border: 3px solid #3c3c3c;
+            border-top: 3px solid #7c3aed;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-book-journal-whills text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-tight text-white">Book<span class="text-obsidian-accent">Scout</span></h1>
+        </div>
+        <button onclick="toggleSettings()" class="text-gray-400 hover:text-white transition-colors">
+            <i class="fa-solid fa-gear"></i>
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto relative flex flex-col items-center w-full">
+        
+        <div class="w-full max-w-4xl px-4 py-8 flex flex-col gap-6">
+            
+            <div class="flex flex-col gap-2">
+                <label class="text-xs font-mono text-gray-500 uppercase tracking-wider">Search by ISBN, Title, or Author</label>
+                <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass text-gray-500 group-focus-within:text-obsidian-accent transition-colors"></i>
+                    </div>
+                    <input type="text" id="searchInput" 
+                        class="w-full bg-obsidian-pane border border-obsidian-border focus:border-obsidian-accent rounded-lg py-4 pl-12 pr-4 text-white outline-none transition-all shadow-lg placeholder-gray-600 font-mono"
+                        placeholder="e.g. 9780345339683 or 'The Hobbit First Edition'..."
+                        onkeydown="handleEnter(event)">
+                    <button onclick="searchBooks()" class="absolute inset-y-2 right-2 bg-obsidian-border hover:bg-obsidian-accent text-white px-4 rounded transition-colors flex items-center justify-center">
+                        <span id="searchBtnText">Search</span>
+                        <div id="searchLoader" class="loader hidden"></div>
+                    </button>
+                </div>
+            </div>
+
+            <div id="errorMessage" class="hidden bg-red-900/20 border border-red-500/30 text-red-200 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span id="errorText"></span>
+            </div>
+
+            <div id="resultsArea" class="hidden flex flex-col md:flex-row gap-6 animate-fade-in">
+                
+                <div class="w-full md:w-1/3 flex flex-col gap-4">
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex flex-col items-center text-center shadow-xl">
+                        <div class="w-32 h-48 bg-obsidian-bg rounded mb-4 overflow-hidden flex items-center justify-center border border-obsidian-border relative">
+                            <img id="bookCover" src="" alt="Cover" class="w-full h-full object-cover hidden">
+                            <i id="noCoverIcon" class="fa-solid fa-book text-4xl text-obsidian-border"></i>
+                        </div>
+                        <h2 id="bookTitle" class="text-xl font-bold text-white leading-tight mb-1">Title</h2>
+                        <p id="bookAuthor" class="text-sm text-obsidian-accent mb-2">Author</p>
+                        <div class="flex gap-2 text-xs font-mono text-gray-500">
+                            <span id="bookYear">Year</span> • <span id="bookPublisher">Publisher</span>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-obsidian-border w-full grid grid-cols-2 gap-2">
+                            <div class="text-left">
+                                <p class="text-[10px] uppercase text-gray-500">ISBN-13</p>
+                                <p id="bookISBN13" class="text-xs font-mono select-all">N/A</p>
+                            </div>
+                            <div class="text-left">
+                                <p class="text-[10px] uppercase text-gray-500">ISBN-10</p>
+                                <p id="bookISBN10" class="text-xs font-mono select-all">N/A</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4">
+                        <h3 class="text-xs font-mono text-gray-500 uppercase mb-2">About</h3>
+                        <p id="bookDesc" class="text-sm text-gray-400 line-clamp-6 leading-relaxed">
+                            No description available.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="w-full md:w-2/3 flex flex-col gap-4">
+                    
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-1 overflow-hidden">
+                        <div class="bg-obsidian-bg/50 px-4 py-2 border-b border-obsidian-border flex justify-between items-center">
+                            <h3 class="font-bold text-white"><i class="fa-solid fa-chart-line text-obsidian-accent mr-2"></i>Market Valuation</h3>
+                            <span class="text-xs text-gray-500">Click to research</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-1 p-1">
+                            <a id="linkEbaySold" href="#" target="_blank" class="flex items-center gap-3 p-3 rounded hover:bg-white/5 transition-colors group">
+                                <div class="w-10 h-10 rounded bg-[#0064D2]/20 text-[#0064D2] flex items-center justify-center text-lg">
+                                    <i class="fa-brands fa-ebay"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-sm font-bold text-gray-200 group-hover:text-white">eBay Sold Listings</div>
+                                    <div class="text-xs text-gray-500">Check actual sold prices</div>
+                                </div>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-600"></i>
+                            </a>
+
+                            <a id="linkAbe" href="#" target="_blank" class="flex items-center gap-3 p-3 rounded hover:bg-white/5 transition-colors group">
+                                <div class="w-10 h-10 rounded bg-[#d51c0d]/20 text-[#d51c0d] flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-book-open"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-sm font-bold text-gray-200 group-hover:text-white">AbeBooks</div>
+                                    <div class="text-xs text-gray-500">Rare & collectible market</div>
+                                </div>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-600"></i>
+                            </a>
+
+                            <a id="linkBookFinder" href="#" target="_blank" class="flex items-center gap-3 p-3 rounded hover:bg-white/5 transition-colors group">
+                                <div class="w-10 h-10 rounded bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-magnifying-glass-dollar"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-sm font-bold text-gray-200 group-hover:text-white">BookFinder</div>
+                                    <div class="text-xs text-gray-500">Meta-search aggregator</div>
+                                </div>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-600"></i>
+                            </a>
+
+                            <a id="linkBiblio" href="#" target="_blank" class="flex items-center gap-3 p-3 rounded hover:bg-white/5 transition-colors group">
+                                <div class="w-10 h-10 rounded bg-orange-500/20 text-orange-500 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-bookmark"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-sm font-bold text-gray-200 group-hover:text-white">Biblio</div>
+                                    <div class="text-xs text-gray-500">Independent sellers</div>
+                                </div>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs text-gray-600"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4">
+                        <h3 class="text-xs font-mono text-gray-500 uppercase mb-3">Scouting Checklist</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-start gap-2 text-sm text-gray-400">
+                                <input type="checkbox" class="mt-1 bg-obsidian-bg border-obsidian-border rounded accent-obsidian-accent">
+                                <span>Check <strong>Publication Year</strong> matches First Edition dates.</span>
+                            </div>
+                            <div class="flex items-start gap-2 text-sm text-gray-400">
+                                <input type="checkbox" class="mt-1 bg-obsidian-bg border-obsidian-border rounded accent-obsidian-accent">
+                                <span>Inspect <strong>Condition</strong> (Dust jacket? Foxing? Bindings?)</span>
+                            </div>
+                            <div class="flex items-start gap-2 text-sm text-gray-400">
+                                <input type="checkbox" class="mt-1 bg-obsidian-bg border-obsidian-border rounded accent-obsidian-accent">
+                                <span>Look for <strong>Signatures</strong> on the title page.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="saveCurrentBook()" class="bg-obsidian-accent hover:bg-violet-600 text-white py-3 rounded-lg font-bold shadow-lg shadow-violet-900/20 transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Save to Scout History
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-white">Recent Scouts</h3>
+                    <button onclick="clearHistory()" class="text-xs text-gray-500 hover:text-red-400 transition-colors">Clear History</button>
+                </div>
+                <div id="historyList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="col-span-full text-center py-8 text-gray-600 italic">
+                        No books scouted yet. Start searching!
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-xl w-full max-w-md shadow-2xl p-6">
+            <h2 class="text-xl font-bold text-white mb-4">Settings</h2>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Google Books API Key (Optional)</label>
+                <p class="text-xs text-gray-500 mb-2">Required only if you hit rate limits. <a href="https://developers.google.com/books/docs/v1/using#APIKey" target="_blank" class="text-obsidian-accent hover:underline">Get a key here</a>.</p>
+                <div class="relative">
+                    <input type="password" id="apiKeyInput" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white font-mono text-sm focus:border-obsidian-accent outline-none">
+                    <button onclick="toggleKeyVisibility()" class="absolute right-2 top-2 text-gray-500 hover:text-white">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button onclick="toggleSettings()" class="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+                <button onclick="saveSettings()" class="px-4 py-2 bg-obsidian-accent text-white rounded hover:bg-violet-600">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // State
+        let currentBookData = null;
+        let scoutHistory = JSON.parse(localStorage.getItem('bookScoutHistory')) || [];
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            renderHistory();
+            const storedKey = localStorage.getItem('googleBooksKey');
+            if(storedKey) document.getElementById('apiKeyInput').value = storedKey;
+        });
+
+        // Toggle Settings Modal
+        function toggleSettings() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function toggleKeyVisibility() {
+            const input = document.getElementById('apiKeyInput');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function saveSettings() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if(key) localStorage.setItem('googleBooksKey', key);
+            else localStorage.removeItem('googleBooksKey');
+            toggleSettings();
+        }
+
+        // Search Logic
+        function handleEnter(e) {
+            if (e.key === 'Enter') searchBooks();
+        }
+
+        async function searchBooks() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            // UI Loading State
+            const btnText = document.getElementById('searchBtnText');
+            const loader = document.getElementById('searchLoader');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            btnText.classList.add('hidden');
+            loader.classList.remove('hidden');
+            errorMsg.classList.add('hidden');
+            document.getElementById('resultsArea').classList.add('hidden');
+
+            try {
+                // Determine API URL
+                const apiKey = localStorage.getItem('googleBooksKey');
+                let url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=1`;
+                if(apiKey) url += `&key=${apiKey}`;
+
+                const response = await fetch(url);
+                if(!response.ok) throw new Error("API Limit reached or network error.");
+                
+                const data = await response.json();
+                
+                if (data.totalItems === 0 || !data.items) {
+                    throw new Error("No books found matching that query.");
+                }
+
+                const book = data.items[0].volumeInfo;
+                processBookData(book);
+
+            } catch (err) {
+                document.getElementById('errorText').innerText = err.message;
+                errorMsg.classList.remove('hidden');
+            } finally {
+                btnText.classList.remove('hidden');
+                loader.classList.add('hidden');
+            }
+        }
+
+        function processBookData(info) {
+            // Extract Identifiers
+            let isbn13 = "N/A";
+            let isbn10 = "N/A";
+            if (info.industryIdentifiers) {
+                info.industryIdentifiers.forEach(id => {
+                    if (id.type === "ISBN_13") isbn13 = id.identifier;
+                    if (id.type === "ISBN_10") isbn10 = id.identifier;
+                });
+            }
+
+            // Fallback for image
+            const image = info.imageLinks?.thumbnail 
+                ? info.imageLinks.thumbnail.replace('http:', 'https:') 
+                : null;
+
+            // Construct Object
+            currentBookData = {
+                title: info.title || "Unknown Title",
+                authors: info.authors || ["Unknown Author"],
+                publishedDate: info.publishedDate || "Unknown",
+                publisher: info.publisher || "Unknown",
+                description: info.description || "No description provided.",
+                isbn13: isbn13,
+                isbn10: isbn10,
+                image: image,
+                timestamp: new Date().toISOString()
+            };
+
+            updateUI();
+        }
+
+        function updateUI() {
+            if (!currentBookData) return;
+
+            // Text Fields
+            document.getElementById('bookTitle').innerText = currentBookData.title;
+            document.getElementById('bookAuthor').innerText = currentBookData.authors.join(', ');
+            document.getElementById('bookYear').innerText = currentBookData.publishedDate.substring(0, 4);
+            document.getElementById('bookPublisher').innerText = currentBookData.publisher;
+            document.getElementById('bookISBN13').innerText = currentBookData.isbn13;
+            document.getElementById('bookISBN10').innerText = currentBookData.isbn10;
+            
+            // Description (strip HTML tags)
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = currentBookData.description;
+            document.getElementById('bookDesc').innerText = tempDiv.textContent || tempDiv.innerText || "";
+
+            // Image
+            const imgEl = document.getElementById('bookCover');
+            const iconEl = document.getElementById('noCoverIcon');
+            if (currentBookData.image) {
+                imgEl.src = currentBookData.image;
+                imgEl.classList.remove('hidden');
+                iconEl.classList.add('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+                iconEl.classList.remove('hidden');
+            }
+
+            // Generate Smart Links
+            // We prioritize ISBN for search if available, otherwise strict Title + Author
+            const searchTerm = (currentBookData.isbn13 !== "N/A") 
+                ? currentBookData.isbn13 
+                : `${currentBookData.title} ${currentBookData.authors[0]}`;
+            
+            const titleAuthor = `${currentBookData.title} ${currentBookData.authors[0]}`;
+
+            // eBay: Filter for Sold Items (LH_Sold=1) and Completed (LH_Complete=1)
+            document.getElementById('linkEbaySold').href = 
+                `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTerm)}&_sacat=0&LH_Sold=1&LH_Complete=1&_sop=16`; // sop=16 is high price first, maybe default to recent? 12 is recent. Let's do default.
+
+            // AbeBooks: Rare book focus
+            document.getElementById('linkAbe').href = 
+                `https://www.abebooks.com/servlet/SearchResults?kn=${encodeURIComponent(searchTerm)}&sortby=1`;
+
+            // BookFinder: Aggregator
+            document.getElementById('linkBookFinder').href = 
+                `https://www.bookfinder.com/search/?author=${encodeURIComponent(currentBookData.authors[0] || "")}&title=${encodeURIComponent(currentBookData.title)}&lang=en&st=xl&ac=qr`;
+
+            // Biblio
+            document.getElementById('linkBiblio').href = 
+                `https://www.biblio.com/search.php?keyisbn=${encodeURIComponent(currentBookData.isbn13 !== 'N/A' ? currentBookData.isbn13 : '')}&author=${encodeURIComponent(currentBookData.authors[0] || "")}&title=${encodeURIComponent(currentBookData.title)}`;
+
+            // Show Results
+            document.getElementById('resultsArea').classList.remove('hidden');
+        }
+
+        // History Management
+        function saveCurrentBook() {
+            if(!currentBookData) return;
+            
+            // Prevent duplicates
+            const exists = scoutHistory.some(b => b.isbn13 === currentBookData.isbn13 && b.title === currentBookData.title);
+            if(exists) return;
+
+            scoutHistory.unshift(currentBookData); // Add to top
+            if(scoutHistory.length > 50) scoutHistory.pop(); // Limit size
+            
+            localStorage.setItem('bookScoutHistory', JSON.stringify(scoutHistory));
+            renderHistory();
+        }
+
+        function clearHistory() {
+            if(confirm("Clear your scouting history?")) {
+                scoutHistory = [];
+                localStorage.removeItem('bookScoutHistory');
+                renderHistory();
+            }
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyList');
+            container.innerHTML = '';
+
+            if (scoutHistory.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-8 text-gray-600 italic">No books scouted yet. Start searching!</div>`;
+                return;
+            }
+
+            scoutHistory.forEach((book, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-obsidian-pane border border-obsidian-border rounded p-3 flex gap-3 hover:border-obsidian-accent transition-colors cursor-pointer group";
+                card.onclick = () => loadFromHistory(index);
+
+                const imgHtml = book.image 
+                    ? `<img src="${book.image}" class="w-12 h-16 object-cover rounded bg-obsidian-bg">` 
+                    : `<div class="w-12 h-16 bg-obsidian-bg rounded flex items-center justify-center text-gray-500"><i class="fa-solid fa-book"></i></div>`;
+
+                card.innerHTML = `
+                    ${imgHtml}
+                    <div class="overflow-hidden">
+                        <h4 class="font-bold text-gray-200 truncate text-sm group-hover:text-white">${book.title}</h4>
+                        <p class="text-xs text-gray-500 truncate">${book.authors[0]}</p>
+                        <p class="text-[10px] text-obsidian-accent mt-1">${book.isbn13 !== 'N/A' ? book.isbn13 : book.isbn10}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function loadFromHistory(index) {
+            currentBookData = scoutHistory[index];
+            updateUI();
+            document.getElementById('searchInput').value = currentBookData.isbn13 !== 'N/A' ? currentBookData.isbn13 : currentBookData.title;
+            // Scroll to top
+            document.querySelector('main').scrollTop = 0;
+        }
+
+    </script>
+</body>
+</html>

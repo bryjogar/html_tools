@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Hemingway Flow-Writer | Homelab Playground</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc',    // Standard Text
+                            danger: '#ef4444'   // Red for the mechanic
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Danger Pulse Animation */
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: inset 0 0 20px 0 rgba(239, 68, 68, 0.1); }
+            50% { box-shadow: inset 0 0 50px 10px rgba(239, 68, 68, 0.3); }
+        }
+
+        .danger-mode {
+            animation: pulse-red 1s infinite;
+        }
+
+        /* Smooth transition for the blur/red effect */
+        #editor-container {
+            transition: all 0.3s ease;
+        }
+        
+        #editor-overlay {
+            transition: opacity 0.2s linear;
+            pointer-events: none;
+        }
+
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-feather-pointed text-obsidian-accent text-lg"></i>
+            <h1 class="font-semibold text-white tracking-tight">Hemingway Flow</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="toggleHelp()" class="text-xs text-obsidian-text hover:text-white transition-colors">
+                <i class="fa-regular fa-circle-question mr-1"></i> How it works
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden relative flex flex-col items-center justify-center p-4">
+        
+        <div id="setup-view" class="w-full max-w-md bg-obsidian-pane border border-obsidian-border rounded-lg p-8 text-center shadow-xl">
+            <h2 class="text-xl text-white font-medium mb-2">Configure Your Session</h2>
+            <p class="text-sm text-gray-400 mb-6">Set a time limit. Don't stop typing.</p>
+            
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col items-start">
+                    <label class="text-xs text-gray-500 uppercase font-bold mb-1 ml-1">Duration (Minutes)</label>
+                    <div class="flex items-center w-full bg-obsidian-bg border border-obsidian-border rounded-md overflow-hidden focus-within:border-obsidian-accent transition-colors">
+                        <input type="number" id="time-input" value="10" min="1" max="120" class="w-full bg-transparent p-3 text-white font-mono outline-none text-center text-lg">
+                        <span class="pr-4 text-gray-500 text-sm font-mono">min</span>
+                    </div>
+                </div>
+
+                <button onclick="startSession()" class="group relative w-full mt-2 bg-obsidian-accent hover:bg-violet-600 text-white font-medium py-3 rounded-md transition-all shadow-lg hover:shadow-violet-900/20 active:scale-95">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <i class="fa-solid fa-play text-white/50 group-hover:text-white transition-colors"></i>
+                    </span>
+                    Start Flow State
+                </button>
+            </div>
+            
+            <div class="mt-6 text-xs text-gray-500 bg-obsidian-bg/50 p-3 rounded border border-obsidian-border/50">
+                <i class="fa-solid fa-triangle-exclamation mr-1 text-obsidian-accent"></i>
+                If you stop typing for 5 seconds, the screen will turn red and text will blur.
+            </div>
+        </div>
+
+        <div id="editor-view" class="hidden w-full h-full max-w-4xl relative flex flex-col">
+            
+            <div class="flex items-center justify-between mb-2 shrink-0">
+                <div class="flex items-center gap-4">
+                    <div id="timer-display" class="font-mono text-xl text-white font-bold bg-obsidian-pane px-3 py-1 rounded border border-obsidian-border">
+                        00:00
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-gray-400">
+                        <div class="w-24 h-1.5 bg-obsidian-pane rounded-full overflow-hidden">
+                            <div id="grace-bar" class="h-full bg-green-500 w-full transition-all duration-100 ease-linear"></div>
+                        </div>
+                        <span id="status-text">Active</span>
+                    </div>
+                </div>
+                <div class="text-xs font-mono text-gray-500">
+                    <span id="word-count">0</span> words
+                </div>
+            </div>
+
+            <div id="editor-container" class="relative flex-1 bg-obsidian-bg border border-obsidian-border rounded-lg overflow-hidden shadow-inner">
+                
+                <textarea id="main-editor" 
+                    class="w-full h-full bg-transparent p-6 text-lg text-gray-200 font-mono resize-none outline-none z-10 relative" 
+                    placeholder="Start typing immediately..."
+                    spellcheck="false"></textarea>
+
+                <div id="danger-overlay" class="absolute inset-0 pointer-events-none z-20 opacity-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(239,68,68,0.4)_100%)] mix-blend-screen transition-opacity duration-100"></div>
+                
+                <div id="extreme-danger-overlay" class="absolute inset-0 pointer-events-none z-20 opacity-0 bg-red-900/30 transition-opacity duration-100"></div>
+
+            </div>
+            
+            <button onclick="endSessionEarly()" class="mt-2 self-end text-xs text-gray-500 hover:text-red-400 underline decoration-dotted">
+                Give Up / Finish Early
+            </button>
+        </div>
+
+        <div id="results-view" class="hidden w-full max-w-3xl flex flex-col h-[80vh]">
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-t-lg p-4 flex justify-between items-center shrink-0">
+                <h2 class="text-white font-medium"><i class="fa-solid fa-check-circle text-green-500 mr-2"></i>Session Complete</h2>
+                <div class="flex gap-2">
+                    <button onclick="copyText()" id="copy-btn" class="px-3 py-1.5 bg-obsidian-bg hover:bg-obsidian-accent border border-obsidian-border text-xs text-white rounded transition-colors flex items-center gap-2">
+                        <i class="fa-regular fa-copy"></i> Copy Text
+                    </button>
+                    <button onclick="resetTool()" class="px-3 py-1.5 bg-obsidian-bg hover:bg-obsidian-border border border-obsidian-border text-xs text-gray-300 rounded transition-colors">
+                        Start Over
+                    </button>
+                </div>
+            </div>
+            <textarea id="final-text" readonly class="flex-1 w-full bg-obsidian-bg border-x border-b border-obsidian-border rounded-b-lg p-6 font-mono text-gray-300 resize-none outline-none text-sm"></textarea>
+        </div>
+
+        <div id="help-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg max-w-sm w-full p-6 shadow-2xl">
+                <h3 class="text-lg text-white font-bold mb-2">The Rules</h3>
+                <ul class="list-disc list-inside text-sm text-gray-300 space-y-2 mb-6">
+                    <li>Set a timer for your writing sprint.</li>
+                    <li><strong>Keep typing.</strong> Do not edit. Do not stop.</li>
+                    <li>If you pause for > 2 seconds, the screen warns you.</li>
+                    <li>If you pause for > 5 seconds, the text blurs and turns red.</li>
+                    <li>When the timer ends, you get your raw text.</li>
+                </ul>
+                <button onclick="toggleHelp()" class="w-full bg-obsidian-border hover:bg-obsidian-accent text-white py-2 rounded text-sm transition-colors">Got it</button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const setupView = document.getElementById('setup-view');
+        const editorView = document.getElementById('editor-view');
+        const resultsView = document.getElementById('results-view');
+        const helpModal = document.getElementById('help-modal');
+        
+        const timeInput = document.getElementById('time-input');
+        const mainEditor = document.getElementById('main-editor');
+        const finalText = document.getElementById('final-text');
+        
+        const timerDisplay = document.getElementById('timer-display');
+        const graceBar = document.getElementById('grace-bar');
+        const statusText = document.getElementById('status-text');
+        const wordCountDisplay = document.getElementById('word-count');
+        
+        const dangerOverlay = document.getElementById('danger-overlay');
+        const extremeDangerOverlay = document.getElementById('extreme-danger-overlay');
+        const editorContainer = document.getElementById('editor-container');
+
+        // State Variables
+        let sessionActive = false;
+        let sessionDuration = 0; // seconds
+        let sessionTimeLeft = 0;
+        let lastTypeTime = 0;
+        let mainInterval = null;
+        let mechanicInterval = null;
+        const GRACE_PERIOD_MS = 5000;
+        const WARNING_START_MS = 2000;
+
+        // --- Navigation / View Management ---
+
+        function toggleHelp() {
+            helpModal.classList.toggle('hidden');
+        }
+
+        function switchView(viewName) {
+            setupView.classList.add('hidden');
+            editorView.classList.add('hidden');
+            resultsView.classList.add('hidden');
+
+            if (viewName === 'setup') setupView.classList.remove('hidden');
+            if (viewName === 'editor') editorView.classList.remove('hidden');
+            if (viewName === 'results') resultsView.classList.remove('hidden');
+        }
+
+        // --- Core Logic ---
+
+        function startSession() {
+            const mins = parseInt(timeInput.value) || 10;
+            sessionDuration = mins * 60;
+            sessionTimeLeft = sessionDuration;
+            
+            // Reset Editor
+            mainEditor.value = '';
+            lastTypeTime = Date.now();
+            sessionActive = true;
+            
+            updateTimerDisplay();
+            switchView('editor');
+            mainEditor.focus();
+
+            // Start Loops
+            clearInterval(mainInterval);
+            clearInterval(mechanicInterval);
+            
+            mainInterval = setInterval(gameLoop, 1000);
+            mechanicInterval = setInterval(mechanicLoop, 50); // High frequency for smooth UI
+        }
+
+        function gameLoop() {
+            if (!sessionActive) return;
+
+            sessionTimeLeft--;
+            updateTimerDisplay();
+
+            if (sessionTimeLeft <= 0) {
+                finishSession();
+            }
+        }
+
+        function mechanicLoop() {
+            if (!sessionActive) return;
+
+            const now = Date.now();
+            const timeSinceType = now - lastTypeTime;
+
+            // Update Word Count periodically
+            const text = mainEditor.value;
+            const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+            wordCountDisplay.textContent = words;
+
+            // 1. Update Grace Bar (Green line shrinks)
+            const gracePercent = Math.max(0, 100 - ((timeSinceType / GRACE_PERIOD_MS) * 100));
+            graceBar.style.width = `${gracePercent}%`;
+
+            // Colorize bar based on danger
+            if (gracePercent < 20) graceBar.className = 'h-full w-full transition-all duration-100 ease-linear bg-obsidian-danger';
+            else if (gracePercent < 50) graceBar.className = 'h-full w-full transition-all duration-100 ease-linear bg-yellow-500';
+            else graceBar.className = 'h-full w-full transition-all duration-100 ease-linear bg-green-500';
+
+            // 2. Handle Danger Visuals
+            if (timeSinceType > WARNING_START_MS) {
+                // Determine severity (0 to 1) between 2s and 5s
+                const dangerLevel = Math.min(1, (timeSinceType - WARNING_START_MS) / (GRACE_PERIOD_MS - WARNING_START_MS));
+                
+                // Red Vignette Opacity
+                dangerOverlay.style.opacity = dangerLevel;
+                
+                // Status Text
+                if (dangerLevel < 1) {
+                    statusText.textContent = "Keep typing...";
+                    statusText.className = "text-yellow-500 font-bold";
+                    mainEditor.style.filter = `blur(${dangerLevel * 2}px)`; // Mild blur
+                    extremeDangerOverlay.style.opacity = 0;
+                } else {
+                    // EXTREME DANGER (> 5 seconds)
+                    statusText.textContent = "WRITING BLOCKED!";
+                    statusText.className = "text-red-500 font-bold animate-pulse";
+                    
+                    // Heavy Blur + Red Tint
+                    mainEditor.style.filter = `blur(4px)`;
+                    extremeDangerOverlay.style.opacity = 0.8; 
+                }
+            } else {
+                // Safe Zone
+                dangerOverlay.style.opacity = 0;
+                extremeDangerOverlay.style.opacity = 0;
+                mainEditor.style.filter = 'none';
+                statusText.textContent = "Flowing";
+                statusText.className = "text-green-500";
+            }
+        }
+
+        // Input Listener
+        mainEditor.addEventListener('input', () => {
+            if (sessionActive) {
+                lastTypeTime = Date.now();
+                // Instant visual feedback reset
+                dangerOverlay.style.opacity = 0;
+                extremeDangerOverlay.style.opacity = 0;
+                mainEditor.style.filter = 'none';
+            }
+        });
+
+        // --- Helper Functions ---
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(sessionTimeLeft / 60);
+            const seconds = sessionTimeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function finishSession() {
+            sessionActive = false;
+            clearInterval(mainInterval);
+            clearInterval(mechanicInterval);
+            
+            finalText.value = mainEditor.value;
+            switchView('results');
+        }
+
+        function endSessionEarly() {
+            if(confirm("Stop the timer and keep what you have?")) {
+                finishSession();
+            }
+        }
+
+        function resetTool() {
+            switchView('setup');
+        }
+
+        function copyText() {
+            finalText.select();
+            finalText.setSelectionRange(0, 99999); // Mobile support
+            navigator.clipboard.writeText(finalText.value).then(() => {
+                const btn = document.getElementById('copy-btn');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                btn.classList.replace('bg-obsidian-bg', 'bg-green-600');
+                btn.classList.replace('border-obsidian-border', 'border-green-600');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.replace('bg-green-600', 'bg-obsidian-bg');
+                    btn.classList.replace('border-green-600', 'border-obsidian-border');
+                }, 2000);
+            });
+        }
+
+    </script>
+</body>
+</html>
