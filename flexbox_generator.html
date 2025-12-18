@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flexbox Layout Generator | Homelab Playground</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc',    // Standard Text
+                            input: '#2d2d2d'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Webkit Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Playground Box Styles */
+        .flex-child {
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column; /* Internal layout for content */
+            font-family: 'Inter', sans-serif;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            overflow: hidden; /* Clip images */
+            position: relative;
+        }
+
+        /* Abstract Mode (Standard Number) */
+        .flex-child.abstract {
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fira Code', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            min-width: 80px;
+            min-height: 80px;
+        }
+
+        /* Content Mode (Cards) */
+        .flex-child.content-mode {
+            padding: 1rem;
+            background: #252526; /* Obsidian Pane color as card base */
+            width: 240px; /* Base width for cards, flex will shrink/grow if set */
+            max-width: 100%;
+        }
+
+        /* Input Range Styling */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #7c3aed; cursor: pointer; margin-top: -6px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #3c3c3c; border-radius: 2px; }
+        
+        /* Syntax Highlighting Mockup */
+        .token-prop { color: #9cdcfe; }
+        .token-val { color: #ce9178; }
+        .token-punc { color: #d4d4d4; }
+        .token-sel { color: #d7ba7d; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans selection:bg-obsidian-accent selection:text-white">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-layer-group text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-white">Flexbox<span class="text-obsidian-accent">Gen</span></h1>
+        </div>
+        <div class="hidden md:flex items-center gap-2 text-xs text-gray-500 font-mono">
+            <span>VISUAL CSS EDITOR</span>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        <aside class="w-full md:w-80 lg:w-96 bg-obsidian-pane border-b md:border-b-0 md:border-r border-obsidian-border flex flex-col overflow-y-auto shrink-0 z-10 custom-scrollbar">
+            <div class="p-5 space-y-6">
+                
+                <div class="bg-obsidian-bg/50 p-3 rounded-lg border border-obsidian-border space-y-3">
+                    <label class="text-xs uppercase tracking-wider font-bold text-obsidian-accent flex items-center gap-2">
+                        <i class="fa-solid fa-pen-nib"></i> Child Content Mockup
+                    </label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="toggleContent('image')" id="btn-img" class="content-toggle h-8 text-xs border border-obsidian-border rounded bg-obsidian-bg text-gray-400 hover:text-white transition-colors">
+                            <i class="fa-regular fa-image"></i> Img
+                        </button>
+                        <button onclick="toggleContent('title')" id="btn-title" class="content-toggle h-8 text-xs border border-obsidian-border rounded bg-obsidian-bg text-gray-400 hover:text-white transition-colors">
+                            <i class="fa-solid fa-heading"></i> Title
+                        </button>
+                        <button onclick="toggleContent('text')" id="btn-text" class="content-toggle h-8 text-xs border border-obsidian-border rounded bg-obsidian-bg text-gray-400 hover:text-white transition-colors">
+                            <i class="fa-solid fa-align-left"></i> Text
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-gray-500">Toggle elements to see how actual HTML behaves inside the layout.</p>
+                </div>
+                
+                <hr class="border-obsidian-border">
+
+                <div class="space-y-3">
+                    <label class="text-xs uppercase tracking-wider font-bold text-gray-400">Flex Direction</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="control-btn dir-btn active" data-prop="flex-direction" data-val="row">Row</button>
+                        <button class="control-btn dir-btn" data-prop="flex-direction" data-val="column">Column</button>
+                        <button class="control-btn dir-btn" data-prop="flex-direction" data-val="row-reverse">Row Rev</button>
+                        <button class="control-btn dir-btn" data-prop="flex-direction" data-val="column-reverse">Col Rev</button>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-xs uppercase tracking-wider font-bold text-gray-400">Flex Wrap</label>
+                    <div class="flex bg-obsidian-bg p-1 rounded-md border border-obsidian-border">
+                        <button class="flex-1 py-1.5 text-xs rounded transition-colors wrap-btn active hover:text-white" data-val="nowrap">No Wrap</button>
+                        <button class="flex-1 py-1.5 text-xs rounded transition-colors wrap-btn hover:text-white" data-val="wrap">Wrap</button>
+                        <button class="flex-1 py-1.5 text-xs rounded transition-colors wrap-btn hover:text-white" data-val="wrap-reverse">Reverse</button>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-xs uppercase tracking-wider font-bold text-gray-400">Justify Content <span class="text-[10px] lowercase text-gray-600">(Main Axis)</span></label>
+                    <select id="justify-select" class="w-full bg-obsidian-bg border border-obsidian-border text-white text-sm rounded px-3 py-2 outline-none focus:border-obsidian-accent font-mono">
+                        <option value="flex-start">flex-start</option>
+                        <option value="center">center</option>
+                        <option value="flex-end">flex-end</option>
+                        <option value="space-between">space-between</option>
+                        <option value="space-around">space-around</option>
+                        <option value="space-evenly">space-evenly</option>
+                    </select>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-xs uppercase tracking-wider font-bold text-gray-400">Align Items <span class="text-[10px] lowercase text-gray-600">(Cross Axis)</span></label>
+                    <select id="align-select" class="w-full bg-obsidian-bg border border-obsidian-border text-white text-sm rounded px-3 py-2 outline-none focus:border-obsidian-accent font-mono">
+                        <option value="stretch">stretch</option>
+                        <option value="flex-start">flex-start</option>
+                        <option value="center">center</option>
+                        <option value="flex-end">flex-end</option>
+                        <option value="baseline">baseline</option>
+                    </select>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs uppercase tracking-wider font-bold text-gray-400">Item Count</label>
+                        <span id="item-count-display" class="text-xs text-obsidian-accent font-mono">4</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="updateItems(1)" class="h-8 bg-obsidian-bg border border-obsidian-border rounded hover:bg-obsidian-border text-white transition-colors text-xs"><i class="fa-solid fa-plus"></i></button>
+                        <button onclick="updateItems(-1)" class="h-8 bg-obsidian-bg border border-obsidian-border rounded hover:bg-obsidian-border text-white transition-colors text-xs"><i class="fa-solid fa-minus"></i></button>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <label class="text-xs uppercase tracking-wider font-bold text-gray-400">Gap</label>
+                        <span id="gap-val" class="text-xs font-mono text-obsidian-accent">16px</span>
+                    </div>
+                    <input type="range" id="gap-range" min="0" max="64" value="16" step="4">
+                </div>
+
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-h-0 bg-obsidian-bg relative">
+            
+            <div class="bg-obsidian-pane border-b border-obsidian-border p-4 flex flex-col gap-2 shrink-0">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">CSS Output</span>
+                    <button id="copy-btn" class="text-xs bg-obsidian-accent/10 hover:bg-obsidian-accent text-obsidian-accent hover:text-white px-3 py-1 rounded transition-colors flex items-center gap-1.5">
+                        <i class="fa-regular fa-copy"></i> Copy CSS
+                    </button>
+                </div>
+                <div class="bg-black/30 rounded p-3 font-mono text-sm border border-obsidian-border relative overflow-x-auto">
+                    <code id="css-output">
+                        <div class="whitespace-pre"><span class="token-sel">.container</span> {
+  <span class="token-prop">display</span>: <span class="token-val">flex</span>;
+  <span class="token-prop">flex-direction</span>: <span class="token-val" id="code-dir">row</span>;
+  <span class="token-prop">flex-wrap</span>: <span class="token-val" id="code-wrap">nowrap</span>;
+  <span class="token-prop">justify-content</span>: <span class="token-val" id="code-justify">flex-start</span>;
+  <span class="token-prop">align-items</span>: <span class="token-val" id="code-align">stretch</span>;
+  <span class="token-prop">gap</span>: <span class="token-val" id="code-gap">16px</span>;
+}</div>
+                    </code>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto p-4 md:p-8 relative bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+CjxwYXRoIGQ9Ik0xIDEgaDF2MUgxVjF6IiBmaWxsPSIjMmQyZDJkIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz4KPC9zdmc+')]">
+                
+                <div id="flex-playground" class="min-h-full border-2 border-dashed border-obsidian-border rounded-lg transition-all duration-300 bg-obsidian-bg/80 backdrop-blur-sm" style="display: flex; flex-direction: row; gap: 16px;">
+                    </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // State
+        const state = {
+            direction: 'row',
+            wrap: 'nowrap',
+            justify: 'flex-start',
+            align: 'stretch',
+            gap: 16,
+            items: 4,
+            content: {
+                image: false,
+                title: false,
+                text: false
+            }
+        };
+
+        // DOM Elements
+        const playground = document.getElementById('flex-playground');
+        const itemCountDisplay = document.getElementById('item-count-display');
+        
+        // Random Gradients for Abstract Mode
+        const gradients = [
+            'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)', // Violet
+            'linear-gradient(135deg, #4b5563 0%, #374151 100%)', // Gray
+            'linear-gradient(135deg, #059669 0%, #047857 100%)', // Emerald
+            'linear-gradient(135deg, #db2777 0%, #be185d 100%)', // Pink
+            'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', // Blue
+            'linear-gradient(135deg, #d97706 0%, #b45309 100%)', // Amber
+        ];
+
+        // Placeholder Images (Nature/Tech/Abstract)
+        const images = [
+            "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&q=80",
+            "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?w=400&q=80",
+            "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&q=80",
+            "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&q=80"
+        ];
+
+        function init() {
+            renderItems();
+            updateCSS();
+            attachListeners();
+            updateContentToggles(); // visual state of buttons
+        }
+
+        function toggleContent(type) {
+            state.content[type] = !state.content[type];
+            updateContentToggles();
+            renderItems();
+        }
+
+        function updateContentToggles() {
+            // Update button visual state (green if active, gray if inactive)
+            const map = {
+                image: document.getElementById('btn-img'),
+                title: document.getElementById('btn-title'),
+                text: document.getElementById('btn-text')
+            };
+
+            for (const [key, btn] of Object.entries(map)) {
+                if (state.content[key]) {
+                    btn.classList.remove('bg-obsidian-bg', 'text-gray-400');
+                    btn.classList.add('bg-obsidian-accent', 'text-white', 'border-transparent');
+                } else {
+                    btn.classList.add('bg-obsidian-bg', 'text-gray-400');
+                    btn.classList.remove('bg-obsidian-accent', 'text-white', 'border-transparent');
+                }
+            }
+        }
+
+        // --- Render Logic ---
+
+        function renderItems() {
+            playground.innerHTML = '';
+            
+            // Check if any content mode is active
+            const hasContent = state.content.image || state.content.title || state.content.text;
+
+            for (let i = 0; i < state.items; i++) {
+                const el = document.createElement('div');
+                
+                if (hasContent) {
+                    // --- Content Mode (Card Style) ---
+                    el.className = 'flex-child content-mode';
+                    
+                    let innerHTML = '';
+                    
+                    if (state.content.image) {
+                        const imgUrl = images[i % images.length];
+                        innerHTML += `<img src="${imgUrl}" class="w-full h-32 object-cover rounded-md mb-3 bg-gray-700" alt="Placeholder">`;
+                    }
+                    
+                    if (state.content.title) {
+                        innerHTML += `<h3 class="font-bold text-white text-lg mb-1 leading-tight">Card Title ${i + 1}</h3>`;
+                    }
+
+                    if (state.content.text) {
+                        innerHTML += `<p class="text-gray-400 text-xs leading-relaxed">This is a sample text block to demonstrate how flex items flow with content inside them.</p>`;
+                    }
+
+                    // Add a button at the bottom to simulate a real card action
+                    if (state.content.title || state.content.text) {
+                        innerHTML += `<div class="mt-auto pt-3"><button class="text-[10px] uppercase font-bold tracking-wider text-obsidian-accent hover:text-white transition-colors">Read More &rarr;</button></div>`;
+                    }
+
+                    el.innerHTML = innerHTML;
+
+                    // Handle Dimensions in Content Mode
+                    if (state.align !== 'stretch') {
+                        // If not stretching, we let the content dictate height naturally
+                        el.style.height = 'auto'; 
+                    }
+                    // If direction is row, give them a base width, but let them shrink
+                    if (state.direction.includes('row')) {
+                        // el.style.width = '240px'; // Set in CSS class, but flex-basis logic applies
+                    }
+
+                } else {
+                    // --- Abstract Mode (Numbers) ---
+                    el.className = 'flex-child abstract';
+                    el.innerText = i + 1;
+                    el.style.background = gradients[i % gradients.length];
+                    
+                    // Fixed dimensions for abstract mode unless stretching
+                    if (state.align === 'stretch' && (state.direction === 'row' || state.direction === 'row-reverse')) {
+                        el.style.height = 'auto'; 
+                    } else {
+                        el.style.height = '80px';
+                    }
+                    if (state.align === 'stretch' && (state.direction === 'column' || state.direction === 'column-reverse')) {
+                        el.style.width = 'auto';
+                    } else {
+                        el.style.width = '80px';
+                    }
+                }
+
+                playground.appendChild(el);
+            }
+            itemCountDisplay.innerText = state.items;
+        }
+
+        function updateItems(delta) {
+            const newValue = state.items + delta;
+            if (newValue >= 1 && newValue <= 20) {
+                state.items = newValue;
+                renderItems();
+            }
+        }
+
+        // Update Playground Styles (Container level)
+        function updatePlayground() {
+            playground.style.flexDirection = state.direction;
+            playground.style.flexWrap = state.wrap;
+            playground.style.justifyContent = state.justify;
+            playground.style.alignItems = state.align;
+            playground.style.gap = `${state.gap}px`;
+            
+            // Re-render items because stretch logic might change explicit height/width styles on children
+            renderItems();
+        }
+
+        // Update Code Output
+        function updateCSS() {
+            document.getElementById('code-dir').innerText = state.direction;
+            document.getElementById('code-wrap').innerText = state.wrap;
+            document.getElementById('code-justify').innerText = state.justify;
+            document.getElementById('code-align').innerText = state.align;
+            document.getElementById('code-gap').innerText = `${state.gap}px`;
+        }
+
+        // --- Event Listeners ---
+
+        function attachListeners() {
+            // Direction Buttons
+            document.querySelectorAll('.dir-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.dir-btn').forEach(b => {
+                        b.classList.remove('bg-obsidian-accent', 'text-white', 'active');
+                        b.classList.add('bg-obsidian-bg', 'text-obsidian-text');
+                    });
+                    
+                    e.target.classList.remove('bg-obsidian-bg', 'text-obsidian-text');
+                    e.target.classList.add('bg-obsidian-accent', 'text-white', 'active');
+
+                    state.direction = e.target.getAttribute('data-val');
+                    updatePlayground();
+                    updateCSS();
+                });
+            });
+
+            // Set initial active state for Direction
+            const initialDirBtn = document.querySelector(`.dir-btn[data-val="${state.direction}"]`);
+            if(initialDirBtn) initialDirBtn.click();
+
+            // Wrap Buttons
+            document.querySelectorAll('.wrap-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.wrap-btn').forEach(b => {
+                        b.classList.remove('bg-obsidian-pane', 'text-white', 'shadow-sm');
+                        b.classList.add('text-gray-400');
+                    });
+                    e.target.classList.remove('text-gray-400');
+                    e.target.classList.add('bg-obsidian-pane', 'text-white', 'shadow-sm');
+                    
+                    state.wrap = e.target.getAttribute('data-val');
+                    updatePlayground();
+                    updateCSS();
+                });
+            });
+             const initialWrapBtn = document.querySelector(`.wrap-btn[data-val="${state.wrap}"]`);
+             if(initialWrapBtn) initialWrapBtn.click();
+
+            // Selects
+            document.getElementById('justify-select').addEventListener('change', (e) => {
+                state.justify = e.target.value;
+                updatePlayground();
+                updateCSS();
+            });
+
+            document.getElementById('align-select').addEventListener('change', (e) => {
+                state.align = e.target.value;
+                updatePlayground();
+                updateCSS();
+            });
+
+            // Gap Slider
+            const gapRange = document.getElementById('gap-range');
+            gapRange.addEventListener('input', (e) => {
+                state.gap = e.target.value;
+                document.getElementById('gap-val').innerText = `${state.gap}px`;
+                updatePlayground();
+                updateCSS();
+            });
+
+            // Copy Button
+            document.getElementById('copy-btn').addEventListener('click', () => {
+                const textToCopy = `.container {
+  display: flex;
+  flex-direction: ${state.direction};
+  flex-wrap: ${state.wrap};
+  justify-content: ${state.justify};
+  align-items: ${state.align};
+  gap: ${state.gap}px;
+}`;
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    const originalText = document.getElementById('copy-btn').innerHTML;
+                    document.getElementById('copy-btn').innerHTML = `<i class="fa-solid fa-check"></i> Copied!`;
+                    setTimeout(() => {
+                        document.getElementById('copy-btn').innerHTML = originalText;
+                    }, 2000);
+                });
+            });
+        }
+
+        // Run
+        init();
+
+        // Specific style for control buttons
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .control-btn {
+                border: 1px solid #3c3c3c;
+                border-radius: 0.375rem;
+                padding: 0.5rem;
+                font-size: 0.75rem;
+                transition: all 0.2s;
+            }
+            .control-btn:hover {
+                border-color: #7c3aed;
+            }
+        `;
+        document.head.appendChild(style);
+
+    </script>
+</body>
+</html>
