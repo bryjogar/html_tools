@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Garden Visualizer | HomeLab Playground</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #505050; }
+
+        /* Range Input Styling */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #7c3aed; margin-top: -6px; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #3c3c3c; border-radius: 2px;
+        }
+        
+        /* Canvas Container Pattern */
+        .canvas-bg {
+            background-color: #1e1e1e;
+            background-image: radial-gradient(#3c3c3c 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-4 md:px-6 justify-between flex-shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-leaf text-obsidian-accent text-lg"></i>
+            <h1 class="font-bold text-white tracking-tight">Garden<span class="text-obsidian-accent">Spacer</span> <span class="text-xs font-normal text-gray-500 ml-2">v2.0</span></h1>
+        </div>
+        <div class="flex gap-3">
+             <button onclick="window.print()" class="hidden md:flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-print"></i> Print Plan
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex flex-col md:flex-row relative">
+        
+        <aside class="w-full md:w-80 bg-obsidian-pane border-r border-obsidian-border overflow-y-auto z-10 flex-shrink-0">
+            <div class="p-5 space-y-6">
+                
+                <div>
+                    <h2 class="text-xs uppercase tracking-wider text-gray-500 font-bold mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-shapes"></i> Bed Shape
+                    </h2>
+                    <select id="shapeSelect" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:border-obsidian-accent focus:outline-none transition-colors mb-3 text-sm">
+                        <option value="rect">Rectangle</option>
+                        <option value="lshape">L-Shape</option>
+                        <option value="circle">Circular</option>
+                    </select>
+                </div>
+
+                <div>
+                    <h2 class="text-xs uppercase tracking-wider text-gray-500 font-bold mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-ruler-combined"></i> Dimensions (ft)
+                    </h2>
+                    
+                    <div id="group-rect" class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Width</label>
+                            <input type="number" id="bedWidth" value="4" min="1" class="dim-input w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:border-obsidian-accent focus:outline-none font-mono text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Length</label>
+                            <input type="number" id="bedLength" value="8" min="1" class="dim-input w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:border-obsidian-accent focus:outline-none font-mono text-sm">
+                        </div>
+                    </div>
+
+                    <div id="group-circle" class="hidden">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Diameter</label>
+                            <input type="number" id="bedDiameter" value="6" min="1" class="dim-input w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:border-obsidian-accent focus:outline-none font-mono text-sm">
+                        </div>
+                    </div>
+
+                    <div id="group-lshape" class="hidden space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Total Width</label>
+                                <input type="number" id="lTotalW" value="6" class="dim-input w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Total Length</label>
+                                <input type="number" id="lTotalL" value="8" class="dim-input w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white font-mono text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Top Leg Thick.</label>
+                                <input type="number" id="lThickTop" value="2" class="dim-input w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Left Leg Thick.</label>
+                                <input type="number" id="lThickLeft" value="2" class="dim-input w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white font-mono text-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-xs uppercase tracking-wider text-gray-500 font-bold mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-seedling"></i> Plant Spacing
+                    </h2>
+                    
+                    <select id="plantSelect" class="w-full bg-obsidian-bg border border-obsidian-border rounded p-2 text-white focus:border-obsidian-accent focus:outline-none transition-colors mb-3 text-sm">
+                        <option value="custom">Custom Spacing...</option>
+                        <option value="3">Carrots / Radish (3")</option>
+                        <option value="4">Onions / Garlic (4")</option>
+                        <option value="6">Beets / Spinach (6")</option>
+                        <option value="8">Lettuce / Chard (8")</option>
+                        <option value="12" selected>Broccoli / Kale (12")</option>
+                        <option value="18">Peppers / Basil (18")</option>
+                        <option value="24">Tomatoes / Eggplant (24")</option>
+                        <option value="36">Zucchini / Squash (36")</option>
+                    </select>
+
+                    <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border">
+                        <div class="flex justify-between mb-2">
+                            <label class="text-xs text-gray-400">Spacing (inches)</label>
+                            <span id="spacingVal" class="text-xs font-mono text-obsidian-accent font-bold">12"</span>
+                        </div>
+                        <input type="range" id="spacingRange" min="2" max="48" step="1" value="12">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="modeSquare" class="method-btn active flex items-center justify-center p-2 rounded border border-obsidian-accent bg-obsidian-accent/10 text-white transition-all">
+                            <i class="fa-solid fa-border-all mr-2"></i> Square
+                        </button>
+                        <button id="modeHex" class="method-btn flex items-center justify-center p-2 rounded border border-obsidian-border bg-obsidian-bg text-gray-400 hover:bg-white/5 transition-all">
+                            <i class="fa-solid fa-cubes mr-2"></i> Hex
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-auto bg-gradient-to-br from-obsidian-bg to-obsidian-border p-4 rounded-lg border border-obsidian-border shadow-lg">
+                    <div class="text-xs text-gray-400 uppercase tracking-widest mb-1">Total Capacity</div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="totalPlants" class="text-4xl font-bold text-white">0</span>
+                        <span class="text-sm text-obsidian-accent">plants</span>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <section class="flex-1 relative bg-obsidian-bg overflow-hidden flex flex-col">
+            <div class="absolute top-4 left-4 right-4 z-10 flex justify-between pointer-events-none">
+                <div class="bg-obsidian-pane/90 backdrop-blur border border-obsidian-border rounded-full px-4 py-1.5 text-xs text-gray-300 shadow-md pointer-events-auto">
+                    <i class="fa-solid fa-ruler mr-1.5 text-obsidian-accent"></i>
+                    Grid: 1 sq. ft
+                </div>
+            </div>
+
+            <div id="canvasContainer" class="flex-1 w-full h-full relative canvas-bg flex items-center justify-center p-4 md:p-10">
+                <canvas id="gardenCanvas"></canvas>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            shape: 'rect', // rect, circle, lshape
+            // Rect Dims (ft)
+            rectW: 4,
+            rectL: 8,
+            // Circle Dims (ft)
+            diameter: 6,
+            // L-Shape Dims (ft)
+            lTotalW: 6,
+            lTotalL: 8,
+            lThickTop: 2,
+            lThickLeft: 2,
+            
+            spacingInch: 12,
+            method: 'square'
+        };
+
+        // --- DOM Elements ---
+        const canvas = document.getElementById('gardenCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvasContainer');
+        const els = {
+            shapeSelect: document.getElementById('shapeSelect'),
+            // Groups
+            groupRect: document.getElementById('group-rect'),
+            groupCircle: document.getElementById('group-circle'),
+            groupL: document.getElementById('group-lshape'),
+            // Inputs
+            bedWidth: document.getElementById('bedWidth'),
+            bedLength: document.getElementById('bedLength'),
+            bedDiameter: document.getElementById('bedDiameter'),
+            lTotalW: document.getElementById('lTotalW'),
+            lTotalL: document.getElementById('lTotalL'),
+            lThickTop: document.getElementById('lThickTop'),
+            lThickLeft: document.getElementById('lThickLeft'),
+            // Controls
+            plantSelect: document.getElementById('plantSelect'),
+            spacingRange: document.getElementById('spacingRange'),
+            spacingVal: document.getElementById('spacingVal'),
+            totalPlants: document.getElementById('totalPlants'),
+            btnSquare: document.getElementById('modeSquare'),
+            btnHex: document.getElementById('modeHex')
+        };
+
+        // --- Initialization ---
+        function init() {
+            bindEvents();
+            updateUI();
+            resizeCanvas();
+            window.addEventListener('resize', () => { resizeCanvas(); });
+        }
+
+        // --- Event Binding ---
+        function bindEvents() {
+            // Shape Change
+            els.shapeSelect.addEventListener('change', (e) => {
+                state.shape = e.target.value;
+                updateUI();
+                draw();
+            });
+
+            // Dimensions (Generic handler for all number inputs)
+            document.querySelectorAll('.dim-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value) || 0;
+                    const id = e.target.id;
+                    if(id === 'bedWidth') state.rectW = val;
+                    if(id === 'bedLength') state.rectL = val;
+                    if(id === 'bedDiameter') state.diameter = val;
+                    if(id === 'lTotalW') state.lTotalW = val;
+                    if(id === 'lTotalL') state.lTotalL = val;
+                    if(id === 'lThickTop') state.lThickTop = val;
+                    if(id === 'lThickLeft') state.lThickLeft = val;
+                    draw();
+                });
+            });
+
+            // Spacing Slider
+            els.spacingRange.addEventListener('input', (e) => {
+                state.spacingInch = parseInt(e.target.value);
+                els.spacingVal.innerText = state.spacingInch + '"';
+                
+                // Sync dropdown
+                const options = Array.from(els.plantSelect.options);
+                const match = options.find(opt => opt.value === state.spacingInch.toString());
+                els.plantSelect.value = match ? match.value : 'custom';
+                draw();
+            });
+
+            // Spacing Dropdown
+            els.plantSelect.addEventListener('change', (e) => {
+                if(e.target.value !== 'custom') {
+                    state.spacingInch = parseInt(e.target.value);
+                    els.spacingRange.value = state.spacingInch;
+                    els.spacingVal.innerText = state.spacingInch + '"';
+                    draw();
+                }
+            });
+
+            // Method Toggles
+            els.btnSquare.addEventListener('click', () => setMethod('square'));
+            els.btnHex.addEventListener('click', () => setMethod('hex'));
+        }
+
+        function updateUI() {
+            // Toggle Input Visibility
+            els.groupRect.classList.add('hidden');
+            els.groupCircle.classList.add('hidden');
+            els.groupL.classList.add('hidden');
+
+            if(state.shape === 'rect') els.groupRect.classList.remove('hidden');
+            if(state.shape === 'circle') els.groupCircle.classList.remove('hidden');
+            if(state.shape === 'lshape') els.groupL.classList.remove('hidden');
+        }
+
+        function setMethod(m) {
+            state.method = m;
+            const active = ['border-obsidian-accent', 'bg-obsidian-accent/10', 'text-white'];
+            const inactive = ['border-obsidian-border', 'bg-obsidian-bg', 'text-gray-400', 'hover:bg-white/5'];
+
+            if(m === 'square') {
+                els.btnSquare.classList.add(...active); els.btnSquare.classList.remove(...inactive.slice(0,3), inactive[3]);
+                els.btnHex.classList.remove(...active); els.btnHex.classList.add(...inactive);
+            } else {
+                els.btnHex.classList.add(...active); els.btnHex.classList.remove(...inactive.slice(0,3), inactive[3]);
+                els.btnSquare.classList.remove(...active); els.btnSquare.classList.add(...inactive);
+            }
+            draw();
+        }
+
+        // --- Core Drawing Logic ---
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Determine Bounding Box (in inches)
+            let boxW = 0, boxH = 0;
+
+            if (state.shape === 'rect') {
+                boxW = state.rectW * 12;
+                boxH = state.rectL * 12;
+            } else if (state.shape === 'circle') {
+                boxW = state.diameter * 12;
+                boxH = state.diameter * 12;
+            } else if (state.shape === 'lshape') {
+                boxW = state.lTotalW * 12;
+                boxH = state.lTotalL * 12;
+            }
+
+            if (boxW <= 0 || boxH <= 0) return;
+
+            // 2. Calculate Scale (fit bounding box to canvas with padding)
+            const padding = 40;
+            const availableW = canvas.width - (padding * 2);
+            const availableH = canvas.height - (padding * 2);
+            const scale = Math.min(availableW / boxW, availableH / boxH);
+
+            // 3. Center Offsets
+            const drawW = boxW * scale;
+            const drawH = boxH * scale;
+            const startX = (canvas.width - drawW) / 2;
+            const startY = (canvas.height - drawH) / 2;
+
+            // 4. Draw The Bed (Shape Geometry)
+            ctx.fillStyle = '#252526';
+            ctx.strokeStyle = '#7c3aed';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            
+            if (state.shape === 'rect') {
+                ctx.rect(startX, startY, drawW, drawH);
+            } else if (state.shape === 'circle') {
+                const r = drawW / 2;
+                ctx.arc(startX + r, startY + r, r, 0, Math.PI * 2);
+            } else if (state.shape === 'lshape') {
+                // L-Shape Polygon (Standard "L": Top-Left origin, Legs on Top and Left)
+                // Actually, let's draw standard "L" shape where the missing piece is top-right.
+                // Points: (0,0) -> (w1, 0) -> (w1, L-w2) -> (W, L-w2) -> (W, L) -> (0, L) -> (0,0)
+                // BUT user inputs: Total W, Total L, Top Thick, Left Thick.
+                // Let's assume Top-Left corner is the "solid" corner for simplicity? 
+                // No, standard L garden usually has legs.
+                // Let's do: Left Leg (full height) + Top Leg (remaining width).
+                
+                const W = boxW * scale;
+                const H = boxH * scale;
+                const thickLeft = (state.lThickLeft * 12) * scale;
+                const thickTop = (state.lThickTop * 12) * scale;
+
+                // Vertices
+                ctx.moveTo(startX, startY); // Top-Left
+                ctx.lineTo(startX + W, startY); // Top-Right
+                ctx.lineTo(startX + W, startY + thickTop); // Inner Top Right
+                ctx.lineTo(startX + thickLeft, startY + thickTop); // Inner Corner
+                ctx.lineTo(startX + thickLeft, startY + H); // Bottom Right of Left Leg
+                ctx.lineTo(startX, startY + H); // Bottom Left
+                ctx.closePath();
+            }
+            
+            ctx.fill();
+            
+            // 5. Draw Grid (Clipped to shape)
+            ctx.save();
+            ctx.clip(); // Restrict grid lines to the shape we just drew
+            
+            ctx.strokeStyle = '#3c3c3c';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            // Grid logic (every 12 inches)
+            // Use maximum bounding box dimensions
+            const maxFtX = Math.ceil(boxW / 12);
+            const maxFtY = Math.ceil(boxH / 12);
+
+            for (let i = 0; i <= maxFtX; i++) {
+                const x = startX + (i * 12 * scale);
+                ctx.moveTo(x, startY);
+                ctx.lineTo(x, startY + drawH);
+            }
+            for (let i = 0; i <= maxFtY; i++) {
+                const y = startY + (i * 12 * scale);
+                ctx.moveTo(startX, y);
+                ctx.lineTo(startX + drawW, y);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // Redraw border (because clip might have eaten half the stroke width)
+            if(state.shape !== 'rect') { // Rect stroke is simple, complex shapes need redraw
+                ctx.strokeStyle = '#7c3aed';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else {
+                 ctx.strokeRect(startX, startY, drawW, drawH);
+            }
+
+            // 6. Plant Placement Logic
+            const spacingPx = state.spacingInch * scale;
+            const radiusPx = (spacingPx / 2) * 0.8;
+            let count = 0;
+
+            // Generate points over the entire Bounding Box, then filter
+            const points = [];
+            
+            if (state.method === 'square') {
+                const cols = Math.floor(boxW / state.spacingInch);
+                const rows = Math.floor(boxH / state.spacingInch);
+                
+                // Center the grid within the Bounding Box
+                const offsetX = (boxW - (cols * state.spacingInch)) / 2 + (state.spacingInch / 2);
+                const offsetY = (boxH - (rows * state.spacingInch)) / 2 + (state.spacingInch / 2);
+
+                for(let c=0; c<cols; c++) {
+                    for(let r=0; r<rows; r++) {
+                        points.push({
+                            x: offsetX + (c * state.spacingInch),
+                            y: offsetY + (r * state.spacingInch)
+                        });
+                    }
+                }
+            } else {
+                // Hex
+                const rowHeight = state.spacingInch * 0.866;
+                let y = state.spacingInch / 2;
+                let rowIdx = 0;
+                while(y <= boxH - (state.spacingInch/2) + 0.1) {
+                    let x = state.spacingInch / 2;
+                    if(rowIdx % 2 !== 0) x += state.spacingInch / 2;
+                    
+                    while(x <= boxW - (state.spacingInch/2) + 0.1) {
+                        points.push({x, y});
+                        x += state.spacingInch;
+                    }
+                    y += rowHeight;
+                    rowIdx++;
+                }
+            }
+
+            // Filter and Draw Points
+            ctx.fillStyle = 'rgba(124, 58, 237, 0.4)';
+            ctx.strokeStyle = '#a78bfa';
+            ctx.lineWidth = 1;
+
+            points.forEach(pt => {
+                if (isPointInShape(pt.x, pt.y, boxW, boxH)) {
+                    const drawX = startX + pt.x * scale;
+                    const drawY = startY + pt.y * scale;
+                    drawPlant(drawX, drawY, radiusPx);
+                    count++;
+                }
+            });
+
+            els.totalPlants.innerText = count;
+        }
+
+        // --- Helper: Point in Shape ---
+        function isPointInShape(x, y, w, h) {
+            // x, y are in inches relative to bounding box (0,0) top-left
+            
+            if (state.shape === 'rect') {
+                return true; // Already bounded by loop generation
+            }
+            
+            if (state.shape === 'circle') {
+                const r = w / 2;
+                const dx = x - r;
+                const dy = y - r;
+                return (dx*dx + dy*dy) <= (r*r);
+            }
+            
+            if (state.shape === 'lshape') {
+                // Defined as Top Bar + Left Bar
+                // Top Bar: y < thickTop
+                // Left Bar: x < thickLeft
+                const thickTop = state.lThickTop * 12;
+                const thickLeft = state.lThickLeft * 12;
+                
+                // Point is valid if it is in Top Bar OR Left Bar
+                // But wait, the shape we drew is a specific orientation.
+                // We drew: Top-Left Corner, full width top bar, full height left leg?
+                // The drawing code was:
+                // Vertices: (0,0) -> (W,0) -> (W, thickTop) -> (thickLeft, thickTop) -> (thickLeft, H) -> (0, H)
+                // This is an inverted L (gamma).
+                
+                const inTopLeg = (y <= thickTop);
+                const inLeftLeg = (x <= thickLeft);
+                
+                return inTopLeg || inLeftLeg;
+            }
+            return false;
+        }
+
+        function drawPlant(x, y, r) {
+            ctx.beginPath();
+            ctx.arc(x, y, Math.max(r, 2), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Center dot
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(x, y, 1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(124, 58, 237, 0.4)';
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
