@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Cut Optimizer | Homelab Playground</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        },
+                        wood: {
+                            50: '#f7f3ef',
+                            100: '#efe6db',
+                            200: '#dfccb6',
+                            300: '#d0b090',
+                            400: '#c0956d',
+                            500: '#b17b4f',
+                            600: '#a36440',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Animation for results */
+        .board-anim {
+            animation: slideIn 0.3s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        @keyframes slideIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-ruler-combined text-obsidian-accent text-xl"></i>
+            <h1 class="font-semibold text-lg tracking-tight text-white">Linear Cut Optimizer</h1>
+        </div>
+        <button onclick="resetTool()" class="text-xs text-gray-400 hover:text-white transition-colors">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto relative">
+        <div class="max-w-5xl mx-auto p-4 md:p-6 pb-20 space-y-6">
+
+            <div class="bg-obsidian-pane rounded-lg border border-obsidian-border p-4 md:p-5 shadow-lg">
+                <p class="text-sm text-gray-400 mb-4">
+                    Minimize waste by optimizing how you cut stock lumber. Enter your required lengths below, define your stock size, and let the algorithm do the packing.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-mono text-gray-500 uppercase">Stock Length (in)</label>
+                        <div class="relative">
+                            <input type="number" id="stockLength" value="96" class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded focus:outline-none focus:border-obsidian-accent transition-colors font-mono" placeholder="e.g. 96">
+                            <div class="absolute right-2 top-2 flex gap-1">
+                                <button onclick="setStock(96)" class="text-[10px] bg-obsidian-border hover:bg-gray-600 px-1.5 py-0.5 rounded text-gray-300">8'</button>
+                                <button onclick="setStock(120)" class="text-[10px] bg-obsidian-border hover:bg-gray-600 px-1.5 py-0.5 rounded text-gray-300">10'</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-xs font-mono text-gray-500 uppercase">Blade Width (Kerf)</label>
+                        <input type="number" id="bladeKerf" value="0.125" step="0.001" class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded focus:outline-none focus:border-obsidian-accent transition-colors font-mono" placeholder="e.g. 0.125">
+                    </div>
+
+                    <div class="flex items-end">
+                        <button onclick="calculate()" class="w-full bg-obsidian-accent hover:bg-violet-600 text-white font-medium py-2 rounded transition-colors shadow-lg shadow-violet-900/20 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-calculator"></i> Calculate Cuts
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <div class="lg:col-span-4 flex flex-col gap-4">
+                    <div class="bg-obsidian-pane rounded-lg border border-obsidian-border overflow-hidden flex flex-col h-full min-h-[300px]">
+                        <div class="p-3 border-b border-obsidian-border bg-obsidian-bg/50 flex justify-between items-center">
+                            <h2 class="text-sm font-semibold text-gray-300"><i class="fa-solid fa-clipboard-list mr-2"></i>Cut List</h2>
+                            <button onclick="addCutRow()" class="text-xs bg-obsidian-border hover:bg-gray-600 text-white px-2 py-1 rounded transition-colors">
+                                <i class="fa-solid fa-plus"></i> Add Item
+                            </button>
+                        </div>
+                        
+                        <div class="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] uppercase font-mono text-gray-500 border-b border-obsidian-border bg-obsidian-bg">
+                            <div class="col-span-2 text-center">Qty</div>
+                            <div class="col-span-8">Length (in)</div>
+                            <div class="col-span-2 text-center">Del</div>
+                        </div>
+
+                        <div id="cutListContainer" class="p-2 space-y-2 overflow-y-auto max-h-[400px]">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-8 flex flex-col gap-4">
+                    
+                    <div id="statsPanel" class="hidden grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-obsidian-pane border border-obsidian-border p-3 rounded-lg text-center">
+                            <div class="text-xs text-gray-500 uppercase font-mono mb-1">Total Boards</div>
+                            <div class="text-2xl font-bold text-white" id="totalBoardsVal">0</div>
+                        </div>
+                        <div class="bg-obsidian-pane border border-obsidian-border p-3 rounded-lg text-center">
+                            <div class="text-xs text-gray-500 uppercase font-mono mb-1">Material Used</div>
+                            <div class="text-xl font-bold text-obsidian-accent" id="materialUsedVal">0"</div>
+                        </div>
+                        <div class="bg-obsidian-pane border border-obsidian-border p-3 rounded-lg text-center">
+                            <div class="text-xs text-gray-500 uppercase font-mono mb-1">Total Waste</div>
+                            <div class="text-xl font-bold text-red-400" id="wasteVal">0"</div>
+                        </div>
+                        <div class="bg-obsidian-pane border border-obsidian-border p-3 rounded-lg text-center">
+                            <div class="text-xs text-gray-500 uppercase font-mono mb-1">Efficiency</div>
+                            <div class="text-xl font-bold text-green-400" id="efficiencyVal">0%</div>
+                        </div>
+                    </div>
+
+                    <div id="resultsArea" class="hidden bg-obsidian-pane rounded-lg border border-obsidian-border p-4 min-h-[200px]">
+                        <h3 class="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-obsidian-accent"></i> Cut Map
+                        </h3>
+                        <div id="visualizer" class="space-y-6">
+                            </div>
+                    </div>
+
+                    <div id="emptyState" class="bg-obsidian-pane rounded-lg border border-dashed border-obsidian-border p-10 flex flex-col items-center justify-center text-center h-full min-h-[300px]">
+                        <div class="w-16 h-16 bg-obsidian-bg rounded-full flex items-center justify-center mb-4 text-obsidian-border">
+                            <i class="fa-solid fa-saw text-2xl"></i>
+                        </div>
+                        <h3 class="text-gray-300 font-medium mb-1">Ready to Optimize</h3>
+                        <p class="text-sm text-gray-500 max-w-xs">Add your cuts on the left and define your stock size to see the cut diagram here.</p>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        let cutIdCounter = 0;
+        const colors = [
+            'bg-blue-600', 'bg-emerald-600', 'bg-amber-600', 'bg-rose-600', 
+            'bg-cyan-600', 'bg-fuchsia-600', 'bg-indigo-600', 'bg-lime-600'
+        ];
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add initial default rows
+            addCutRow(42, 5);
+            addCutRow(28, 3);
+        });
+
+        // --- UI Functions ---
+
+        function setStock(val) {
+            document.getElementById('stockLength').value = val;
+        }
+
+        function addCutRow(length = '', qty = 1) {
+            const container = document.getElementById('cutListContainer');
+            const id = `cut-${cutIdCounter++}`;
+            
+            const row = document.createElement('div');
+            row.id = id;
+            row.className = "grid grid-cols-12 gap-2 items-center animate-[fadeIn_0.2s_ease-out]";
+            row.innerHTML = `
+                <div class="col-span-2">
+                    <input type="number" min="1" class="qty-input w-full bg-obsidian-bg border border-obsidian-border text-white text-center px-1 py-1.5 rounded text-sm focus:border-obsidian-accent focus:outline-none" value="${qty}">
+                </div>
+                <div class="col-span-8">
+                    <input type="number" min="0.1" step="0.1" class="len-input w-full bg-obsidian-bg border border-obsidian-border text-white px-2 py-1.5 rounded text-sm focus:border-obsidian-accent focus:outline-none font-mono" placeholder="Length" value="${length}">
+                </div>
+                <div class="col-span-2 text-center">
+                    <button onclick="removeRow('${id}')" class="text-gray-500 hover:text-red-400 transition-colors p-1">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(row);
+        }
+
+        function removeRow(id) {
+            const row = document.getElementById(id);
+            if(row) row.remove();
+        }
+
+        function resetTool() {
+            document.getElementById('cutListContainer').innerHTML = '';
+            document.getElementById('resultsArea').classList.add('hidden');
+            document.getElementById('statsPanel').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+            addCutRow();
+        }
+
+        // --- Calculation Logic ---
+
+        function calculate() {
+            // 1. Gather Inputs
+            const stockLen = parseFloat(document.getElementById('stockLength').value);
+            const kerf = parseFloat(document.getElementById('bladeKerf').value) || 0;
+            
+            if (!stockLen || stockLen <= 0) {
+                alert("Please enter a valid stock length.");
+                return;
+            }
+
+            const rows = document.querySelectorAll('#cutListContainer > div');
+            let cuts = []; // Array of length numbers
+
+            rows.forEach(row => {
+                const qty = parseInt(row.querySelector('.qty-input').value) || 0;
+                const len = parseFloat(row.querySelector('.len-input').value) || 0;
+
+                if (len > stockLen) {
+                    alert(`Error: A required cut (${len}") is longer than your stock length (${stockLen}").`);
+                    cuts = []; // Abort
+                    return; 
+                }
+
+                if (qty > 0 && len > 0) {
+                    for(let i = 0; i < qty; i++) {
+                        cuts.push(len);
+                    }
+                }
+            });
+
+            if (cuts.length === 0) return;
+
+            // 2. Sort Cuts Descending (First Fit Decreasing Heuristic)
+            cuts.sort((a, b) => b - a);
+
+            // 3. Bin Packing Algorithm
+            let boards = []; // Array of objects: { cuts: [len1, len2], remaining: num }
+
+            cuts.forEach(cut => {
+                let placed = false;
+
+                // Try to fit in existing board
+                for (let board of boards) {
+                    // Check if board has enough space (Cut + Kerf if it's not the very first cut? 
+                    // Logic: Each cut after the first needs a kerf preceding it? 
+                    // Simplest logic: Subtract cut and kerf from remaining.
+                    
+                    // Actually, precise logic:
+                    // Current used space = sum(cuts) + (cuts.length - 1) * kerf
+                    // If new cut added: new used = sum + newCut + (newCount - 1) * kerf
+                    // But simpler: Treat every cut as taking (Length + Kerf), except maybe the last one?
+                    // Safe estimation: Every cut consumes Length + Kerf. 
+                    
+                    // Let's stick to standard practice: 
+                    // Space needed = cutLength.
+                    // If board is not empty, we need + kerf space before placing.
+                    
+                    let spaceNeeded = cut;
+                    if (board.cuts.length > 0) {
+                        spaceNeeded += kerf;
+                    }
+
+                    if (board.remaining >= spaceNeeded) {
+                        board.cuts.push(cut);
+                        board.remaining -= spaceNeeded;
+                        placed = true;
+                        break;
+                    }
+                }
+
+                // Create new board if not placed
+                if (!placed) {
+                    boards.push({
+                        cuts: [cut],
+                        remaining: stockLen - cut // First cut on board needs no kerf (relative to start)
+                    });
+                }
+            });
+
+            // 4. Render Results
+            renderResults(boards, stockLen, kerf);
+        }
+
+        function renderResults(boards, stockLen, kerf) {
+            const visualizer = document.getElementById('visualizer');
+            visualizer.innerHTML = '';
+
+            let totalWaste = 0;
+            let totalCutsLength = 0;
+
+            boards.forEach((board, index) => {
+                const cuts = board.cuts;
+                
+                // Calculate used width percentage for visualization
+                let htmlSegments = '';
+                let currentPos = 0;
+
+                cuts.forEach((cutLen, i) => {
+                    totalCutsLength += cutLen;
+
+                    // Color selection (cycle through)
+                    const colorClass = colors[i % colors.length];
+                    
+                    // Width % relative to stock
+                    const widthPct = (cutLen / stockLen) * 100;
+                    
+                    // Kerf rendering (if not first item)
+                    if (i > 0) {
+                        const kerfPct = (kerf / stockLen) * 100;
+                        htmlSegments += `<div class="bg-black/50 h-full border-r border-l border-white/10" style="width: ${kerfPct}%" title="Kerf: ${kerf}&quot;"></div>`;
+                        currentPos += kerf;
+                    }
+
+                    htmlSegments += `
+                        <div class="${colorClass} h-full flex items-center justify-center text-[10px] md:text-xs font-bold text-white shadow-inner hover:brightness-110 transition-all cursor-help border-r border-white/20 whitespace-nowrap overflow-hidden text-ellipsis" 
+                             style="width: ${widthPct}%" 
+                             title="Cut: ${cutLen}&quot;">
+                             ${cutLen}"
+                        </div>
+                    `;
+                    currentPos += cutLen;
+                });
+
+                // Waste Segment
+                const wasteLen = board.remaining; // This is remaining logic from loop
+                // Recalculate precise waste to be sure
+                // Used = sum(cuts) + (cuts.length-1)*kerf
+                const actualUsed = cuts.reduce((a,b)=>a+b, 0) + (cuts.length > 0 ? (cuts.length - 1) * kerf : 0);
+                const actualWaste = stockLen - actualUsed;
+                totalWaste += actualWaste;
+
+                const wastePct = (actualWaste / stockLen) * 100;
+
+                if (wastePct > 0.1) {
+                    htmlSegments += `
+                        <div class="bg-obsidian-border h-full flex items-center justify-center text-[10px] text-gray-500 pattern-diagonal-lines" 
+                             style="width: ${wastePct}%" 
+                             title="Waste: ${actualWaste.toFixed(2)}&quot;">
+                             <span class="hidden sm:inline">Waste</span>
+                        </div>
+                    `;
+                }
+
+                // Board Wrapper
+                const boardHtml = `
+                    <div class="board-anim" style="animation-delay: ${index * 0.05}s">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1 font-mono">
+                            <span>Board #${index + 1}</span>
+                            <span>Used: ${actualUsed.toFixed(2)} / ${stockLen}"</span>
+                        </div>
+                        <div class="w-full h-10 bg-obsidian-bg rounded overflow-hidden flex border border-obsidian-border relative">
+                            ${htmlSegments}
+                        </div>
+                    </div>
+                `;
+                visualizer.insertAdjacentHTML('beforeend', boardHtml);
+            });
+
+            // Update Stats
+            const totalMaterial = boards.length * stockLen;
+            const efficiency = ((totalMaterial - totalWaste) / totalMaterial) * 100;
+
+            document.getElementById('totalBoardsVal').textContent = boards.length;
+            document.getElementById('materialUsedVal').textContent = totalMaterial.toFixed(0) + '"';
+            document.getElementById('wasteVal').textContent = totalWaste.toFixed(1) + '"';
+            document.getElementById('efficiencyVal').textContent = efficiency.toFixed(1) + '%';
+            
+            // Toggle Views
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('statsPanel').classList.remove('hidden');
+            document.getElementById('statsPanel').classList.add('grid');
+            document.getElementById('resultsArea').classList.remove('hidden');
+        }
+
+    </script>
+</body>
+</html>
