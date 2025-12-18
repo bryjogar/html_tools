@@ -37,47 +37,22 @@
 
     <style>
         /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1e1e1e; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #3c3c3c; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #505050; 
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #505050; }
 
-        /* Smooth transitions */
-        .transition-all-300 {
-            transition: all 0.3s ease-in-out;
-        }
+        .transition-all-300 { transition: all 0.3s ease-in-out; }
         
-        /* Range Slider Styling */
         input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
+            -webkit-appearance: none; width: 100%; background: transparent;
         }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #7c3aed;
-            cursor: pointer;
-            margin-top: -6px;
+            -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%;
+            background: #7c3aed; cursor: pointer; margin-top: -6px;
         }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #3c3c3c;
-            border-radius: 2px;
+            width: 100%; height: 4px; cursor: pointer; background: #3c3c3c; border-radius: 2px;
         }
     </style>
 </head>
@@ -127,6 +102,10 @@
                     <i class="fa-solid fa-shuffle mr-1"></i> New Quote
                 </button>
             </div>
+            
+            <div id="notify-perm-warning" class="hidden text-xs text-yellow-500 mt-2">
+                <i class="fa-solid fa-bell-slash mr-1"></i> Notifications blocked. Enable for background alerts.
+            </div>
         </div>
 
         <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -158,12 +137,16 @@
                     </div>
 
                     <div class="border-t border-obsidian-border pt-4">
-                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-300">Sound</span>
+                         <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-300">Alert Sound</span>
                             <button id="soundToggle" onclick="toggleSound()" class="text-obsidian-accent hover:text-white transition-colors">
+                                <span id="soundLabel" class="text-xs mr-2 uppercase font-bold">On</span>
                                 <i class="fa-solid fa-volume-high text-lg" id="soundIcon"></i>
                             </button>
                         </div>
+                        <button onclick="playAlert(true)" class="w-full py-2 text-xs bg-obsidian-border hover:bg-white/10 text-white rounded transition-colors">
+                            <i class="fa-solid fa-music mr-2"></i>Test Volume
+                        </button>
                     </div>
                 </div>
             </div>
@@ -175,22 +158,47 @@
         <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
             HomeLab Playground
         </a>
-    
         <span class="hidden md:block text-obsidian-border mx-1">|</span>
-    
         <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
             <i class="fa-solid fa-mug-hot mr-1.5"></i>
             <span>Support The Tools</span>
         </a>
     </footer>
 
+    <script id="worker-script" type="javascript/worker">
+        let interval = null;
+
+        self.onmessage = function(e) {
+            const { command, duration } = e.data;
+
+            if (command === 'START') {
+                const endTime = Date.now() + (duration * 1000);
+                
+                if (interval) clearInterval(interval);
+
+                interval = setInterval(() => {
+                    const remaining = Math.ceil((endTime - Date.now()) / 1000);
+                    
+                    if (remaining <= 0) {
+                        clearInterval(interval);
+                        self.postMessage({ type: 'COMPLETE' });
+                    } else {
+                        self.postMessage({ type: 'TICK', remaining: remaining });
+                    }
+                }, 200); // Check more frequently than 1s to prevent skips, but send updates as needed
+            } 
+            else if (command === 'PAUSE' || command === 'RESET') {
+                if (interval) clearInterval(interval);
+            }
+        };
+    </script>
+
     <script>
         // --- State Management ---
         const state = {
-            mode: 'pomodoro', // pomodoro | shortBreak | longBreak
+            mode: 'pomodoro', 
             timeLeft: 25 * 60,
             isRunning: false,
-            timerId: null,
             soundEnabled: true,
             durations: {
                 pomodoro: 25,
@@ -199,7 +207,6 @@
             }
         };
 
-        // --- DOM Elements ---
         const els = {
             display: document.getElementById('timerDisplay'),
             status: document.getElementById('statusText'),
@@ -208,34 +215,85 @@
             settingsModal: document.getElementById('settingsModal'),
             settingsPanel: document.getElementById('settingsPanel'),
             soundIcon: document.getElementById('soundIcon'),
+            soundLabel: document.getElementById('soundLabel'),
             quoteText: document.getElementById('quote-text'),
-            quoteAuthor: document.getElementById('quote-author')
+            quoteAuthor: document.getElementById('quote-author'),
+            permWarning: document.getElementById('notify-perm-warning')
+        };
+
+        // --- Web Worker Setup ---
+        // Create the worker from the inline script to avoid external file dependency
+        const blob = new Blob([document.getElementById('worker-script').textContent], { type: "text/javascript" });
+        const worker = new Worker(window.URL.createObjectURL(blob));
+
+        worker.onmessage = function(e) {
+            if (e.data.type === 'TICK') {
+                // Update UI only if the second has actually changed
+                if (state.timeLeft !== e.data.remaining) {
+                    state.timeLeft = e.data.remaining;
+                    updateDisplay();
+                }
+            } else if (e.data.type === 'COMPLETE') {
+                completeTimer();
+            }
         };
 
         // --- Audio Context (Web Audio API) ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        function playAlert() {
-            if (!state.soundEnabled) return;
+        function unlockAudio() {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            // Request Notification Permission on first interaction
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    if(permission === 'denied') els.permWarning.classList.remove('hidden');
+                });
+            }
+        }
+
+        // Add unlock listener to body
+        document.body.addEventListener('click', unlockAudio, { once: true });
+        document.body.addEventListener('touchstart', unlockAudio, { once: true });
+
+        function playAlert(force = false) {
+            if (!state.soundEnabled && !force) return;
             
-            // Resume context if suspended (browser policy)
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            const oscillator = audioCtx.createOscillator();
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
 
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-            oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5); // Drop to A4
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(880, audioCtx.currentTime); 
+            osc1.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5);
 
-            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            osc2.type = 'triangle';
+            osc2.frequency.setValueAtTime(1760, audioCtx.currentTime); 
+            osc2.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
 
-            oscillator.connect(gainNode);
+            osc1.connect(gainNode);
+            osc2.connect(gainNode);
             gainNode.connect(audioCtx.destination);
 
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.5);
+            osc1.start(audioCtx.currentTime);
+            osc2.start(audioCtx.currentTime);
+            osc1.stop(audioCtx.currentTime + 0.6);
+            osc2.stop(audioCtx.currentTime + 0.6);
+        }
+
+        function sendNotification() {
+            if (Notification.permission === 'granted') {
+                new Notification("Obsidian Focus", {
+                    body: "Time is up!",
+                    icon: "https://homelabplayground.com/favicon.png"
+                });
+            }
         }
 
         // --- Timer Logic ---
@@ -250,21 +308,13 @@
             document.title = `${formatTime(state.timeLeft)} - Obsidian Focus`;
         }
 
-        function tick() {
-            if (state.timeLeft > 0) {
-                state.timeLeft--;
-                updateDisplay();
-            } else {
-                completeTimer();
-            }
-        }
-
         function completeTimer() {
             pauseTimer();
             playAlert();
+            sendNotification();
             els.status.textContent = "TIME'S UP!";
             els.status.style.opacity = '1';
-            fetchQuote(); // New quote on completion
+            fetchQuote(); 
         }
 
         function toggleTimer() {
@@ -280,23 +330,25 @@
             state.isRunning = true;
             els.toggleIcon.classList.remove('fa-play');
             els.toggleIcon.classList.add('fa-pause');
-            els.status.style.opacity = '0'; // Hide status when running
+            els.status.style.opacity = '0';
             
-            // Audio context must be resumed on user interaction
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-
-            state.timerId = setInterval(tick, 1000);
+            // Send start command to worker with duration
+            worker.postMessage({ 
+                command: 'START', 
+                duration: state.timeLeft 
+            });
         }
 
         function pauseTimer() {
             state.isRunning = false;
             els.toggleIcon.classList.remove('fa-pause');
             els.toggleIcon.classList.add('fa-play');
-            clearInterval(state.timerId);
+            worker.postMessage({ command: 'PAUSE' });
         }
 
         function resetTimer() {
             pauseTimer();
+            worker.postMessage({ command: 'RESET' }); // Clear worker interval
             state.timeLeft = state.durations[state.mode] * 60;
             updateDisplay();
             els.status.textContent = "READY TO FOCUS";
@@ -304,7 +356,6 @@
         }
 
         function switchMode(mode) {
-            // Update UI Tabs
             ['pomodoro', 'shortBreak', 'longBreak'].forEach(m => {
                 const btn = document.getElementById(`btn-${m}`);
                 if (m === mode) {
@@ -317,7 +368,6 @@
             });
 
             state.mode = mode;
-            // Update Status Text based on mode
             const statusMap = {
                 'pomodoro': 'READY TO FOCUS',
                 'shortBreak': 'TAKE A BREATHER',
@@ -342,12 +392,13 @@
                 els.soundIcon.classList.remove('fa-volume-xmark');
                 els.soundIcon.classList.add('fa-volume-high');
                 els.soundIcon.parentElement.classList.add('text-obsidian-accent');
-                playAlert(); // Test sound
+                els.soundLabel.textContent = "ON";
             } else {
                 els.soundIcon.classList.remove('fa-volume-high');
                 els.soundIcon.classList.add('fa-volume-xmark');
                 els.soundIcon.parentElement.classList.remove('text-obsidian-accent');
                 els.soundIcon.parentElement.classList.add('text-gray-500');
+                els.soundLabel.textContent = "OFF";
             }
         }
 
@@ -357,7 +408,6 @@
 
         settingsBtn.addEventListener('click', () => {
             els.settingsModal.classList.remove('hidden');
-            // Small timeout to allow display:block to apply before opacity transition
             setTimeout(() => {
                 els.settingsPanel.classList.remove('scale-95', 'opacity-0');
                 els.settingsPanel.classList.add('scale-100', 'opacity-100');
@@ -392,16 +442,13 @@
             els.quoteText.style.opacity = 0;
             els.quoteAuthor.style.opacity = 0;
 
-            let quoteData = { quote: "", author: "" };
-
+            let quoteData;
             try {
-                // Using dummyjson as it's fairly reliable and free
                 const response = await fetch('https://dummyjson.com/quotes/random');
                 if (!response.ok) throw new Error('Network error');
                 const data = await response.json();
                 quoteData = { quote: data.quote, author: data.author };
             } catch (error) {
-                // Fallback to local
                 const random = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
                 quoteData = { quote: random.q, author: random.a };
             }
@@ -416,8 +463,6 @@
 
         // --- Initialization ---
         els.toggleBtn.addEventListener('click', toggleTimer);
-        
-        // Initial setup
         fetchQuote();
         updateDisplay();
     </script>
