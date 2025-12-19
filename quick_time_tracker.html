@@ -327,8 +327,7 @@
             // Reset form but keep client selected for speed
             document.getElementById('inputActivity').value = '';
             document.getElementById('inputTicket').value = '';
-            // Optional: reset times? Let's keep them for quick sequential entry or clear them. 
-            // Clearing is safer.
+            // Reset times
             document.getElementById('inputStart').value = '';
             document.getElementById('inputEnd').value = '';
             document.getElementById('previewDuration').textContent = "0.00h";
@@ -363,10 +362,6 @@
             
             let startMin = (sH * 60) + sM;
             let endMin = (eH * 60) + eM;
-
-            // Handle overnight? Simple version assumes same day for "Quick Tracker"
-            // If end is less than start, user likely messed up or crossed midnight.
-            // For this specific tool, let's assume valid same-day inputs.
             
             let diff = endMin - startMin;
             return parseFloat((diff / 60).toFixed(2));
@@ -471,32 +466,38 @@
             document.getElementById('statUnlogged').textContent = unloggedCount;
             document.getElementById('statActiveClients').textContent = Object.keys(clientStats).length;
 
-            // Render Client Summary
+            // Render Client Summary - SORTED BY TIME DESC
             const clientBody = document.getElementById('clientSummaryBody');
             clientBody.innerHTML = '';
-            Object.keys(clientStats).sort().forEach(client => {
-                const data = clientStats[client];
-                const tr = document.createElement('tr');
-                tr.className = "border-t border-obsidian-border/50 text-sm";
-                tr.innerHTML = `
-                    <td class="py-2 px-1 text-gray-300">${client}</td>
-                    <td class="py-2 px-1 text-center font-mono text-gray-500">${data.count}</td>
-                    <td class="py-2 px-1 text-right font-mono text-white">${data.time.toFixed(2)}</td>
-                `;
-                clientBody.appendChild(tr);
+            
+            Object.keys(clientStats)
+                .sort((a, b) => clientStats[b].time - clientStats[a].time) // Sort Descending by Time
+                .forEach(client => {
+                    const data = clientStats[client];
+                    const tr = document.createElement('tr');
+                    tr.className = "border-t border-obsidian-border/50 text-sm";
+                    tr.innerHTML = `
+                        <td class="py-2 px-1 text-gray-300">${client}</td>
+                        <td class="py-2 px-1 text-center font-mono text-gray-500">${data.count}</td>
+                        <td class="py-2 px-1 text-right font-mono text-white">${data.time.toFixed(2)}</td>
+                    `;
+                    clientBody.appendChild(tr);
             });
 
-            // Render Ticket Summary
+            // Render Ticket Summary - SORTED BY TIME DESC
             const ticketBody = document.getElementById('ticketSummaryBody');
             ticketBody.innerHTML = '';
-            Object.keys(ticketStats).sort().forEach(tix => {
-                const tr = document.createElement('tr');
-                tr.className = "border-t border-obsidian-border/50 text-sm";
-                tr.innerHTML = `
-                    <td class="py-2 px-1 font-mono text-gray-300">${tix}</td>
-                    <td class="py-2 px-1 text-right font-mono text-white">${ticketStats[tix].toFixed(2)}</td>
-                `;
-                ticketBody.appendChild(tr);
+            
+            Object.keys(ticketStats)
+                .sort((a, b) => ticketStats[b] - ticketStats[a]) // Sort Descending by Time
+                .forEach(tix => {
+                    const tr = document.createElement('tr');
+                    tr.className = "border-t border-obsidian-border/50 text-sm";
+                    tr.innerHTML = `
+                        <td class="py-2 px-1 font-mono text-gray-300">${tix}</td>
+                        <td class="py-2 px-1 text-right font-mono text-white">${ticketStats[tix].toFixed(2)}</td>
+                    `;
+                    ticketBody.appendChild(tr);
             });
         }
 
