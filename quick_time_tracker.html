@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homelab Time Tracker</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b4b4b; 
+        }
+
+        /* Form Inputs */
+        input, select {
+            background-color: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            color: #cccccc;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus {
+            border-color: #7c3aed;
+        }
+        
+        /* Table Styles */
+        th {
+            background-color: #252526;
+            color: #fff;
+            text-align: left;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            border-bottom: 1px solid #3c3c3c;
+        }
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #3c3c3c;
+            font-size: 0.875rem;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-stopwatch text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg text-white tracking-wide">PSA Time Tracker</h1>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="toggleClientModal()" class="text-xs md:text-sm bg-obsidian-bg hover:bg-white/5 border border-obsidian-border text-gray-300 px-3 py-1.5 rounded transition-colors">
+                <i class="fa-solid fa-users-gear mr-1"></i> Clients
+            </button>
+            <button onclick="exportCSV()" class="text-xs md:text-sm bg-obsidian-accent hover:bg-violet-600 text-white px-3 py-1.5 rounded transition-colors shadow-lg shadow-violet-900/20">
+                <i class="fa-solid fa-file-csv mr-1"></i> Export
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-obsidian-pane border border-obsidian-border p-4 rounded-lg">
+                <div class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total Hours</div>
+                <div class="text-2xl font-mono text-white" id="statTotalHours">0.00</div>
+            </div>
+            <div class="bg-obsidian-pane border border-obsidian-border p-4 rounded-lg">
+                <div class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Total Tickets</div>
+                <div class="text-2xl font-mono text-white" id="statTotalTickets">0</div>
+            </div>
+            <div class="bg-obsidian-pane border border-obsidian-border p-4 rounded-lg">
+                <div class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Unlogged Items</div>
+                <div class="text-2xl font-mono text-obsidian-accent" id="statUnlogged">0</div>
+            </div>
+            <div class="bg-obsidian-pane border border-obsidian-border p-4 rounded-lg">
+                <div class="text-gray-500 text-xs uppercase font-bold tracking-wider mb-1">Clients Active</div>
+                <div class="text-2xl font-mono text-white" id="statActiveClients">0</div>
+            </div>
+        </div>
+
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 md:p-5">
+            <div class="flex items-center gap-2 mb-4 text-white font-medium">
+                <i class="fa-solid fa-plus-circle text-obsidian-accent"></i>
+                <h2>Add Time Entry</h2>
+            </div>
+            
+            <form id="timeForm" onsubmit="addEntry(event)" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">Client</label>
+                    <select id="inputClient" required class="w-full">
+                        <option value="" disabled selected>Select...</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-gray-500 mb-1">Ticket #</label>
+                    <input type="text" id="inputTicket" placeholder="123456" class="w-full font-mono">
+                </div>
+
+                <div class="md:col-span-4">
+                    <label class="block text-xs text-gray-500 mb-1">Activity</label>
+                    <input type="text" id="inputActivity" placeholder="Diagnostic / Repair..." class="w-full" required>
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-xs text-gray-500 mb-1">Start</label>
+                    <input type="time" id="inputStart" class="w-full text-center px-1" required onchange="calculatePreview()">
+                </div>
+
+                <div class="md:col-span-1">
+                    <label class="block text-xs text-gray-500 mb-1">End</label>
+                    <input type="time" id="inputEnd" class="w-full text-center px-1" required onchange="calculatePreview()">
+                </div>
+
+                <div class="md:col-span-2 flex gap-2">
+                    <div class="flex-1 bg-obsidian-bg border border-obsidian-border rounded flex items-center justify-center text-xs text-gray-400 font-mono" id="previewDuration">
+                        0.00h
+                    </div>
+                    <button type="submit" class="bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-2 rounded transition-colors">
+                        Add
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="lg:col-span-2 flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-white font-medium"><i class="fa-solid fa-list text-obsidian-accent mr-2"></i>Activity Log</h3>
+                    <button onclick="clearAllData()" class="text-xs text-red-400 hover:text-red-300 underline">Clear All</button>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg overflow-hidden flex-1">
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse">
+                            <thead>
+                                <tr>
+                                    <th class="w-10 text-center"><i class="fa-solid fa-check"></i></th>
+                                    <th>Client</th>
+                                    <th>Ticket</th>
+                                    <th>Activity</th>
+                                    <th class="text-right">Time</th>
+                                    <th class="text-right">Hrs</th>
+                                    <th class="w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="logTableBody">
+                                </tbody>
+                        </table>
+                    </div>
+                    <div id="emptyState" class="p-8 text-center text-gray-600 hidden">
+                        <i class="fa-regular fa-clipboard text-4xl mb-3 opacity-50"></i>
+                        <p>No entries yet today.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                
+                <div>
+                    <h3 class="text-white font-medium mb-3"><i class="fa-solid fa-chart-pie text-obsidian-accent mr-2"></i>Client Summary</h3>
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg overflow-hidden">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-white/5">
+                                    <th class="text-xs uppercase text-gray-400 font-semibold py-2">Client</th>
+                                    <th class="text-xs uppercase text-gray-400 font-semibold py-2 text-center">Tix</th>
+                                    <th class="text-xs uppercase text-gray-400 font-semibold py-2 text-right">Hrs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientSummaryBody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-white font-medium mb-3"><i class="fa-solid fa-ticket text-obsidian-accent mr-2"></i>Ticket Breakdown</h3>
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg overflow-hidden max-h-60 overflow-y-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-white/5">
+                                    <th class="text-xs uppercase text-gray-400 font-semibold py-2">Ticket #</th>
+                                    <th class="text-xs uppercase text-gray-400 font-semibold py-2 text-right">Total Hrs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ticketSummaryBody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <div id="clientModal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl w-full max-w-md p-6 m-4">
+            <h2 class="text-xl text-white font-bold mb-4">Manage Clients</h2>
+            
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="newClientName" placeholder="New Client Name" class="flex-1">
+                <button onclick="addClient()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-4 rounded">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+
+            <div class="max-h-60 overflow-y-auto border border-obsidian-border rounded bg-obsidian-bg p-2 mb-4">
+                <ul id="clientList" class="space-y-2">
+                    </ul>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="toggleClientModal()" class="text-gray-400 hover:text-white transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // State
+        let entries = JSON.parse(localStorage.getItem('timeEntries')) || [];
+        let clients = JSON.parse(localStorage.getItem('clients')) || ['MSC', 'Contoso', 'Fabrikam', 'Litware'];
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            renderClients();
+            renderEntries();
+            updateStats();
+        });
+
+        // --- Core Logic ---
+
+        function addEntry(e) {
+            e.preventDefault();
+            
+            const client = document.getElementById('inputClient').value;
+            const ticket = document.getElementById('inputTicket').value;
+            const activity = document.getElementById('inputActivity').value;
+            const start = document.getElementById('inputStart').value;
+            const end = document.getElementById('inputEnd').value;
+
+            if(!client) {
+                alert("Please select a client.");
+                return;
+            }
+
+            // Calculate duration
+            const durationDec = getDurationDecimal(start, end);
+
+            if (durationDec <= 0) {
+                alert("End time must be after start time.");
+                return;
+            }
+
+            const newEntry = {
+                id: Date.now(),
+                logged: false, // Default to unchecked
+                client,
+                ticket: ticket || 'N/A',
+                activity,
+                start,
+                end,
+                duration: durationDec
+            };
+
+            entries.push(newEntry);
+            saveData();
+            
+            // Reset form but keep client selected for speed
+            document.getElementById('inputActivity').value = '';
+            document.getElementById('inputTicket').value = '';
+            // Optional: reset times? Let's keep them for quick sequential entry or clear them. 
+            // Clearing is safer.
+            document.getElementById('inputStart').value = '';
+            document.getElementById('inputEnd').value = '';
+            document.getElementById('previewDuration').textContent = "0.00h";
+            document.getElementById('inputActivity').focus();
+
+            renderEntries();
+            updateStats();
+        }
+
+        function deleteEntry(id) {
+            if(confirm('Delete this entry?')) {
+                entries = entries.filter(e => e.id !== id);
+                saveData();
+                renderEntries();
+                updateStats();
+            }
+        }
+
+        function toggleLogged(id) {
+            const entry = entries.find(e => e.id === id);
+            if(entry) {
+                entry.logged = !entry.logged;
+                saveData();
+                updateStats(); // To update 'Unlogged' count
+            }
+        }
+
+        function getDurationDecimal(startStr, endStr) {
+            if(!startStr || !endStr) return 0;
+            const [sH, sM] = startStr.split(':').map(Number);
+            const [eH, eM] = endStr.split(':').map(Number);
+            
+            let startMin = (sH * 60) + sM;
+            let endMin = (eH * 60) + eM;
+
+            // Handle overnight? Simple version assumes same day for "Quick Tracker"
+            // If end is less than start, user likely messed up or crossed midnight.
+            // For this specific tool, let's assume valid same-day inputs.
+            
+            let diff = endMin - startMin;
+            return parseFloat((diff / 60).toFixed(2));
+        }
+
+        function calculatePreview() {
+            const start = document.getElementById('inputStart').value;
+            const end = document.getElementById('inputEnd').value;
+            const el = document.getElementById('previewDuration');
+            
+            if(start && end) {
+                const dur = getDurationDecimal(start, end);
+                if(dur > 0) {
+                    el.textContent = dur.toFixed(2) + 'h';
+                    el.classList.add('text-obsidian-accent');
+                    el.classList.remove('text-gray-400');
+                } else {
+                    el.textContent = "Invalid";
+                    el.classList.remove('text-obsidian-accent');
+                    el.classList.add('text-red-500');
+                }
+            } else {
+                el.textContent = "0.00h";
+                el.classList.remove('text-obsidian-accent', 'text-red-500');
+                el.classList.add('text-gray-400');
+            }
+        }
+
+        // --- Rendering ---
+
+        function renderEntries() {
+            const tbody = document.getElementById('logTableBody');
+            const empty = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+
+            if (entries.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            } else {
+                empty.classList.add('hidden');
+            }
+
+            // Sort by ID descending (newest first)
+            const sorted = [...entries].sort((a,b) => b.id - a.id);
+
+            sorted.forEach(entry => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-white/5 transition-colors group";
+                
+                tr.innerHTML = `
+                    <td class="text-center">
+                        <input type="checkbox" 
+                            class="accent-obsidian-accent h-4 w-4 cursor-pointer" 
+                            ${entry.logged ? 'checked' : ''} 
+                            onchange="toggleLogged(${entry.id})">
+                    </td>
+                    <td class="font-medium text-white">${entry.client}</td>
+                    <td class="font-mono text-xs text-gray-400">${entry.ticket}</td>
+                    <td class="text-gray-300 max-w-[150px] truncate" title="${entry.activity}">${entry.activity}</td>
+                    <td class="text-right font-mono text-xs text-gray-400">${entry.start} - ${entry.end}</td>
+                    <td class="text-right font-mono font-bold text-obsidian-accent">${entry.duration.toFixed(2)}</td>
+                    <td class="text-right">
+                        <button onclick="deleteEntry(${entry.id})" class="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateStats() {
+            // Aggregation objects
+            const clientStats = {};
+            const ticketStats = {};
+            let totalHours = 0;
+            let unloggedCount = 0;
+
+            entries.forEach(e => {
+                // Global Totals
+                totalHours += e.duration;
+                if(!e.logged) unloggedCount++;
+
+                // Client Stats
+                if(!clientStats[e.client]) {
+                    clientStats[e.client] = { time: 0, tickets: new Set(), count: 0 };
+                }
+                clientStats[e.client].time += e.duration;
+                clientStats[e.client].count++;
+                if(e.ticket !== 'N/A') clientStats[e.client].tickets.add(e.ticket);
+
+                // Ticket Stats
+                if(e.ticket !== 'N/A') {
+                    if(!ticketStats[e.ticket]) ticketStats[e.ticket] = 0;
+                    ticketStats[e.ticket] += e.duration;
+                }
+            });
+
+            // Update Top Cards
+            document.getElementById('statTotalHours').textContent = totalHours.toFixed(2);
+            document.getElementById('statTotalTickets').textContent = entries.length;
+            document.getElementById('statUnlogged').textContent = unloggedCount;
+            document.getElementById('statActiveClients').textContent = Object.keys(clientStats).length;
+
+            // Render Client Summary
+            const clientBody = document.getElementById('clientSummaryBody');
+            clientBody.innerHTML = '';
+            Object.keys(clientStats).sort().forEach(client => {
+                const data = clientStats[client];
+                const tr = document.createElement('tr');
+                tr.className = "border-t border-obsidian-border/50 text-sm";
+                tr.innerHTML = `
+                    <td class="py-2 px-1 text-gray-300">${client}</td>
+                    <td class="py-2 px-1 text-center font-mono text-gray-500">${data.count}</td>
+                    <td class="py-2 px-1 text-right font-mono text-white">${data.time.toFixed(2)}</td>
+                `;
+                clientBody.appendChild(tr);
+            });
+
+            // Render Ticket Summary
+            const ticketBody = document.getElementById('ticketSummaryBody');
+            ticketBody.innerHTML = '';
+            Object.keys(ticketStats).sort().forEach(tix => {
+                const tr = document.createElement('tr');
+                tr.className = "border-t border-obsidian-border/50 text-sm";
+                tr.innerHTML = `
+                    <td class="py-2 px-1 font-mono text-gray-300">${tix}</td>
+                    <td class="py-2 px-1 text-right font-mono text-white">${ticketStats[tix].toFixed(2)}</td>
+                `;
+                ticketBody.appendChild(tr);
+            });
+        }
+
+        // --- Client Management ---
+
+        function toggleClientModal() {
+            const m = document.getElementById('clientModal');
+            m.classList.toggle('hidden');
+            if(!m.classList.contains('hidden')) {
+                renderClientList();
+            }
+        }
+
+        function renderClients() {
+            const select = document.getElementById('inputClient');
+            // Save current selection if any
+            const current = select.value;
+            
+            select.innerHTML = '<option value="" disabled selected>Select...</option>';
+            clients.sort().forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                select.appendChild(opt);
+            });
+            
+            if(current && clients.includes(current)) select.value = current;
+        }
+
+        function renderClientList() {
+            const list = document.getElementById('clientList');
+            list.innerHTML = '';
+            clients.forEach(c => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-obsidian-pane p-2 rounded border border-obsidian-border";
+                li.innerHTML = `
+                    <span class="text-gray-300">${c}</span>
+                    <button onclick="removeClient('${c}')" class="text-red-400 hover:text-red-300 px-2">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function addClient() {
+            const input = document.getElementById('newClientName');
+            const val = input.value.trim();
+            if(val && !clients.includes(val)) {
+                clients.push(val);
+                localStorage.setItem('clients', JSON.stringify(clients));
+                input.value = '';
+                renderClientList();
+                renderClients();
+            }
+        }
+
+        function removeClient(name) {
+            if(confirm(`Remove client "${name}" from list? (History will remain)`)) {
+                clients = clients.filter(c => c !== name);
+                localStorage.setItem('clients', JSON.stringify(clients));
+                renderClientList();
+                renderClients();
+            }
+        }
+
+        // --- Persistence & Export ---
+
+        function saveData() {
+            localStorage.setItem('timeEntries', JSON.stringify(entries));
+        }
+
+        function clearAllData() {
+            if(confirm("Are you sure you want to clear ALL time entries? This cannot be undone.")) {
+                entries = [];
+                saveData();
+                renderEntries();
+                updateStats();
+            }
+        }
+
+        function exportCSV() {
+            if(entries.length === 0) {
+                alert("No data to export.");
+                return;
+            }
+            
+            // Header
+            let csvContent = "data:text/csv;charset=utf-8,Logged,Client,Ticket,Activity,Start Time,End Time,Decimal Hours\n";
+            
+            // Rows
+            entries.forEach(e => {
+                const row = [
+                    e.logged,
+                    `"${e.client}"`, // Quote strings to handle commas
+                    `"${e.ticket}"`,
+                    `"${e.activity}"`,
+                    e.start,
+                    e.end,
+                    e.duration
+                ].join(",");
+                csvContent += row + "\n";
+            });
+
+            // Download Trigger
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            const dateStr = new Date().toISOString().split('T')[0];
+            link.setAttribute("download", `time_tracker_${dateStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+    </script>
+</body>
+</html>
