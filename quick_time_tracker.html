@@ -277,7 +277,8 @@
     <script>
         // State
         let entries = JSON.parse(localStorage.getItem('timeEntries')) || [];
-        let clients = JSON.parse(localStorage.getItem('clients')) || ['MSC', 'Contoso', 'Fabrikam', 'Litware'];
+        // Updated default clients: removed MSC, kept Contoso, Fabrikam, Litware
+        let clients = JSON.parse(localStorage.getItem('clients')) || ['Contoso', 'Fabrikam', 'Litware'];
 
         // Init
         document.addEventListener('DOMContentLoaded', () => {
