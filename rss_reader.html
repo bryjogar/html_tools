@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homelab RSS Reader v1.3</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050;
+        }
+        
+        /* Utility */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .heart-beat:active {
+            transform: scale(1.2);
+            transition: transform 0.1s;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-rss text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-white">RSS<span class="text-obsidian-accent">Flow</span></h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="app.refreshFeeds()" class="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center transition-colors text-gray-400 hover:text-white" title="Refresh All">
+                <i class="fa-solid fa-rotate-right" id="refreshIcon"></i>
+            </button>
+            <button onclick="app.toggleSidebar()" class="md:hidden w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center transition-colors text-gray-400 hover:text-white">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <aside id="sidebar" class="absolute md:relative z-20 inset-y-0 left-0 w-72 bg-obsidian-pane border-r border-obsidian-border transform -translate-x-full md:translate-x-0 transition-transform duration-300 flex flex-col h-full shadow-2xl md:shadow-none">
+            
+            <div class="p-4 border-b border-obsidian-border shrink-0">
+                <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Add Subscription</label>
+                <div class="flex gap-2">
+                    <input type="text" id="feedUrl" placeholder="RSS URL..." class="flex-1 bg-obsidian-bg text-sm text-white px-3 py-2 rounded border border-obsidian-border focus:border-obsidian-accent focus:outline-none font-mono placeholder-gray-600">
+                    <button onclick="app.addFeed()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-3 py-2 rounded transition-colors">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+                <div id="addError" class="text-red-400 text-xs mt-2 hidden">Invalid URL or Feed</div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-2">
+                <div class="mb-2 pb-2 border-b border-obsidian-border/50">
+                    <div onclick="app.filterFeed('all')" class="cursor-pointer px-3 py-2 rounded mb-1 hover:bg-white/5 transition-colors flex items-center justify-between group active-feed-item" data-id="all">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <i class="fa-solid fa-layer-group text-blue-400 text-xs w-4"></i>
+                            <span class="text-sm font-medium truncate">All Feeds</span>
+                        </div>
+                        <span id="totalCount" class="text-xs text-gray-500 bg-obsidian-bg px-1.5 py-0.5 rounded">0</span>
+                    </div>
+
+                    <div onclick="app.filterFeed('favorites')" class="cursor-pointer px-3 py-2 rounded mb-1 hover:bg-white/5 transition-colors flex items-center justify-between group active-feed-item" data-id="favorites">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <i class="fa-solid fa-heart text-pink-500 text-xs w-4"></i>
+                            <span class="text-sm font-medium truncate">Favorites</span>
+                        </div>
+                        <span id="favCount" class="text-xs text-gray-500 bg-obsidian-bg px-1.5 py-0.5 rounded">0</span>
+                    </div>
+                </div>
+                
+                <div id="feedListContainer" class="space-y-0.5">
+                    </div>
+            </div>
+
+            <div class="p-3 border-t border-obsidian-border text-center shrink-0">
+                <button onclick="app.markAllRead()" class="text-xs text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-check-double mr-1"></i> Mark All Read
+                </button>
+            </div>
+        </aside>
+
+        <div id="sidebarOverlay" onclick="app.toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden glass"></div>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-obsidian-bg relative">
+            
+            <div class="relative z-30 h-10 border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 bg-obsidian-bg/95 backdrop-blur-sm shadow-sm">
+                <span id="currentFilter" class="text-xs font-mono text-gray-500">View: All Feeds</span>
+                <div class="flex gap-2 text-xs">
+                    <button onclick="app.toggleShowRead()" id="toggleReadBtn" class="cursor-pointer text-gray-500 hover:text-obsidian-accent transition-colors flex items-center px-2 py-1 rounded hover:bg-white/5">
+                        <i class="fa-regular fa-eye-slash mr-1"></i> <span id="toggleReadText">Hide Read</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="loader" class="hidden absolute inset-0 bg-obsidian-bg z-50 flex flex-col items-center justify-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-obsidian-accent text-3xl mb-3"></i>
+                <p class="text-gray-500 text-sm animate-pulse">Syncing Feeds...</p>
+            </div>
+
+            <div id="emptyState" class="hidden absolute inset-x-0 bottom-0 top-10 z-0 flex flex-col items-center justify-center text-gray-600 pb-20">
+                <i class="fa-solid fa-mug-hot text-4xl mb-4 text-obsidian-border"></i>
+                <p class="text-sm">No articles found.</p>
+                <p class="text-xs mt-2">Add a feed or refresh to get started.</p>
+                <div id="storageWarning" class="hidden mt-4 text-amber-600 bg-amber-900/20 px-3 py-2 rounded text-xs border border-amber-800">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Storage blocked by browser.
+                </div>
+            </div>
+
+            <div id="articlesContainer" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 z-10 relative">
+                </div>
+        </main>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        const app = {
+            feeds: [],
+            articles: [],
+            readItems: new Set(),
+            favoriteItems: new Set(),
+            currentFilter: 'all',
+            showRead: false,
+            // Using rss2json to bypass CORS issues for a frontend-only app
+            proxyBase: 'https://api.rss2json.com/v1/api.json?rss_url=',
+            storageAvailable: true,
+
+            init() {
+                this.checkStorage();
+                this.loadState();
+                this.renderFeedList();
+                this.refreshFeeds();
+            },
+
+            // Safe Storage Wrapper to prevent crashes
+            checkStorage() {
+                try {
+                    localStorage.setItem('test', 'test');
+                    localStorage.removeItem('test');
+                    this.storageAvailable = true;
+                } catch (e) {
+                    console.warn('Storage blocked:', e);
+                    this.storageAvailable = false;
+                    const warning = document.getElementById('storageWarning');
+                    if(warning) warning.classList.remove('hidden');
+                }
+            },
+
+            safeSave(key, value) {
+                if(!this.storageAvailable) return;
+                try {
+                    localStorage.setItem(key, value);
+                } catch(e) {
+                    console.error('Save failed', e);
+                }
+            },
+
+            loadState() {
+                if(!this.storageAvailable) {
+                    this.feeds = [
+                        { url: 'https://feeds.feedburner.com/TechCrunch', title: 'TechCrunch', id: 'techcrunch' },
+                        { url: 'https://news.ycombinator.com/rss', title: 'Hacker News', id: 'hackernews' }
+                    ];
+                    return;
+                }
+
+                const savedFeeds = localStorage.getItem('hl_rss_feeds');
+                const savedRead = localStorage.getItem('hl_rss_read');
+                const savedFavs = localStorage.getItem('hl_rss_favorites');
+                
+                if (savedFeeds) this.feeds = JSON.parse(savedFeeds);
+                if (savedRead) this.readItems = new Set(JSON.parse(savedRead));
+                if (savedFavs) this.favoriteItems = new Set(JSON.parse(savedFavs));
+
+                // Default Feeds if empty
+                if (this.feeds.length === 0) {
+                    this.feeds = [
+                        { url: 'https://feeds.feedburner.com/TechCrunch', title: 'TechCrunch', id: 'techcrunch' },
+                        { url: 'https://news.ycombinator.com/rss', title: 'Hacker News', id: 'hackernews' }
+                    ];
+                }
+            },
+
+            saveState() {
+                this.safeSave('hl_rss_feeds', JSON.stringify(this.feeds));
+                this.safeSave('hl_rss_read', JSON.stringify([...this.readItems]));
+                this.safeSave('hl_rss_favorites', JSON.stringify([...this.favoriteItems]));
+            },
+
+            async addFeed() {
+                const input = document.getElementById('feedUrl');
+                const errorMsg = document.getElementById('addError');
+                const url = input.value.trim();
+
+                if (!url) return;
+
+                errorMsg.classList.add('hidden');
+                
+                try {
+                    // Validate feed via fetch
+                    const res = await fetch(`${this.proxyBase}${encodeURIComponent(url)}`);
+                    const data = await res.json();
+
+                    if (data.status === 'ok') {
+                        const newFeed = {
+                            url: url,
+                            title: data.feed.title || 'Untitled Feed',
+                            id: Date.now().toString()
+                        };
+                        this.feeds.push(newFeed);
+                        this.saveState();
+                        input.value = '';
+                        this.renderFeedList();
+                        this.refreshFeeds();
+                    } else {
+                        throw new Error('Invalid Feed');
+                    }
+                } catch (e) {
+                    errorMsg.classList.remove('hidden');
+                    console.error(e);
+                }
+            },
+
+            removeFeed(id, event) {
+                event.stopPropagation();
+                if(!confirm('Remove this feed?')) return;
+                
+                this.feeds = this.feeds.filter(f => f.id !== id);
+                this.articles = this.articles.filter(a => a.feedId !== id);
+                
+                this.saveState();
+                this.renderFeedList();
+                this.renderArticles();
+            },
+
+            async refreshFeeds() {
+                const loader = document.getElementById('loader');
+                const refreshIcon = document.getElementById('refreshIcon');
+                
+                loader.classList.remove('hidden');
+                refreshIcon.classList.add('fa-spin');
+
+                let allArticles = [];
+
+                const promises = this.feeds.map(async (feed) => {
+                    try {
+                        const res = await fetch(`${this.proxyBase}${encodeURIComponent(feed.url)}`);
+                        const data = await res.json();
+                        
+                        if(data.status === 'ok') {
+                            return data.items.map(item => ({
+                                ...item,
+                                feedTitle: feed.title,
+                                feedId: feed.id,
+                                timestamp: new Date(item.pubDate).getTime(),
+                                id: this.generateHash(item.link || item.guid)
+                            }));
+                        }
+                    } catch (e) {
+                        console.error(`Failed to fetch ${feed.url}`, e);
+                    }
+                    return [];
+                });
+
+                const results = await Promise.all(promises);
+                results.forEach(items => {
+                    if(items) allArticles = [...allArticles, ...items];
+                });
+
+                this.articles = allArticles.sort((a, b) => b.timestamp - a.timestamp);
+                
+                loader.classList.add('hidden');
+                refreshIcon.classList.remove('fa-spin');
+                
+                this.renderArticles();
+                this.updateCounts();
+            },
+
+            renderFeedList() {
+                const container = document.getElementById('feedListContainer');
+                if(!container) return; 
+                container.innerHTML = '';
+
+                this.feeds.forEach(feed => {
+                    const div = document.createElement('div');
+                    div.className = `cursor-pointer px-3 py-2 rounded mb-1 hover:bg-white/5 transition-colors flex items-center justify-between group ${this.currentFilter === feed.id ? 'bg-white/10 text-white' : 'text-gray-400'}`;
+                    div.onclick = () => this.filterFeed(feed.id);
+                    
+                    div.innerHTML = `
+                        <div class="flex items-center gap-3 overflow-hidden flex-1">
+                             <div class="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+                                <img src="https://www.google.com/s2/favicons?domain=${this.extractDomain(feed.url)}" 
+                                     class="w-4 h-4 opacity-70" 
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                                <i class="fa-solid fa-rss text-xs text-obsidian-accent hidden"></i>
+                            </div>
+                            <span class="text-sm truncate">${feed.title}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                             <span class="text-xs bg-obsidian-bg px-1.5 py-0.5 rounded opacity-50 count-badge" data-feed-id="${feed.id}">0</span>
+                             <button onclick="app.removeFeed('${feed.id}', event)" class="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity p-1">
+                                <i class="fa-solid fa-times text-xs"></i>
+                             </button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            },
+
+            renderArticles() {
+                const container = document.getElementById('articlesContainer');
+                const emptyState = document.getElementById('emptyState');
+                
+                if (!container || !emptyState) return; 
+
+                let filtered = this.articles;
+
+                // 1. Filter by Feed or Favorites
+                if (this.currentFilter === 'favorites') {
+                    filtered = filtered.filter(a => this.favoriteItems.has(a.id));
+                } else if (this.currentFilter !== 'all') {
+                    filtered = filtered.filter(a => a.feedId === this.currentFilter);
+                }
+
+                // 2. Filter by Read Status
+                if (!this.showRead) {
+                    filtered = filtered.filter(a => !this.readItems.has(a.id));
+                }
+
+                if (filtered.length === 0) {
+                    container.innerHTML = '';
+                    container.classList.add('hidden');
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+                
+                emptyState.classList.add('hidden');
+                container.classList.remove('hidden');
+                container.innerHTML = '';
+
+                filtered.forEach(article => {
+                    const isRead = this.readItems.has(article.id);
+                    const isFav = this.favoriteItems.has(article.id);
+                    const dateStr = new Date(article.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+
+                    const card = document.createElement('div');
+                    card.className = `bg-obsidian-pane border border-obsidian-border rounded-lg p-4 transition-all hover:border-obsidian-accent/50 fade-in ${isRead ? 'opacity-50 grayscale-[0.5]' : ''}`;
+                    
+                    let snippet = '';
+                    if(article.description) {
+                         snippet = article.description.replace(/<[^>]*>?/gm, '').substring(0, 150) + '...';
+                    }
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-mono text-obsidian-accent bg-obsidian-accent/10 px-2 py-0.5 rounded">${article.feedTitle}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-500">${dateStr}</span>
+                            </div>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-200 mb-2 leading-tight">
+                            <a href="${article.link}" target="_blank" class="hover:text-obsidian-accent transition-colors">${article.title}</a>
+                        </h3>
+                        
+                        <p class="text-sm text-gray-400 mb-4 line-clamp-2">${snippet}</p>
+
+                        <div class="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                            <div class="flex items-center gap-2">
+                                <button onclick="app.toggleRead('${article.id}')" class="text-xs flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${isRead ? 'text-gray-500 hover:text-gray-300' : 'text-obsidian-accent hover:bg-obsidian-accent/10'}">
+                                    <i class="fa-solid ${isRead ? 'fa-circle-check' : 'fa-circle'}"></i>
+                                    ${isRead ? 'Read' : 'Mark Done'}
+                                </button>
+                                
+                                <button onclick="app.toggleFavorite('${article.id}')" class="heart-beat w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isFav ? 'text-pink-500 bg-pink-500/10' : 'text-gray-600 hover:text-pink-400 hover:bg-white/5'}" title="Toggle Favorite">
+                                    <i class="fa-${isFav ? 'solid' : 'regular'} fa-heart"></i>
+                                </button>
+                            </div>
+
+                            <a href="${article.link}" target="_blank" class="text-xs text-gray-400 hover:text-white flex items-center gap-1.5 transition-colors">
+                                Read <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                            </a>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+
+            toggleRead(id) {
+                if (this.readItems.has(id)) {
+                    this.readItems.delete(id);
+                } else {
+                    this.readItems.add(id);
+                }
+                this.saveState();
+                this.renderArticles();
+                this.updateCounts();
+            },
+
+            toggleFavorite(id) {
+                if (this.favoriteItems.has(id)) {
+                    this.favoriteItems.delete(id);
+                } else {
+                    this.favoriteItems.add(id);
+                }
+                this.saveState();
+                this.renderArticles();
+                this.updateCounts();
+            },
+
+            markAllRead() {
+                if(!confirm('Mark visible articles as read?')) return;
+                
+                let targets = this.articles;
+                if(this.currentFilter === 'favorites') {
+                    targets = targets.filter(a => this.favoriteItems.has(a.id));
+                } else if(this.currentFilter !== 'all') {
+                    targets = targets.filter(a => a.feedId === this.currentFilter);
+                }
+
+                targets.forEach(a => this.readItems.add(a.id));
+                this.saveState();
+                this.renderArticles();
+                this.updateCounts();
+            },
+
+            toggleShowRead() {
+                this.showRead = !this.showRead;
+                const btnText = document.getElementById('toggleReadText');
+                const btnIcon = document.querySelector('#toggleReadBtn i');
+                
+                if (this.showRead) {
+                    btnText.innerText = 'Hide Read';
+                    btnIcon.className = 'fa-regular fa-eye-slash mr-1';
+                } else {
+                    btnText.innerText = 'Show Read';
+                    btnIcon.className = 'fa-regular fa-eye mr-1';
+                }
+                this.renderArticles();
+            },
+
+            filterFeed(id) {
+                this.currentFilter = id;
+                
+                document.querySelectorAll('.active-feed-item').forEach(el => {
+                    el.classList.remove('bg-white/10', 'text-white');
+                    el.classList.add('text-gray-400');
+                });
+
+                const activeEl = document.querySelector(`.active-feed-item[data-id="${id}"]`) 
+                              || document.querySelector(`button[onclick="app.removeFeed('${id}', event)"]`)?.closest('.group');
+                
+                if(activeEl) {
+                    activeEl.classList.add('bg-white/10', 'text-white');
+                    activeEl.classList.remove('text-gray-400');
+                }
+
+                const filterTitle = document.getElementById('currentFilter');
+                if (id === 'all') filterTitle.innerText = 'View: All Feeds';
+                else if (id === 'favorites') filterTitle.innerText = 'View: Favorites';
+                else {
+                     const feed = this.feeds.find(f => f.id === id);
+                     filterTitle.innerText = `View: ${feed ? feed.title : 'Feed'}`;
+                }
+
+                const sidebar = document.getElementById('sidebar');
+                if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
+                    this.toggleSidebar();
+                }
+
+                this.renderArticles();
+            },
+
+            toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                sidebar.classList.toggle('-translate-x-full');
+                overlay.classList.toggle('hidden');
+            },
+
+            updateCounts() {
+                // Update 'All' count (unread only)
+                const unreadTotal = this.articles.filter(a => !this.readItems.has(a.id)).length;
+                document.getElementById('totalCount').innerText = unreadTotal;
+
+                // Update 'Favorites' count
+                const favTotal = this.favoriteItems.size;
+                document.getElementById('favCount').innerText = favTotal;
+
+                // Update individual counts
+                const badges = document.querySelectorAll('.count-badge');
+                badges.forEach(badge => {
+                    const fid = badge.getAttribute('data-feed-id');
+                    const count = this.articles.filter(a => a.feedId === fid && !this.readItems.has(a.id)).length;
+                    badge.innerText = count;
+                    badge.style.opacity = count > 0 ? '1' : '0.5';
+                });
+            },
+
+            // Helpers
+            generateHash(str) {
+                let hash = 0;
+                if(!str) return Math.random().toString();
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return hash.toString();
+            },
+
+            extractDomain(url) {
+                try {
+                    return new URL(url).hostname;
+                } catch {
+                    return 'google.com';
+                }
+            }
+        };
+
+        // Start
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
