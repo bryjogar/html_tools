@@ -221,7 +221,7 @@
                     <button onclick="setTool('tag')" id="tool-tag" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
                         <i class="fa-solid fa-tags"></i> Add Tag
                     </button>
-                    <button onclick="setTool('lag')" id="tool-lag" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
+                     <button onclick="setTool('lag')" id="tool-lag" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
                         <i class="fa-solid fa-link"></i> Assign LAG
                     </button>
                     <button onclick="setTool('poe')" id="tool-poe" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
@@ -363,7 +363,39 @@
             routedInterfaces: [
                 { id: 'vlan-1', ip: '192.168.1.2/24' } // Default mgmt
             ],
-            global: { hostname: 'SWITCH-01', gateway: '192.168.1.1', dns: '8.8.8.8', ntp: 'pool.ntp.org', customConfig: '', snmpLocation: '', snmpContact: '' }
+            global: { 
+                hostname: 'SWITCH-01', 
+                gateway: '192.168.1.1', 
+                dns: ['8.8.8.8'], // Array for multiple DNS servers
+                ntp: [{ server: 'pool.ntp.org', priority: null }], // Array for multiple NTP servers with priorities
+                timezone: { offset: null, zone: null }, // e.g., { offset: -360, zone: 'CST' }
+                daylightTime: null, // e.g., 'continental-us-and-canada'
+                customConfig: '', 
+                snmpLocation: '', 
+                snmpContact: '',
+                snmpSysname: '',
+                snmpCommunities: [], // [{ community: 'string', access: 'ro'|'rw'|'operator'|'unrestricted' }]
+                snmpUsers: [], // [{ username: 'string', auth: 'string', priv: 'string' }]
+                snmpHosts: [], // [{ host: 'ip', community: 'string', version: 'v2'|'v3' }]
+                ipRouting: true,
+                ipHttpPort: null,
+                ipHttpSecurePort: null,
+                ipSshEnabled: null,
+                ipSshTimeout: null,
+                ipTelnetEnabled: null,
+                consoleTimeout: null,
+                stackMember: null, // e.g., { unit: 1, member: 4 }
+                managerRegistrar: null, // Ruckus: { device: 'string', ip: 'string', port: number }
+                mirrorPort: null, // HP: { mirrorId: number, port: number }
+                igmpQuerier: { enabled: false, queryInterval: null },
+                classofservice: { // Netgear/Dell
+                    dot1pMapping: [], // [{ dot1p: number, queue: number }]
+                    ipDscpMapping: [], // [{ dscp: number, queue: number }]
+                    trust: null // 'ip-dscp' | 'dot1p' | null
+                },
+                cosQueue: { strict: [] }, // Array of queue numbers
+                routerProtocols: { rip: false, ospf: false, ipv6Ospf: false }
+            }
         };
 
         // --- DOM Elements ---
@@ -544,7 +576,7 @@
             }
             renderAllPorts();
         }
-        
+
         function updateLabel(portNum, text) { 
             if(!state.ports[portNum]) state.ports[portNum]={}; state.ports[portNum].customLabel = text; renderAllPorts(); 
         }
@@ -643,7 +675,28 @@
         function importJson(input) {
             const file = input.files[0]; if(!file) return;
             const r = new FileReader();
-            r.onload = e => { try { state = JSON.parse(e.target.result); init(); alert('Loaded'); } catch(e){alert('Error');} };
+            r.onload = e => { 
+                try { 
+                    const loaded = JSON.parse(e.target.result);
+                    // Merge loaded state, ensuring arrays are initialized
+                    state = loaded;
+                    // Ensure arrays exist
+                    if (!state.global.dns || !Array.isArray(state.global.dns)) state.global.dns = state.global.dns ? [state.global.dns] : ['8.8.8.8'];
+                    if (!state.global.ntp || !Array.isArray(state.global.ntp)) state.global.ntp = state.global.ntp ? [{ server: state.global.ntp, priority: null }] : [{ server: 'pool.ntp.org', priority: null }];
+                    if (!state.global.snmpCommunities || !Array.isArray(state.global.snmpCommunities)) state.global.snmpCommunities = [];
+                    if (!state.global.snmpUsers || !Array.isArray(state.global.snmpUsers)) state.global.snmpUsers = [];
+                    if (!state.global.snmpHosts || !Array.isArray(state.global.snmpHosts)) state.global.snmpHosts = [];
+                    if (!state.global.classofservice) state.global.classofservice = { dot1pMapping: [], ipDscpMapping: [], trust: null };
+                    if (!state.global.cosQueue) state.global.cosQueue = { strict: [] };
+                    if (!state.routedInterfaces || !Array.isArray(state.routedInterfaces)) {
+                        state.routedInterfaces = [{ id: 'vlan-1', ip: '' }];
+                    }
+                    init(); 
+                    alert('Configuration loaded successfully!'); 
+                } catch(e){
+                    alert('Error loading JSON: ' + e.message); 
+                } 
+            };
             r.readAsText(file); input.value = '';
         }
 
@@ -716,15 +769,15 @@
             const lines = text.split('\n').map(l => l.trim());
             let detectedBrand = null;
             
-            // Detect brand
-            if (text.match(/hostname\s+["']?[\w-]+["']?/i) && text.match(/vlan\s+\d+/i) && text.match(/(untagged|tagged)\s+[\d,\s-]+/i)) {
-                if (text.match(/trunk\s+\d+.*trk\d+/i) || text.match(/spanning-tree force-version/i)) {
-                    detectedBrand = 'aruba';
-                } else if (text.match(/lag\s+["'].*["']/i) || text.match(/router-interface ve/i)) {
-                    detectedBrand = 'ruckus';
-                } else if (text.match(/interface lag/i) || text.match(/switchport mode/i)) {
-                    detectedBrand = 'netgear';
-                }
+            // Detect brand - improved detection
+            if (text.match(/PowerConnect|Dell/i) || text.match(/interface ethernet 1\/[gx]/i) || text.match(/switchport general pvid/i)) {
+                detectedBrand = 'dell';
+            } else if (text.match(/trunk\s+\d+.*trk\d+/i) || text.match(/spanning-tree force-version/i) || text.match(/loop-protect/i)) {
+                detectedBrand = 'aruba';
+            } else if (text.match(/lag\s+["'].*["']/i) || text.match(/router-interface ve/i) || text.match(/stack unit/i) || text.match(/ethe 1\/1\//i)) {
+                detectedBrand = 'ruckus';
+            } else if (text.match(/interface lag/i) || text.match(/vlan pvid/i) || text.match(/M4300/i) || text.match(/interface 1\/0\//i)) {
+                detectedBrand = 'netgear';
             }
             
             if (!detectedBrand) {
@@ -744,28 +797,114 @@
             state.activeVlanId = 'vlan-1';
             state.activeLagId = null;
             
-            // Parse global settings
+            // Initialize global arrays
+            state.global.dns = [];
+            state.global.ntp = [];
+            state.global.snmpCommunities = [];
+            state.global.snmpUsers = [];
+            state.global.snmpHosts = [];
+            state.global.classofservice = { dot1pMapping: [], ipDscpMapping: [], trust: null };
+            state.global.cosQueue = { strict: [] };
+            
+            // Parse global settings - common across vendors
             const hostnameMatch = text.match(/hostname\s+["']?([\w-]+)["']?/i);
             if (hostnameMatch) state.global.hostname = hostnameMatch[1];
             
             const gatewayMatch = text.match(/ip\s+(?:default-)?gateway\s+(\d+\.\d+\.\d+\.\d+)/i) || 
-                                  text.match(/ip\s+route\s+0\.0\.0\.0\s+0\.0\.0\.0\s+(\d+\.\d+\.\d+\.\d+)/i);
+                                  text.match(/ip\s+route\s+0\.0\.0\.0\s+0\.0\.0\.0\s+(\d+\.\d+\.\d+\.\d+)/i) ||
+                                  text.match(/ip\s+route\s+0\.0\.0\.0\/0\s+(\d+\.\d+\.\d+\.\d+)/i);
             if (gatewayMatch) state.global.gateway = gatewayMatch[1];
             
-            const dnsMatch = text.match(/ip\s+name-server\s+(\d+\.\d+\.\d+\.\d+)/i) || 
-                            text.match(/dns-server\s+(\d+\.\d+\.\d+\.\d+)/i);
-            if (dnsMatch) state.global.dns = dnsMatch[1];
+            // DNS - multiple servers possible
+            const dnsMatches = text.matchAll(/ip\s+(?:dns\s+)?server-address\s+(\d+\.\d+\.\d+\.\d+)/gi);
+            for (const match of dnsMatches) {
+                state.global.dns.push(match[1]);
+            }
+            if (state.global.dns.length === 0) {
+                const singleDns = text.match(/ip\s+name-server\s+(\d+\.\d+\.\d+\.\d+)/i);
+                if (singleDns) state.global.dns.push(singleDns[1]);
+            }
             
-            const ntpMatch = text.match(/sntp\s+server\s+([\w\.-]+)/i) || 
-                           text.match(/ntp\s+server\s+([\w\.-]+)/i);
-            if (ntpMatch) state.global.ntp = ntpMatch[1];
+            // NTP - multiple servers with priorities
+            const ntpMatches = text.matchAll(/sntp\s+server\s+(?:priority\s+\d+\s+)?(\d+\.\d+\.\d+\.\d+|\S+)/gi);
+            for (const match of ntpMatches) {
+                const priorityMatch = match[0].match(/priority\s+(\d+)/i);
+                state.global.ntp.push({ server: match[1], priority: priorityMatch ? parseInt(priorityMatch[1]) : null });
+            }
+            if (state.global.ntp.length === 0) {
+                const ntpMatch = text.match(/ntp\s+server\s+(\S+)/i);
+                if (ntpMatch) state.global.ntp.push({ server: ntpMatch[1], priority: null });
+            }
             
-            // SNMP parsing
-            const snmpLocMatch = text.match(/snmp-server\s+location\s+["']?([^"'\n]+)["']?/i);
+            // SNMP parsing - comprehensive
+            const snmpLocMatch = text.match(/snmp-server\s+(?:sysname|location)\s+["']?([^"'\n]+)["']?/i);
             if (snmpLocMatch) state.global.snmpLocation = snmpLocMatch[1].trim();
             
             const snmpContactMatch = text.match(/snmp-server\s+contact\s+["']?([^"'\n]+)["']?/i);
             if (snmpContactMatch) state.global.snmpContact = snmpContactMatch[1].trim();
+            
+            const snmpSysnameMatch = text.match(/snmp-server\s+sysname\s+["']?([^"'\n]+)["']?/i);
+            if (snmpSysnameMatch) state.global.snmpSysname = snmpSysnameMatch[1].trim();
+            
+            // SNMP Communities - multiple with access levels
+            const snmpCommMatches = text.matchAll(/snmp-server\s+community\s+["']?([^"'\s]+)["']?\s+(\w+)/gi);
+            for (const match of snmpCommMatches) {
+                const access = match[2].toLowerCase();
+                state.global.snmpCommunities.push({ 
+                    community: match[1], 
+                    access: access.includes('rw') ? 'rw' : access.includes('operator') ? 'operator' : access.includes('unrestricted') ? 'unrestricted' : 'ro' 
+                });
+            }
+            
+            // SNMP Users (v3)
+            const snmpUserMatch = text.match(/snmp-server\s+user\s+["']?(\S+)["']?\s+(\S+)\s+auth-(\S+)-key\s+(\S+)\s+priv-(\S+)-key\s+(\S+)/i);
+            if (snmpUserMatch) {
+                state.global.snmpUsers.push({
+                    username: snmpUserMatch[1],
+                    auth: snmpUserMatch[4],
+                    priv: snmpUserMatch[6]
+                });
+            }
+            
+            // SNMP Hosts (traps)
+            const snmpHostMatch = text.match(/snmp-server\s+host\s+(\d+\.\d+\.\d+\.\d+)\s+(\S+)\s+traps\s+(\S+)/i);
+            if (snmpHostMatch) {
+                state.global.snmpHosts.push({
+                    host: snmpHostMatch[1],
+                    community: snmpHostMatch[2],
+                    version: snmpHostMatch[3]
+                });
+            }
+            
+            // Timezone
+            const tzMatch = text.match(/time\s+timezone\s+(-?\d+)/i) || text.match(/clock\s+timezone\s+(-?\d+)/i);
+            if (tzMatch) {
+                const tzZoneMatch = text.match(/zone\s+["']?([^"'\n]+)["']?/i);
+                state.global.timezone = { offset: parseInt(tzMatch[1]), zone: tzZoneMatch ? tzZoneMatch[1] : null };
+            }
+            
+            // Daylight time
+            const dstMatch = text.match(/time\s+daylight-time-rule\s+(\S+)/i) || text.match(/clock\s+summer-time\s+recurring\s+(\S+)/i);
+            if (dstMatch) state.global.daylightTime = dstMatch[1];
+            
+            // Stack member
+            const stackMatch = text.match(/stack\s+member\s+(\d+)\s+(\d+)/i);
+            if (stackMatch) {
+                state.global.stackMember = { unit: parseInt(stackMatch[1]), member: parseInt(stackMatch[2]) };
+            }
+            
+            // IP Routing
+            if (text.match(/no\s+ip\s+routing/i)) state.global.ipRouting = false;
+            
+            // Console timeout
+            const consoleTimeoutMatch = text.match(/console\s+idle-timeout\s+(\d+)/i);
+            if (consoleTimeoutMatch) state.global.consoleTimeout = parseInt(consoleTimeoutMatch[1]);
+            
+            // Mirror port (HP)
+            const mirrorMatch = text.match(/mirror\s+(\d+)\s+port\s+(\d+)/i);
+            if (mirrorMatch) {
+                state.global.mirrorPort = { mirrorId: parseInt(mirrorMatch[1]), port: parseInt(mirrorMatch[2]) };
+            }
             
             if (detectedBrand === 'aruba') {
                 // HP/Aruba parsing
@@ -909,7 +1048,63 @@
                     if (block.ip) {
                         state.routedInterfaces.push({ id: vlanId, ip: block.ip });
                     }
+                    
+                    // Parse VLAN-specific settings from block lines
+                    const qosMatch = block.lines.find(l => l.match(/qos\s+priority\s+(\d+)/i));
+                    if (qosMatch) {
+                        const qosVal = qosMatch.match(/qos\s+priority\s+(\d+)/i)[1];
+                        if (!vlan.qos) vlan.qos = parseInt(qosVal);
+                    }
+                    
+                    const igmpMatch = block.lines.find(l => l.match(/ip\s+igmp/i));
+                    if (igmpMatch) {
+                        if (!vlan.igmp) vlan.igmp = true;
+                    }
+                    
+                    const voiceMatch = block.lines.find(l => l.match(/^\s*voice\s*$/i));
+                    if (voiceMatch) {
+                        if (!vlan.voice) vlan.voice = true;
+                    }
                 });
+                
+                // Parse interface names/descriptions (HP format: "interface 25\n   name "Intercoms"")
+                const interfaceNameMatches = text.matchAll(/interface\s+(\d+)\s*\n[^\n]*name\s+["']?([^"'\n]+)["']?/gi);
+                for (const match of interfaceNameMatches) {
+                    const portNum = parseInt(match[1]);
+                    if (portNum > 0 && portNum <= 52) {
+                        if (!state.ports[portNum]) {
+                            state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                        }
+                        state.ports[portNum].customLabel = match[2].trim();
+                    }
+                }
+                
+                // Parse STP bpdu-protection per port
+                const stpBpduMatches = text.matchAll(/spanning-tree\s+(\d+)\s+bpdu-protection/gi);
+                for (const match of stpBpduMatches) {
+                    const portNum = parseInt(match[1]);
+                    if (portNum > 0 && portNum <= 52) {
+                        if (!state.ports[portNum]) {
+                            state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                        }
+                        if (!state.ports[portNum].stp) state.ports[portNum].stp = {};
+                        state.ports[portNum].stp.bpduProtection = true;
+                    }
+                }
+                
+                // Parse loop-protect ports
+                const loopProtectMatch = text.match(/loop-protect\s+([\d,\s-]+)/i);
+                if (loopProtectMatch) {
+                    const ports = expandPortRanges(loopProtectMatch[1]);
+                    ports.forEach(portNum => {
+                        if (portNum > 0 && portNum <= 52) {
+                            if (!state.ports[portNum]) {
+                                state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                            }
+                            if (!state.ports[portNum].loopProtect) state.ports[portNum].loopProtect = true;
+                        }
+                    });
+                }
                 
                 // Parse trunk/LAG definitions
                 const trunkMatch = text.match(/trunk\s+([\d,\s-]+)\s+trk(\d+)\s+(\w+)/gi);
@@ -942,7 +1137,35 @@
                 }
                 
             } else if (detectedBrand === 'ruckus') {
-                // Ruckus parsing (simplified - can be enhanced)
+                // Ruckus parsing - comprehensive
+                // Parse LAGs first
+                const lagMatches = text.matchAll(/lag\s+["']?([^"'\n]+)["']?\s+(dynamic|static)\s+id\s+(\d+)/gi);
+                for (const match of lagMatches) {
+                    const lagId = parseInt(match[3]);
+                    const lagType = match[2].toLowerCase() === 'dynamic' ? 'lacp' : 'static';
+                    if (!state.lags.find(l => l.id === lagId)) {
+                        state.lags.push({ id: lagId, name: match[1].trim(), type: lagType });
+                    }
+                }
+                
+                // Parse LAG member ports
+                const lagPortMatches = text.matchAll(/lag\s+["']?[^"'\n]+["']?\s+\w+\s+id\s+(\d+)[\s\S]*?ports\s+ethe\s+([\d/\s]+)/gi);
+                for (const match of lagPortMatches) {
+                    const lagId = parseInt(match[1]);
+                    const portStrs = match[2].trim().split(/\s+/);
+                    portStrs.forEach(portStr => {
+                        const parts = portStr.split('/');
+                        const portNum = parseInt(parts[parts.length - 1]);
+                        if (portNum > 0 && portNum <= 48) {
+                            if (!state.ports[portNum]) {
+                                state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                            }
+                            state.ports[portNum].lagId = lagId;
+                        }
+                    });
+                }
+                
+                // Parse VLANs
                 const vlanMatches = text.matchAll(/vlan\s+(\d+)\s+name\s+["']?([^"'\n]+)["']?/gi);
                 for (const match of vlanMatches) {
                     const vid = parseInt(match[1]);
@@ -952,7 +1175,7 @@
                     }
                 }
                 
-                // Parse untagged/tagged (Ruckus format: "untagged ethe 1/1/1 1/1/2")
+                // Parse untagged/tagged (Ruckus format: "untagged ethe 1/1/1 to 1/1/4, 1/1/6")
                 const vlanSections = text.split(/vlan\s+\d+/i);
                 vlanSections.forEach((section, idx) => {
                     if (idx === 0) return; // Skip before first VLAN
@@ -961,49 +1184,344 @@
                     const vid = parseInt(vlanMatch[1]);
                     const vlanId = `vlan-${vid}`;
                     
-                    // Extract untagged ports
-                    const untaggedMatch = section.match(/untagged\s+ethe\s+([\d/\s]+)/i);
+                    // Extract untagged ports (handle ranges like "1/1/1 to 1/1/4")
+                    const untaggedMatch = section.match(/untagged\s+ethe\s+([\d/\s,to-]+)/i);
                     if (untaggedMatch) {
-                        const ports = untaggedMatch[1].trim().split(/\s+/).map(p => {
-                            const parts = p.split('/');
-                            return parseInt(parts[parts.length - 1]);
-                        });
-                        ports.forEach(portNum => {
-                            if (portNum > 0 && portNum <= 48) {
-                                if (!state.ports[portNum]) {
-                                    state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                        const portStr = untaggedMatch[1];
+                        // Handle "1/1/1 to 1/1/4" format
+                        const rangeMatches = portStr.matchAll(/(\d+)\/(\d+)\/(\d+)\s+to\s+(\d+)\/(\d+)\/(\d+)/gi);
+                        for (const rangeMatch of rangeMatches) {
+                            const start = parseInt(rangeMatch[3]);
+                            const end = parseInt(rangeMatch[6]);
+                            for (let p = start; p <= end; p++) {
+                                if (p > 0 && p <= 48) {
+                                    if (!state.ports[p]) {
+                                        state.ports[p] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                    }
+                                    state.ports[p].nativeVlanId = vlanId;
                                 }
-                                state.ports[portNum].nativeVlanId = vlanId;
                             }
-                        });
+                        }
+                        // Handle individual ports
+                        const individualPorts = portStr.replace(/\d+\/\d+\/\d+\s+to\s+\d+\/\d+\/\d+/gi, '').match(/\d+\/\d+\/(\d+)/g);
+                        if (individualPorts) {
+                            individualPorts.forEach(portStr => {
+                                const parts = portStr.split('/');
+                                const portNum = parseInt(parts[parts.length - 1]);
+                                if (portNum > 0 && portNum <= 48) {
+                                    if (!state.ports[portNum]) {
+                                        state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                    }
+                                    state.ports[portNum].nativeVlanId = vlanId;
+                                }
+                            });
+                        }
                     }
                     
-                    // Extract tagged ports
-                    const taggedMatch = section.match(/tagged\s+ethe\s+([\d/\s]+)/i);
+                    // Extract tagged ports (same format handling)
+                    const taggedMatch = section.match(/tagged\s+ethe\s+([\d/\s,to-]+)/i);
                     if (taggedMatch) {
-                        const ports = taggedMatch[1].trim().split(/\s+/).map(p => {
-                            const parts = p.split('/');
-                            return parseInt(parts[parts.length - 1]);
-                        });
-                        ports.forEach(portNum => {
-                            if (portNum > 0 && portNum <= 48) {
-                                if (!state.ports[portNum]) {
-                                    state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                        const portStr = taggedMatch[1];
+                        const rangeMatches = portStr.matchAll(/(\d+)\/(\d+)\/(\d+)\s+to\s+(\d+)\/(\d+)\/(\d+)/gi);
+                        for (const rangeMatch of rangeMatches) {
+                            const start = parseInt(rangeMatch[3]);
+                            const end = parseInt(rangeMatch[6]);
+                            for (let p = start; p <= end; p++) {
+                                if (p > 0 && p <= 48) {
+                                    if (!state.ports[p]) {
+                                        state.ports[p] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                    }
+                                    if (!state.ports[p].taggedVlans) state.ports[p].taggedVlans = [];
+                                    if (!state.ports[p].taggedVlans.includes(vlanId)) {
+                                        state.ports[p].taggedVlans.push(vlanId);
+                                    }
                                 }
+                            }
+                        }
+                        const individualPorts = portStr.replace(/\d+\/\d+\/\d+\s+to\s+\d+\/\d+\/\d+/gi, '').match(/\d+\/\d+\/(\d+)/g);
+                        if (individualPorts) {
+                            individualPorts.forEach(portStr => {
+                                const parts = portStr.split('/');
+                                const portNum = parseInt(parts[parts.length - 1]);
+                                if (portNum > 0 && portNum <= 48) {
+                                    if (!state.ports[portNum]) {
+                                        state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                    }
+                                    if (!state.ports[portNum].taggedVlans) state.ports[portNum].taggedVlans = [];
+                                    if (!state.ports[portNum].taggedVlans.includes(vlanId)) {
+                                        state.ports[portNum].taggedVlans.push(vlanId);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                    
+                    // L3 interface (VE)
+                    const veMatch = section.match(/interface\s+ve\s+(\d+)\s+ip\s+address\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)/i);
+                    if (veMatch && parseInt(veMatch[1]) === vid) {
+                        const cidr = ipMaskToCidr(veMatch[3]);
+                        state.routedInterfaces.push({ id: vlanId, ip: `${veMatch[2]}/${cidr}` });
+                    }
+                });
+                
+                // Parse voice-vlan on ports
+                const voiceVlanMatch = text.match(/interface\s+ethernet\s+(\d+)\/(\d+)\/(\d+)\s+voice-vlan\s+(\d+)/i);
+                if (voiceVlanMatch) {
+                    const portNum = parseInt(voiceVlanMatch[3]);
+                    if (portNum > 0 && portNum <= 48) {
+                        if (!state.ports[portNum]) {
+                            state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                        }
+                        const voiceVid = parseInt(voiceVlanMatch[4]);
+                        const voiceVlanId = `vlan-${voiceVid}`;
+                        if (!state.ports[portNum].voiceVlan) state.ports[portNum].voiceVlan = voiceVlanId;
+                    }
+                }
+                
+                // Parse manager registrar (Ruckus cloud)
+                const managerMatch = text.match(/manager\s+registrar-list\s+(\S+)\s+(\d+\.\d+\.\d+\.\d+)/i);
+                if (managerMatch) {
+                    const portMatch = text.match(/manager\s+port-list\s+(\d+)/i);
+                    state.global.managerRegistrar = {
+                        device: managerMatch[1],
+                        ip: managerMatch[2],
+                        port: portMatch ? parseInt(portMatch[1]) : null
+                    };
+                }
+                
+            } else if (detectedBrand === 'netgear') {
+                // Netgear parsing - comprehensive
+                // Parse VLAN database
+                const vlanDbMatch = text.match(/vlan\s+database[\s\S]*?vlan\s+([\d,\s-]+)/i);
+                if (vlanDbMatch) {
+                    const vlanIds = expandPortRanges(vlanDbMatch[1].replace(/,/g, ' '));
+                    vlanIds.forEach(vid => {
+                        const vlanId = `vlan-${vid}`;
+                        if (!state.vlans.find(v => v.vid === vid)) {
+                            state.vlans.push({ id: vlanId, name: `VLAN ${vid}`, vid, color: `#${Math.floor(Math.random()*16777215).toString(16)}` });
+                        }
+                    });
+                }
+                
+                // Parse VLAN names
+                const vlanNameMatches = text.matchAll(/vlan\s+name\s+(\d+)\s+["']?([^"'\n]+)["']?/gi);
+                for (const match of vlanNameMatches) {
+                    const vid = parseInt(match[1]);
+                    const vlan = state.vlans.find(v => v.vid === vid);
+                    if (vlan) vlan.name = match[2].trim();
+                }
+                
+                // Parse VLAN routing
+                const vlanRoutingMatches = text.matchAll(/vlan\s+routing\s+(\d+)\s+(\d+)/gi);
+                for (const match of vlanRoutingMatches) {
+                    const vid = parseInt(match[1]);
+                    const vlan = state.vlans.find(v => v.vid === vid);
+                    if (vlan) {
+                        if (!vlan.routing) vlan.routing = parseInt(match[2]);
+                    }
+                }
+                
+                // Parse interface configurations
+                const interfaceMatches = text.matchAll(/interface\s+1\/0\/(\d+)[\s\S]*?(?=interface\s+1\/0\/|$)/gi);
+                for (const interfaceMatch of interfaceMatches) {
+                    const portNum = parseInt(interfaceMatch[1]);
+                    if (portNum > 0 && portNum <= 52) {
+                        if (!state.ports[portNum]) {
+                            state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                        }
+                        const intfBlock = interfaceMatch[0];
+                        
+                        // Description
+                        const descMatch = intfBlock.match(/description\s+["']?([^"'\n]+)["']?/i);
+                        if (descMatch) state.ports[portNum].customLabel = descMatch[1].trim();
+                        
+                        // PVID (native VLAN)
+                        const pvidMatch = intfBlock.match(/vlan\s+pvid\s+(\d+)/i);
+                        if (pvidMatch) {
+                            const vid = parseInt(pvidMatch[1]);
+                            const vlanId = `vlan-${vid}`;
+                            state.ports[portNum].nativeVlanId = vlanId;
+                        }
+                        
+                        // VLAN participation include (tagged)
+                        const includeMatch = intfBlock.match(/vlan\s+participation\s+include\s+([\d,\s-]+)/i);
+                        if (includeMatch) {
+                            const vids = expandPortRanges(includeMatch[1].replace(/,/g, ' '));
+                            vids.forEach(vid => {
+                                const vlanId = `vlan-${vid}`;
+                                if (!state.ports[portNum].taggedVlans) state.ports[portNum].taggedVlans = [];
+                                if (state.ports[portNum].nativeVlanId !== vlanId && !state.ports[portNum].taggedVlans.includes(vlanId)) {
+                                    state.ports[portNum].taggedVlans.push(vlanId);
+                                }
+                            });
+                        }
+                        
+                        // VLAN tagging
+                        const taggingMatch = intfBlock.match(/vlan\s+tagging\s+([\d,\s-]+)/i);
+                        if (taggingMatch) {
+                            const vids = expandPortRanges(taggingMatch[1].replace(/,/g, ' '));
+                            vids.forEach(vid => {
+                                const vlanId = `vlan-${vid}`;
                                 if (!state.ports[portNum].taggedVlans) state.ports[portNum].taggedVlans = [];
                                 if (!state.ports[portNum].taggedVlans.includes(vlanId)) {
                                     state.ports[portNum].taggedVlans.push(vlanId);
                                 }
-                            }
-                        });
+                            });
+                        }
+                        
+                        // PTP clock
+                        if (intfBlock.match(/ptp\s+clock\s+e2e-transparent/i)) {
+                            if (!state.ports[portNum].ptp) state.ports[portNum].ptp = { e2eTransparent: true };
+                        }
+                        
+                        // Speed/duplex
+                        const speedMatch = intfBlock.match(/speed\s+(\d+)\s+(\S+)/i);
+                        if (speedMatch) {
+                            if (!state.ports[portNum].speed) state.ports[portNum].speed = {};
+                            state.ports[portNum].speed.value = parseInt(speedMatch[1]);
+                            state.ports[portNum].speed.duplex = speedMatch[2];
+                        }
+                        
+                        // No auto-negotiate
+                        if (intfBlock.match(/no\s+auto-negotiate/i)) {
+                            if (!state.ports[portNum].autoNegotiate) state.ports[portNum].autoNegotiate = false;
+                        }
                     }
+                }
+                
+                // Parse LAGs
+                const lagMatches = text.matchAll(/interface\s+lag\s+(\d+)[\s\S]*?(?=interface\s+lag|$)/gi);
+                for (const lagMatch of lagMatches) {
+                    const lagId = parseInt(lagMatch[1]);
+                    if (!state.lags.find(l => l.id === lagId)) {
+                        state.lags.push({ id: lagId, name: `LAG ${lagId}`, type: 'lacp' });
+                    }
+                }
+                
+                // Parse interface VLAN (L3)
+                const vlanIntfMatches = text.matchAll(/interface\s+vlan\s+(\d+)[\s\S]*?ip\s+address\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)/gi);
+                for (const match of vlanIntfMatches) {
+                    const vid = parseInt(match[1]);
+                    const vlanId = `vlan-${vid}`;
+                    const cidr = ipMaskToCidr(match[3]);
+                    state.routedInterfaces.push({ id: vlanId, ip: `${match[2]}/${cidr}` });
+                }
+                
+            } else if (detectedBrand === 'dell') {
+                // Dell parsing - comprehensive
+                // Parse VLAN database
+                const vlanDbMatch = text.match(/vlan\s+database[\s\S]*?vlan\s+([\d,\s-]+)/i);
+                if (vlanDbMatch) {
+                    const vlanIds = expandPortRanges(vlanDbMatch[1].replace(/,/g, ' '));
+                    vlanIds.forEach(vid => {
+                        const vlanId = `vlan-${vid}`;
+                        if (!state.vlans.find(v => v.vid === vid)) {
+                            state.vlans.push({ id: vlanId, name: `VLAN ${vid}`, vid, color: `#${Math.floor(Math.random()*16777215).toString(16)}` });
+                        }
+                    });
+                }
+                
+                // Parse interface VLAN names
+                const vlanNameMatches = text.matchAll(/interface\s+vlan\s+(\d+)\s+name\s+["']?([^"'\n]+)["']?/gi);
+                for (const match of vlanNameMatches) {
+                    const vid = parseInt(match[1]);
+                    const vlan = state.vlans.find(v => v.vid === vid);
+                    if (vlan) vlan.name = match[2].trim();
+                }
+                
+                // Parse interface ethernet configurations
+                const ethernetMatches = text.matchAll(/interface\s+ethernet\s+1\/([gx])(\d+)[\s\S]*?(?=interface\s+ethernet|$)/gi);
+                for (const ethernetMatch of ethernetMatches) {
+                    const portType = ethernetMatch[1];
+                    const portNum = parseInt(ethernetMatch[2]);
+                    // Convert Dell port format: 1/g1 = port 1, 1/xg1 = port 25 (assuming 24 port + SFP)
+                    const actualPortNum = portType === 'x' ? portNum + 24 : portNum;
                     
-                    // L3 interface
-                    const veMatch = section.match(/interface\s+ve\s+\d+\s+ip\s+address\s+(\d+\.\d+\.\d+\.\d+\/\d+)/i);
-                    if (veMatch) {
-                        state.routedInterfaces.push({ id: vlanId, ip: veMatch[1] });
+                    if (actualPortNum > 0 && actualPortNum <= 52) {
+                        if (!state.ports[actualPortNum]) {
+                            state.ports[actualPortNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                        }
+                        const intfBlock = ethernetMatch[0];
+                        
+                        // Switchport mode
+                        const modeMatch = intfBlock.match(/switchport\s+mode\s+(\w+)/i);
+                        if (modeMatch) {
+                            if (!state.ports[actualPortNum].switchportMode) state.ports[actualPortNum].switchportMode = modeMatch[1].toLowerCase();
+                        }
+                        
+                        // Access VLAN
+                        const accessMatch = intfBlock.match(/switchport\s+access\s+vlan\s+(\d+)/i);
+                        if (accessMatch) {
+                            const vid = parseInt(accessMatch[1]);
+                            const vlanId = `vlan-${vid}`;
+                            state.ports[actualPortNum].nativeVlanId = vlanId;
+                        }
+                        
+                        // General mode PVID
+                        const pvidMatch = intfBlock.match(/switchport\s+general\s+pvid\s+(\d+)/i);
+                        if (pvidMatch) {
+                            const vid = parseInt(pvidMatch[1]);
+                            const vlanId = `vlan-${vid}`;
+                            state.ports[actualPortNum].nativeVlanId = vlanId;
+                        }
+                        
+                        // General allowed VLAN add (tagged)
+                        const allowedMatches = intfBlock.matchAll(/switchport\s+general\s+allowed\s+vlan\s+add\s+([\d,\s-]+)(?:\s+tagged)?/gi);
+                        for (const allowedMatch of allowedMatches) {
+                            const vids = expandPortRanges(allowedMatch[1].replace(/,/g, ' '));
+                            vids.forEach(vid => {
+                                const vlanId = `vlan-${vid}`;
+                                if (!state.ports[actualPortNum].taggedVlans) state.ports[actualPortNum].taggedVlans = [];
+                                if (state.ports[actualPortNum].nativeVlanId !== vlanId && !state.ports[actualPortNum].taggedVlans.includes(vlanId)) {
+                                    state.ports[actualPortNum].taggedVlans.push(vlanId);
+                                }
+                            });
+                        }
+                        
+                        // Trunk allowed VLAN
+                        const trunkMatches = intfBlock.matchAll(/switchport\s+trunk\s+allowed\s+vlan\s+add\s+([\d,\s-]+)/gi);
+                        for (const trunkMatch of trunkMatches) {
+                            const vids = expandPortRanges(trunkMatch[1].replace(/,/g, ' '));
+                            vids.forEach(vid => {
+                                const vlanId = `vlan-${vid}`;
+                                if (!state.ports[actualPortNum].taggedVlans) state.ports[actualPortNum].taggedVlans = [];
+                                if (!state.ports[actualPortNum].taggedVlans.includes(vlanId)) {
+                                    state.ports[actualPortNum].taggedVlans.push(vlanId);
+                                }
+                            });
+                        }
+                        
+                        // Voice VLAN
+                        const voiceMatch = intfBlock.match(/voice\s+vlan\s+(\d+)/i);
+                        if (voiceMatch) {
+                            const vid = parseInt(voiceMatch[1]);
+                            const vlanId = `vlan-${vid}`;
+                            if (!state.ports[actualPortNum].voiceVlan) state.ports[actualPortNum].voiceVlan = vlanId;
+                        }
+                        
+                        // STP portfast
+                        if (intfBlock.match(/spanning-tree\s+portfast/i)) {
+                            if (!state.ports[actualPortNum].stp) state.ports[actualPortNum].stp = {};
+                            state.ports[actualPortNum].stp.portfast = true;
+                        }
+                        
+                        // LLDP
+                        const lldpMatch = intfBlock.match(/lldp\s+transmit-tlv\s+([\w-]+)/i);
+                        if (lldpMatch) {
+                            if (!state.ports[actualPortNum].lldp) state.ports[actualPortNum].lldp = [];
+                            state.ports[actualPortNum].lldp.push(lldpMatch[1]);
+                        }
                     }
-                });
+                }
+                
+                // Parse port-channel (LAG)
+                const portChannelMatches = text.matchAll(/interface\s+port-channel\s+(\d+)[\s\S]*?(?=interface\s+port-channel|$)/gi);
+                for (const pcMatch of portChannelMatches) {
+                    const lagId = parseInt(pcMatch[1]);
+                    if (!state.lags.find(l => l.id === lagId)) {
+                        state.lags.push({ id: lagId, name: `Port-Channel ${lagId}`, type: 'lacp' });
+                    }
+                }
             }
             
             // Ensure default routed interface if none exists
@@ -1044,7 +1562,7 @@
         function openCliModal() { document.getElementById('cli-modal').classList.remove('hidden'); generateCli(); }
         function closeCliModal() { document.getElementById('cli-modal').classList.add('hidden'); }
         function getVid(vlanId) { const v = state.vlans.find(x => x.id === vlanId); return v ? (v.vid || v.id.replace('vlan-', '')) : 1; }
-
+        
         // Helper to group ports [1,2,3,5] -> "1-3,5"
         function groupPorts(portList) {
             if(!portList.length) return "";
@@ -1085,7 +1603,7 @@
             const injectCustom = () => {
                 if(g.customConfig) out += `\n! --- Custom Config Injection ---\n${g.customConfig}\n! -----------------------------\n`;
             };
-            
+
             // Common SNMP block
             const snmpBlock = `${g.snmpContact ? 'snmp-server contact "'+g.snmpContact+'"\n' : ''}${g.snmpLocation ? 'snmp-server location "'+g.snmpLocation+'"\n' : ''}`;
 
@@ -1207,7 +1725,7 @@
                     }
                 });
                 out += `ip route 0.0.0.0/0 ${g.gateway}\n`;
-
+            
             } else if (brand === 'aruba') {
                 out += `hostname "${g.hostname}"\n! Enable RSTP\nspanning-tree force-version rstp-operation\n`;
                 state.lags.forEach(l => {
