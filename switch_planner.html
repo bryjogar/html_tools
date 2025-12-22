@@ -357,7 +357,7 @@
             activeVlanId: 'vlan-1',
             activeLagId: null,
             currentTool: 'paint', 
-            vlans: [{ id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b', ip: '', igmp: false, qos: '' }],
+            vlans: [{ id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b' }],
             lags: [],
             ports: {},
             routedInterfaces: [
@@ -565,13 +565,39 @@
         function selectLag(id) { state.activeLagId = id; setTool('lag'); renderLagList(); }
 
         function addVlan() {
-            const name = document.getElementById('new-vlan-name').value.trim();
-            const color = document.getElementById('new-vlan-color').value;
-            if(!name) return;
-            const id = 'vlan-'+Date.now();
-            const nextVid = state.vlans.length>0 ? Math.max(...state.vlans.map(v=>v.vid||0))+10 : 10;
-            state.vlans.push({id,name,color,vid:nextVid, ip:'', igmp:false, qos:''});
-            document.getElementById('new-vlan-name').value=''; selectVlan(id);
+            const nameInput = document.getElementById('new-vlan-name');
+            const idInput = document.getElementById('new-vlan-id');
+            const colorInput = document.getElementById('new-vlan-color');
+
+            const name = nameInput.value.trim();
+            const color = colorInput.value;
+            let vid = parseInt(idInput.value.trim());
+
+            if (!name) { alert("Please enter a VLAN Name"); return; }
+
+            // If no ID provided, auto-increment
+            if (!vid) {
+                 vid = state.vlans.length > 0 ? Math.max(...state.vlans.map(v => v.vid || 0)) + 10 : 10;
+            }
+
+            // Validate ID
+            if (state.vlans.find(v => v.vid === vid)) {
+                alert(`VLAN ID ${vid} already exists.`);
+                return;
+            }
+            if (vid < 1 || vid > 4094) {
+                alert("VLAN ID must be between 1 and 4094");
+                return;
+            }
+
+            const id = `vlan-${vid}`;
+            state.vlans.push({ id, name, color, vid });
+            
+            // Reset inputs
+            nameInput.value = '';
+            idInput.value = '';
+            
+            selectVlan(id);
         }
 
         function addLag() {
@@ -583,7 +609,7 @@
             document.getElementById('new-lag-name').value = ''; selectLag(id);
         }
 
-        function resetVlans() { if(confirm("Reset?")) location.reload(); }
+        function resetVlans() { if(confirm("Reset VLANs?")) { state.vlans=[{ id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b' }]; state.activeVlanId='vlan-1'; renderVlanList(); renderAllPorts(); } }
         function resetLags() { if(confirm("Clear LAGs?")) { state.lags = []; Object.values(state.ports).forEach(p=>p.lagId=null); renderLagList(); renderAllPorts(); } }
         function cycleSwitchSize() {
             let idx = PORT_OPTIONS.indexOf(state.portCount);
@@ -1055,25 +1081,57 @@
             let out = `! Generated for ${brand.toUpperCase()}\n! Hostname: ${g.hostname}\n`;
             const ports = Object.keys(state.ports).map(Number).sort((a,b)=>a-b);
             
-            // Common SNMP/NTP logic can be interpolated
-            const snmpBlock = `snmp-server community "${g.snmp}"\n${g.snmpContact ? 'snmp-server contact "'+g.snmpContact+'"\n' : ''}${g.snmpLocation ? 'snmp-server location "'+g.snmpLocation+'"\n' : ''}`;
+            // --- Helper to inject custom config ---
+            const injectCustom = () => {
+                if(g.customConfig) out += `\n! --- Custom Config Injection ---\n${g.customConfig}\n! -----------------------------\n`;
+            };
+            
+            // Common SNMP block
+            const snmpBlock = `${g.snmpContact ? 'snmp-server contact "'+g.snmpContact+'"\n' : ''}${g.snmpLocation ? 'snmp-server location "'+g.snmpLocation+'"\n' : ''}`;
 
             if (brand === 'netgear_m') {
                 out += `hostname "${g.hostname}"\n${snmpBlock}sntp server "${g.ntp}"\nip name-server ${g.dns}\n!\n`;
                 state.vlans.forEach(v => { 
                     if(v.vid) {
-                        out += `vlan ${v.vid}\n name "${v.name}"\n exit\n`; 
-                        if(v.ip) out += `interface vlan ${v.vid}\n ip address ${v.ip.replace('/', ' ')}\n exit\n`;
+                        out += `vlan ${v.vid}\n name "${v.name}"\n exit\n`;
                     }
                 });
-                ports.forEach(p => {
-                    const port = state.ports[p];
-                    out += `interface 1/0/${p}\n description "${port.customLabel || 'Port '+p}"\n`;
-                    if(port.lagId) out += ` addport 1/0/${p} lag ${port.lagId}\n`; 
-                    else if(port.nativeVlanId) out += ` switchport mode access\n switchport access vlan ${getVid(port.nativeVlanId)}\n`;
-                    if(port.isPoe===false) out += ` poe admin-mode disable\n`;
+                // LAGs
+                state.lags.forEach(l => {
+                    out += `interface lag ${l.id}\n description "${l.name}"\n`;
+                    if(l.type==='lacp') out += ` no port-channel static\n`;
                     out += ` exit\n`;
                 });
+
+                // Ports
+                ports.forEach(p => {
+                    const port = state.ports[p];
+                    const desc = port.customLabel || `Port ${p}`;
+                    out += `interface 1/0/${p}\n description "${desc}"\n`;
+                    if(port.lagId) out += ` addport 1/0/${p} lag ${port.lagId}\n`; 
+                    else if(port.nativeVlanId) {
+                         const n = getVid(port.nativeVlanId);
+                         out += ` switchport mode access\n switchport access vlan ${n}\n`;
+                    }
+                    if(port.taggedVlans && port.taggedVlans.length > 0) {
+                         const t = port.taggedVlans.map(getVid).join(',');
+                         out += ` switchport mode trunk\n switchport trunk allowed vlan ${t}\n`;
+                         if(port.nativeVlanId) out += ` switchport trunk native vlan ${getVid(port.nativeVlanId)}\n`;
+                    }
+
+                    if(port.isPoe===false) out += ` poe admin-mode disable\n`;
+                    if(p <= state.portCount) out += ` spanning-tree bpdu-guard\n`;
+                    out += ` exit\n`;
+                });
+
+                // L3
+                state.routedInterfaces.forEach(ri => {
+                    if(ri.id && ri.ip) {
+                        const vid = getVid(ri.id);
+                        out += `interface vlan ${vid}\n ip address ${ri.ip.split('/')[0]} ${ipMask(ri.ip.split('/')[1])}\n no shutdown\n exit\n`;
+                    }
+                });
+                out += `ip route 0.0.0.0 0.0.0.0 ${g.gateway}\n`;
             
             } else if (brand === 'ruckus') {
                 out += `hostname ${g.hostname}\n! LAGs\n`;
@@ -1090,9 +1148,6 @@
                 state.vlans.forEach(v => {
                     if(!v.vid) return;
                     out += `vlan ${v.vid} name "${v.name}" by port\n`;
-                    if(v.igmp) out += ` multicast-passive\n`;
-                    if(v.ip) out += ` router-interface ve ${v.vid}\n`;
-                    
                     let u = [], t = [];
                     ports.filter(p=>!state.ports[p].lagId).forEach(p => {
                         const port = state.ports[p];
@@ -1137,75 +1192,58 @@
                         out += ` tagged ${parts.join(' ')}\n`;
                     }
                     
-                    if(u.length) {
-                        const r = ruckusRange(u);
-                        out += ` untagged ethe ${r.join(' ')}\n`;
-                    }
-                    if(t.length) {
-                         const r = ruckusRange(t);
-                         out += ` tagged ethe ${r.join(' ')}\n`;
-                    }
-                    out += `!\n`;
+                    // L3 for this VLAN?
+                    const l3 = state.routedInterfaces.find(ri => getVid(ri.id) === v.vid);
+                    if(l3 && l3.ip) out += ` router-interface ve ${v.vid}\n`;
+
+                    out += ` spanning-tree 802-1w\n spanning-tree 802-1w priority 0\n!\n`;
                 });
-                // Virtual Interfaces
-                state.vlans.forEach(v => {
-                    if(v.ip) out += `interface ve ${v.vid}\n ip address ${v.ip}\n!\n`;
-                });
-                
-                // Grouped Interface Configs
-                const protectPorts = ports.filter(p => state.ports[p].isProtect);
-                if(protectPorts.length) {
-                    const ranges = ruckusRange(protectPorts);
-                    ranges.forEach(r => out += `interface ethernet ${r}\n stp-bpdu-guard\n!\n`);
-                }
-                
-                // Group POE Off
-                const noPoePorts = ports.filter(p => state.ports[p].isPoe === false);
-                if(noPoePorts.length) {
-                     const ranges = ruckusRange(noPoePorts);
-                     ranges.forEach(r => out += `interface ethernet ${r}\n no inline power\n!\n`);
-                }
-                
-                // Labels must be individual
-                ports.forEach(p => {
-                    if(state.ports[p].customLabel) {
-                        out += `interface ethernet 1/1/${p}\n port-name "${state.ports[p].customLabel}"\n!\n`;
+
+                // L3 Interfaces
+                state.routedInterfaces.forEach(ri => {
+                    if(ri.id && ri.ip) {
+                        const vid = getVid(ri.id);
+                        out += `interface ve ${vid}\n ip address ${ri.ip}\n!\n`;
                     }
                 });
+                out += `ip route 0.0.0.0/0 ${g.gateway}\n`;
 
             } else if (brand === 'aruba') {
-                out += `hostname "${g.hostname}"\n${snmpBlock}timesync sntp\nsntp unicast\nsntp server ${g.ntp}\n`;
+                out += `hostname "${g.hostname}"\n! Enable RSTP\nspanning-tree force-version rstp-operation\n`;
+                state.lags.forEach(l => {
+                    const members = ports.filter(p => state.ports[p].lagId === l.id);
+                    if(members.length) out += `trunk ${members.join(',')} trk${l.id} ${l.type}\n`;
+                });
                 
-                // Loop protect
-                const protectPorts = ports.filter(p => state.ports[p].isProtect);
-                if(protectPorts.length) out += `loop-protect ${groupPorts(protectPorts)}\n`;
-
                 state.vlans.forEach(v => {
                     if(!v.vid) return;
                     out += `vlan ${v.vid}\n name "${v.name}"\n`;
-                    if(v.ip) {
-                        const parts = v.ip.split(' ');
-                        const ip = parts[0] || v.ip.split('/')[0];
-                        const mask = parts[1] || ipMask(v.ip.split('/')[1]);
-                        out += ` ip address ${ip} ${mask}\n`;
-                    }
-                    if(v.igmp) out += ` ip igmp\n`;
-                    if(v.qos) out += ` qos priority ${v.qos==='voice'?7:5}\n`; // simplified mapping
-                    
                     let u = [], t = [];
                     ports.filter(p=>!state.ports[p].lagId).forEach(p => {
                         if(getVid(state.ports[p].nativeVlanId)===v.vid) u.push(p);
                         if(state.ports[p].taggedVlans.map(getVid).includes(v.vid)) t.push(p);
                     });
-                    if(u.length) out += ` untagged ${groupPorts(u)}\n`;
-                    if(t.length) out += ` tagged ${groupPorts(t)}\n`;
+                     state.lags.forEach(l => {
+                        const mem = ports.find(p => state.ports[p].lagId === l.id);
+                        if(mem) {
+                            if(getVid(state.ports[mem].nativeVlanId)===v.vid) u.push(`trk${l.id}`);
+                            if(state.ports[mem].taggedVlans.map(getVid).includes(v.vid)) t.push(`trk${l.id}`);
+                        }
+                    });
+
+                    if(u.length) out += ` untagged ${u.join(',')}\n`;
+                    if(t.length) out += ` tagged ${t.join(',')}\n`;
+                    
+                    // L3
+                    const l3 = state.routedInterfaces.find(ri => getVid(ri.id) === v.vid);
+                    if(l3 && l3.ip) out += ` ip address ${l3.ip.split('/')[0]} ${ipMask(l3.ip.split('/')[1])}\n`;
+                    
                     out += ` exit\n`;
                 });
                 out += `ip default-gateway ${g.gateway}\n`;
             }
 
-            if(g.customConfig) out += `\n! Custom Configuration\n${g.customConfig}\n`;
-            
+            injectCustom();
             cliOutput.textContent = out;
         }
 
