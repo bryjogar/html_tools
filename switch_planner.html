@@ -276,7 +276,6 @@
                 <h3 class="text-white font-bold"><i class="fa-solid fa-gear"></i> Switch Configuration</h3>
                 <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-<<<<<<< HEAD
             
             <div class="flex-1 overflow-y-auto p-6 space-y-6">
                 <section>
@@ -309,23 +308,6 @@
                      <p class="text-[10px] text-gray-500 mb-2">Any text here will be appended/injected into the final generated configuration. Use generic syntax or specific commands.</p>
                      <textarea id="conf-custom" class="w-full h-32 bg-[#111] text-green-400 font-mono text-xs p-2 rounded border border-[#333]" placeholder="! Add custom commands here..."></textarea>
                 </section>
-=======
-            <div class="p-6 overflow-y-auto">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><label class="text-xs text-gray-400 block mb-1">Hostname</label><input id="conf-hostname" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">Mgmt IP (CIDR)</label><input id="conf-ip" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono" placeholder="192.168.1.2/24"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">Default Gateway</label><input id="conf-gateway" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">DNS Server</label><input id="conf-dns" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">NTP (Time) Server</label><input id="conf-ntp" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono" placeholder="time.nist.gov"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">SNMP Community</label><input id="conf-snmp" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">SNMP Contact</label><input id="conf-snmpContact" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">SNMP Location</label><input id="conf-snmpLocation" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                </div>
-                <div class="border-t border-obsidian-border pt-4">
-                    <label class="text-xs text-gray-400 block mb-1">Custom Configuration (Appended to end)</label>
-                    <textarea id="conf-customConfig" class="w-full h-24 bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono" placeholder="! Enter custom CLI commands here..."></textarea>
-                </div>
->>>>>>> 3bf705a848edd20efbd5fa911c93f782ec9a21bc
             </div>
             <div class="p-4 bg-obsidian-pane border-t border-obsidian-border flex justify-end">
                 <button onclick="saveSettings()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-6 py-2 rounded text-sm transition">Save</button>
@@ -378,24 +360,10 @@
             vlans: [{ id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b', ip: '', igmp: false, qos: '' }],
             lags: [],
             ports: {},
-<<<<<<< HEAD
             routedInterfaces: [
                 { id: 'vlan-1', ip: '192.168.1.2/24' } // Default mgmt
             ],
             global: { hostname: 'SWITCH-01', gateway: '192.168.1.1', dns: '8.8.8.8', ntp: 'pool.ntp.org', customConfig: '', snmpLocation: '', snmpContact: '' }
-=======
-            global: { 
-                hostname: 'SWITCH-01', 
-                ip: '', 
-                gateway: '', 
-                dns: '8.8.8.8', 
-                ntp: 'time.nist.gov', 
-                snmp: 'public',
-                snmpContact: '',
-                snmpLocation: '',
-                customConfig: ''
-            }
->>>>>>> 3bf705a848edd20efbd5fa911c93f782ec9a21bc
         };
 
         // --- DOM Elements ---
@@ -627,25 +595,17 @@
         function openSettingsModal() { loadSettingsToForm(); document.getElementById('settings-modal').classList.remove('hidden'); }
         function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
         function loadSettingsToForm() { 
-<<<<<<< HEAD
             ['hostname','gateway','dns','ntp'].forEach(k => document.getElementById('conf-'+k).value = state.global[k] || ''); 
             document.getElementById('conf-snmp-location').value = state.global.snmpLocation || '';
             document.getElementById('conf-snmp-contact').value = state.global.snmpContact || '';
             document.getElementById('conf-custom').value = state.global.customConfig || '';
             renderL3List();
-=======
-            ['hostname','ip','gateway','dns','ntp','snmp', 'snmpContact', 'snmpLocation', 'customConfig'].forEach(k => document.getElementById('conf-'+k).value = state.global[k] || ''); 
->>>>>>> 3bf705a848edd20efbd5fa911c93f782ec9a21bc
         }
         function saveSettings() { 
-<<<<<<< HEAD
             ['hostname','gateway','dns','ntp'].forEach(k => state.global[k] = document.getElementById('conf-'+k).value);
             state.global.snmpLocation = document.getElementById('conf-snmp-location').value;
             state.global.snmpContact = document.getElementById('conf-snmp-contact').value;
             state.global.customConfig = document.getElementById('conf-custom').value;
-=======
-            ['hostname','ip','gateway','dns','ntp','snmp', 'snmpContact', 'snmpLocation', 'customConfig'].forEach(k => state.global[k] = document.getElementById('conf-'+k).value); 
->>>>>>> 3bf705a848edd20efbd5fa911c93f782ec9a21bc
             closeSettingsModal(); 
         }
 
@@ -663,7 +623,6 @@
 
         function openImporterModal() { document.getElementById('importer-modal').classList.remove('hidden'); }
         function closeImporterModal() { document.getElementById('importer-modal').classList.add('hidden'); }
-<<<<<<< HEAD
         // Helper: Expand port ranges (e.g., "1-4, 6, 8-10" -> [1,2,3,4,6,8,9,10])
         function expandPortRanges(rangeStr) {
             const ports = [];
@@ -1041,232 +1000,6 @@
                 cidr += (num >>> 0).toString(2).split('1').length - 1;
             }
             return cidr;
-=======
-
-        // --- Improved Import Logic ---
-        function parseAndLoadConfig() {
-            const text = document.getElementById('import-text').value;
-            if(!text.trim()) return;
-
-            let brand = 'netgear';
-            if(text.includes('J9772A') || text.includes('aruba-central') || text.includes('no untagged')) brand = 'hp';
-            else if(text.includes('stack unit') || text.includes('ruckuswireless')) brand = 'ruckus';
-            else if(text.includes('vlan participation') || text.includes('M4300') || text.includes('vlan pvid')) brand = 'netgear';
-            
-            const newVlans = [];
-            const newPorts = {};
-            const newLags = [];
-            const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7', '#f97316', '#ec4899', '#06b6d4'];
-            let colorIdx = 0;
-
-            // Global Parsing
-            const hostMatch = text.match(/hostname "?([^"\n]+)"?/);
-            if(hostMatch) state.global.hostname = hostMatch[1].trim();
-            const gwMatch = text.match(/ip default-gateway (\S+)/) || text.match(/ip route 0\.0\.0\.0\/0 (\S+)/);
-            if(gwMatch) state.global.gateway = gwMatch[1];
-            
-            // Global SNMP
-            const snmpLoc = text.match(/snmp-server location "([^"]+)"/);
-            if(snmpLoc) state.global.snmpLocation = snmpLoc[1];
-            
-            const snmpCon = text.match(/snmp-server contact "([^"]+)"/);
-            if(snmpCon) state.global.snmpContact = snmpCon[1];
-
-            // HP Combined Contact/Location
-            const snmpCombo = text.match(/snmp-server contact "([^"]+)" location "([^"]+)"/);
-            if(snmpCombo) {
-                state.global.snmpContact = snmpCombo[1];
-                state.global.snmpLocation = snmpCombo[2];
-            }
-            
-            const snmpComm = text.match(/snmp-server community "([^"]+)"/);
-            if(snmpComm) state.global.snmp = snmpComm[1];
-
-            
-            if (brand === 'hp') {
-                const vlanRegex = /^vlan (\d+)\s*\n\s*name "([^"]+)"/gm;
-                let m;
-                while ((m = vlanRegex.exec(text)) !== null) {
-                    newVlans.push({ id: `vlan-${m[1]}`, vid: parseInt(m[1]), name: m[2], color: colors[colorIdx++ % colors.length], ip: '', igmp: false, qos: '' });
-                }
-                const vlanBlocks = text.split(/^vlan /m);
-                vlanBlocks.forEach(block => {
-                    const vidMatch = block.match(/^(\d+)/);
-                    if(!vidMatch) return;
-                    const vid = parseInt(vidMatch[1]);
-                    const vlanId = `vlan-${vid}`;
-                    const vlanObj = newVlans.find(v=>v.id===vlanId);
-                    
-                    const untagged = block.match(/untagged ([\d\-, ]+)/);
-                    if(untagged) parsePortList(untagged[1], newPorts, 'nativeVlanId', vlanId);
-                    
-                    // Handle "no untagged"
-                    const noUntagged = block.match(/no untagged ([\d\-, ]+)/);
-                    if(noUntagged) parsePortList(noUntagged[1], newPorts, 'nativeVlanId', null);
-
-                    // Improved Tagged Parsing - scan entire block
-                    const taggedMatches = [...block.matchAll(/\s+tagged ([\d\-, ]+)/g)];
-                    taggedMatches.forEach(tm => {
-                        parsePortList(tm[1], newPorts, 'taggedVlans', vlanId);
-                    });
-
-                    const ip = block.match(/ip address (\d+\.\d+\.\d+\.\d+ \d+\.\d+\.\d+\.\d+)/);
-                    if(ip && vlanObj) {
-                        const cidr = ip[1].split(' ').join('/'); // Simple conversion
-                        vlanObj.ip = cidr;
-                        if(vid === 1) state.global.ip = cidr; // Promote VLAN 1 IP to global
-                    }
-                    
-                    if(block.includes('ip igmp')) vlanObj.igmp = true;
-                });
-                
-                // Loop Protect / Interfaces
-                const lpMatch = text.match(/loop-protect ([\d\-,]+)/);
-                if(lpMatch) parsePortList(lpMatch[1], newPorts, 'isProtect', true);
-
-            } else if (brand === 'ruckus') {
-                const lagRegex = /lag "([^"]+)" (static|dynamic) id (\d+)/g;
-                let lm;
-                while ((lm = lagRegex.exec(text)) !== null) {
-                    newLags.push({ id: parseInt(lm[3]), name: lm[1], type: lm[2]==='dynamic'?'lacp':'static' });
-                }
-                const vRegex = /^vlan (\d+) name (.*) by port/gm;
-                while ((m = vRegex.exec(text)) !== null) {
-                    newVlans.push({ id: `vlan-${m[1]}`, vid: parseInt(m[1]), name: m[2].trim(), color: colors[colorIdx++ % colors.length], ip: '', igmp: false, qos: '' });
-                }
-                const vBlocks = text.split(/^vlan /m);
-                vBlocks.forEach(block => {
-                    const vidMatch = block.match(/^(\d+)/);
-                    if(!vidMatch) return;
-                    const vlanId = `vlan-${parseInt(vidMatch[1])}`;
-                    const tagged = block.match(/tagged (.*)/);
-                    if(tagged) parseRuckusPorts(tagged[1], newPorts, 'taggedVlans', vlanId);
-                    const untagged = block.match(/untagged (.*)/);
-                    if(untagged) parseRuckusPorts(untagged[1], newPorts, 'nativeVlanId', vlanId);
-                    
-                    if(block.includes('multicast-passive')) { 
-                         const v = newVlans.find(x=>x.id===vlanId); if(v) v.igmp = true; 
-                    }
-                });
-                // Ruckus VE IPs
-                const veRegex = /^interface ve (\d+)\s*\n\s*ip address (\d+\.\d+\.\d+\.\d+\/\d+)/gm;
-                while ((m = veRegex.exec(text)) !== null) {
-                    const v = newVlans.find(x=>x.vid === parseInt(m[1]));
-                    if(v) v.ip = m[2];
-                }
-            } else if (brand === 'netgear') {
-                 // Simplified Netgear Parsing
-                const vNameRegex = /vlan name (\d+) "(.*)"/g;
-                while ((m = vNameRegex.exec(text)) !== null) {
-                    newVlans.push({ id: `vlan-${m[1]}`, vid: parseInt(m[1]), name: m[2], color: colors[colorIdx++ % colors.length], ip:'' });
-                }
-                const intSplit = text.split(/^interface /m);
-                intSplit.forEach(chunk => {
-                    if(chunk.startsWith('vlan')) {
-                        const vid = chunk.match(/vlan (\d+)/)[1];
-                        const ip = chunk.match(/ip address (\d+\.\d+\.\d+\.\d+ \d+\.\d+\.\d+\.\d+)/);
-                        const v = newVlans.find(x=>x.vid==vid);
-                        if(v && ip) v.ip = ip[1].replace(' ', '/'); // simplistic mask handling
-                    }
-                    else if(chunk.startsWith('1/0/')) {
-                        const pNumMatch = chunk.match(/^1\/0\/(\d+)/);
-                        if(pNumMatch) {
-                            const p = parseInt(pNumMatch[1]);
-                            const pvid = (chunk.match(/vlan pvid (\d+)/) || [])[1];
-                            const tagging = (chunk.match(/vlan tagging (.*)/) || [])[1];
-                            if(!newPorts[p]) newPorts[p] = { nativeVlanId:null, taggedVlans:[], customLabel:null, isPoe:undefined };
-                            if(pvid) newPorts[p].nativeVlanId = `vlan-${pvid}`;
-                            if(tagging) parsePortList(tagging, newPorts, 'taggedVlans', null, p);
-                            if(chunk.includes('poe admin-mode disable')) newPorts[p].isPoe = false;
-                        }
-                    }
-                });
-            }
-
-            // Ensure Default VLAN
-            if (!newVlans.find(v => v.vid === 1)) newVlans.unshift({ id: 'vlan-1', vid: 1, name: 'Default', color: '#64748b', ip: '' });
-            state.vlans = newVlans;
-            state.ports = newPorts;
-            state.lags = newLags;
-            state.activeVlanId = newVlans[0].id;
-            
-            // Guess size
-            const maxPort = Math.max(0, ...Object.keys(newPorts).map(Number));
-            if (maxPort > 24) state.portCount = 48; else if (maxPort > 16) state.portCount = 24; else state.portCount = 8;
-            
-            updateSizeBtnLabel(); renderVlanList(); renderLagList(); renderAllPorts(); loadSettingsToForm(); closeImporterModal();
-            alert(`Imported ${brand.toUpperCase()} Config! Check settings for IPs/SNMP.`);
-        }
-
-        // Improved Range Parser for "1-4, 6, 8-10"
-        function parsePortList(str, portObj, prop, value, specificPort=null) {
-            if(!str) return;
-            // Clean string: remove "ethernet", "1/1/" etc to just get numbers
-            const cleanStr = str.replace(/ethernet /gi, '').replace(/1\/1\//g, '').replace(/1\/0\//g, '');
-            
-            const processPort = (p) => {
-                if(!portObj[p]) portObj[p] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined };
-                if(prop === 'taggedVlans') {
-                    // Value is the VLAN ID, we are adding it to the port's list
-                    // If we are parsing a list of ports for a specific VLAN (HP style)
-                    if(value && typeof value === 'string' && value.startsWith('vlan-')) {
-                        if(!portObj[p].taggedVlans.includes(value)) portObj[p].taggedVlans.push(value);
-                    } 
-                    // If we are parsing a list of VLANs for a specific port (Netgear/Dell style)
-                    else if (specificPort) {
-                         // Logic handled outside usually, but if here:
-                    }
-                } else if(prop === 'nativeVlanId') {
-                    portObj[p].nativeVlanId = value;
-                } else if(prop === 'isProtect') {
-                    portObj[p].isProtect = value;
-                }
-            };
-
-            if(specificPort) {
-               // Parsing a list of VLANs for a specific port e.g. "10, 20-30"
-               cleanStr.split(',').forEach(part => {
-                   part = part.trim();
-                   if(part.includes('-')) { 
-                       const [s,e] = part.split('-').map(Number); 
-                       for(let i=s; i<=e; i++) {
-                           if(prop==='taggedVlans') { 
-                               if(!portObj[specificPort].taggedVlans.includes(`vlan-${i}`)) portObj[specificPort].taggedVlans.push(`vlan-${i}`); 
-                           }
-                       }
-                   } else {
-                       const i = parseInt(part);
-                       if(!isNaN(i)) {
-                           if(prop==='taggedVlans') {
-                               if(!portObj[specificPort].taggedVlans.includes(`vlan-${i}`)) portObj[specificPort].taggedVlans.push(`vlan-${i}`); 
-                           }
-                       }
-                   }
-               });
-               return;
-            }
-
-            // Parsing a list of ports for a specific property e.g. "1-10, 12"
-            cleanStr.split(',').forEach(part => {
-                part = part.trim();
-                if (part.includes('-')) { 
-                    const [s,e] = part.split('-').map(Number); 
-                    for (let i = s; i <= e; i++) processPort(i); 
-                }
-                else if(!isNaN(parseInt(part))) processPort(parseInt(part));
-            });
-        }
-
-        function parseRuckusPorts(str, portObj, prop, value) {
-            // Ruckus uses "ethe 1/1/1 to 1/1/10" syntax sometimes
-            let clean = str.replace(/ethe /g, '').replace(/1\/1\//g, '').replace(/lag /g, 'L');
-            clean = clean.replace(/ to /g, '-'); 
-            const parts = clean.split(/[\s,]+/);
-            parts.forEach(part => {
-                if(part.startsWith('L')) { /* Skip LAGs in port map for now */ } 
-                else { parsePortList(part, portObj, prop, value); }
-            });
->>>>>>> 3bf705a848edd20efbd5fa911c93f782ec9a21bc
         }
 
         function openExportModal() {
@@ -1343,7 +1076,6 @@
                 });
             
             } else if (brand === 'ruckus') {
-<<<<<<< HEAD
                 out += `hostname ${g.hostname}\n! LAGs\n`;
                 state.lags.forEach(l => {
                     out += `lag "${l.name}" ${l.type==='lacp'?'dynamic':'static'} id ${l.id}\n`;
@@ -1355,9 +1087,6 @@
                     out += `!\n`;
                 });
                 out += `! VLANs\n`;
-=======
-                out += `hostname ${g.hostname}\n${snmpBlock}\n`;
->>>>>>> 3bf705a848edd20efbd5fa911c93f782ec9a21bc
                 state.vlans.forEach(v => {
                     if(!v.vid) return;
                     out += `vlan ${v.vid} name "${v.name}" by port\n`;
@@ -1370,7 +1099,6 @@
                         if(getVid(port.nativeVlanId)===v.vid) u.push(p);
                         if(port.taggedVlans.map(getVid).includes(v.vid)) t.push(p);
                     });
-<<<<<<< HEAD
                     // Add LAGs to VLANs
                     state.lags.forEach(l => {
                         const memberId = ports.find(p => state.ports[p].lagId === l.id);
@@ -1408,8 +1136,6 @@
                         }
                         out += ` tagged ${parts.join(' ')}\n`;
                     }
-=======
->>>>>>> 3bf705a848edd20efbd5fa911c93f782ec9a21bc
                     
                     if(u.length) {
                         const r = ruckusRange(u);
