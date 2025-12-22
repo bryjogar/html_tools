@@ -230,6 +230,9 @@
                     <button onclick="setTool('protect')" id="tool-protect" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
                         <i class="fa-solid fa-shield-halved"></i> Loop Prot.
                     </button>
+                    <button onclick="setTool('bpdu')" id="tool-bpdu" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-shield"></i> Disable BPDU
+                    </button>
                     <button onclick="setTool('label')" id="tool-label" class="tool-btn p-2 rounded flex items-center justify-center gap-2 text-xs">
                         <i class="fa-solid fa-tag"></i> Label
                     </button>
@@ -287,6 +290,7 @@
                         <div><label class="text-xs text-gray-400 block mb-1">NTP Server</label><input id="conf-ntp" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
                         <div><label class="text-xs text-gray-400 block mb-1">SNMP Location</label><input id="conf-snmp-location" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
                         <div><label class="text-xs text-gray-400 block mb-1">SNMP Contact</label><input id="conf-snmp-contact" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
+                        <div><label class="text-xs text-gray-400 block mb-1">SNMP Community (RO)</label><input id="conf-snmp-community" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono" placeholder="First read-only community"></div>
                     </div>
                 </section>
 
@@ -493,7 +497,9 @@
         }
 
         function createPortNode(portNum, position, isSfp) {
-            const portData = state.ports[portNum] || { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null, isProtect: false };
+            const portData = state.ports[portNum] || { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null, isProtect: false, bpduProtection: true };
+            // Default BPDU protection to true if not explicitly set
+            if (portData.bpduProtection === undefined) portData.bpduProtection = true;
             const isPoeEnabled = !isSfp && (portData.isPoe !== false);
             let baseColor = isSfp ? '#1a1a1a' : '#0d0d0d';
             let vlanName = 'Unassigned';
@@ -520,6 +526,9 @@
             }
             if(!isSfp) tooltip += `\nPoE: ${isPoeEnabled?'On':'Off'}`;
             if(portData.isProtect) tooltip += `\nLoop Protect: On`;
+            if(!isSfp && portData.bpduProtection !== undefined) {
+                tooltip += `\nBPDU Protection: ${portData.bpduProtection ? 'On' : 'Off'}`;
+            }
 
             let tagsHtml = '';
             if (portData.taggedVlans && portData.taggedVlans.length > 0) {
@@ -533,7 +542,13 @@
 
             const lagBadge = portData.lagId ? `<div class="lag-badge">L${portData.lagId}</div>` : '';
             const poeIcon = isPoeEnabled ? '<i class="fa-solid fa-bolt text-yellow-400 absolute top-0.5 right-0.5 text-[9px] z-20 drop-shadow-md"></i>' : '';
-            const protectIcon = portData.isProtect ? '<i class="fa-solid fa-shield-halved shield-badge"></i>' : '';
+            const protectIcon = portData.isProtect ? '<i class="fa-solid fa-shield-halved text-blue-400 absolute top-0.5 left-0.5 text-[9px] z-20 drop-shadow-md"></i>' : '';
+            // BPDU protection indicator - show when disabled (red X) or enabled (green shield)
+            const bpduIcon = !isSfp && portData.bpduProtection === false 
+                ? '<i class="fa-solid fa-shield text-red-400 absolute bottom-0.5 right-0.5 text-[8px] z-20 drop-shadow-md" title="BPDU Protection Disabled"></i>' 
+                : (!isSfp && portData.bpduProtection !== false 
+                    ? '<i class="fa-solid fa-shield text-green-400 absolute bottom-0.5 right-0.5 text-[8px] z-20 drop-shadow-md opacity-60" title="BPDU Protection Enabled"></i>' 
+                    : '');
             const wrapper = document.createElement('div');
             wrapper.className = "flex flex-col items-center gap-1 group relative";
             const inputHtml = `<input type="text" value="${portData.customLabel || portNum}" class="w-8 text-[9px] text-center bg-transparent border-none text-gray-500 font-mono focus:text-white focus:bg-obsidian-pane rounded port-label-input z-20" onchange="updateLabel(${portNum}, this.value)" readonly>`;
@@ -543,7 +558,7 @@
             const overlay = `<div class="absolute inset-0 opacity-40" style="${portData.nativeVlanId ? 'background-color:'+baseColor : ''}"></div>`;
             const led = !isSfp ? `<div class="absolute bottom-1 right-1 w-1 h-1 rounded-full ${portData.nativeVlanId ? 'bg-green-500 shadow-[0_0_4px_#22c55e]' : 'bg-gray-800'}"></div>` : `<div class="z-10 w-3 h-4 bg-black/50 rounded-sm border border-white/10"></div>`;
             
-            const portHtml = `<div class="${commonClasses} ${isSfp?'sfp-port':'rj45-port'}" title="${tooltip}" onclick="handlePortClick(${portNum})">${overlay}${tagsHtml}${led}${poeIcon}${protectIcon}${lagBadge}</div>`;
+            const portHtml = `<div class="${commonClasses} ${isSfp?'sfp-port':'rj45-port'}" title="${tooltip}" onclick="handlePortClick(${portNum})">${overlay}${tagsHtml}${led}${poeIcon}${protectIcon}${bpduIcon}${lagBadge}</div>`;
 
             if (position === 'top') wrapper.innerHTML = inputHtml + portHtml;
             else if (position === 'bottom') wrapper.innerHTML = portHtml + inputHtml;
@@ -553,8 +568,10 @@
 
         // --- Logic ---
         function handlePortClick(portNum) {
-            if (!state.ports[portNum]) state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null, isProtect: false };
+            if (!state.ports[portNum]) state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null, isProtect: false, bpduProtection: true };
             const p = state.ports[portNum];
+            // Default BPDU protection to true if not set
+            if (p.bpduProtection === undefined) p.bpduProtection = true;
             const isSfp = portNum > state.portCount; 
 
             if (state.currentTool === 'paint') p.nativeVlanId = state.activeVlanId;
@@ -566,10 +583,15 @@
             }
             else if (state.currentTool === 'poe' && !isSfp) p.isPoe = (p.isPoe === false) ? true : false;
             else if (state.currentTool === 'protect') p.isProtect = !p.isProtect;
+            else if (state.currentTool === 'bpdu') {
+                // Toggle BPDU protection (default is true, so this disables it)
+                if (p.bpduProtection === undefined) p.bpduProtection = true;
+                p.bpduProtection = !p.bpduProtection;
+            }
             else if (state.currentTool === 'lag') {
                 if (state.activeLagId) p.lagId = (p.lagId === state.activeLagId) ? null : state.activeLagId;
             }
-            else if (state.currentTool === 'erase') { p.nativeVlanId = null; p.taggedVlans = []; p.isPoe = undefined; p.customLabel = null; p.lagId = null; p.isProtect = false; }
+            else if (state.currentTool === 'erase') { p.nativeVlanId = null; p.taggedVlans = []; p.isPoe = undefined; p.customLabel = null; p.lagId = null; p.isProtect = false; p.bpduProtection = true; }
             else if (state.currentTool === 'label') {
                 const newLabel = prompt(`Label Port ${portNum}:`, p.customLabel || portNum);
                 if (newLabel !== null) p.customLabel = (newLabel === '' || newLabel == portNum) ? null : newLabel;
@@ -663,6 +685,11 @@
             document.getElementById('conf-ntp').value = ntpValue;
             document.getElementById('conf-snmp-location').value = state.global.snmpLocation || '';
             document.getElementById('conf-snmp-contact').value = state.global.snmpContact || '';
+            // SNMP Community - get first RO community or empty
+            const firstRoCommunity = state.global.snmpCommunities && state.global.snmpCommunities.length > 0 
+                ? state.global.snmpCommunities.find(c => c.access === 'ro') || state.global.snmpCommunities[0]
+                : null;
+            document.getElementById('conf-snmp-community').value = firstRoCommunity ? firstRoCommunity.community : '';
             document.getElementById('conf-custom').value = state.global.customConfig || '';
             renderL3List();
         }
@@ -681,6 +708,16 @@
             }
             state.global.snmpLocation = document.getElementById('conf-snmp-location').value;
             state.global.snmpContact = document.getElementById('conf-snmp-contact').value;
+            // SNMP Community - update or add first RO community
+            const snmpCommInput = document.getElementById('conf-snmp-community').value.trim();
+            if (snmpCommInput) {
+                const existingRo = state.global.snmpCommunities.findIndex(c => c.access === 'ro');
+                if (existingRo >= 0) {
+                    state.global.snmpCommunities[existingRo].community = snmpCommInput;
+                } else {
+                    state.global.snmpCommunities.push({ community: snmpCommInput, access: 'ro' });
+                }
+            }
             state.global.customConfig = document.getElementById('conf-custom').value;
             closeSettingsModal(); 
         }
@@ -895,11 +932,19 @@
             }
             
             // SNMP parsing - comprehensive
-            const snmpLocMatch = text.match(/snmp-server\s+(?:sysname|location)\s+["']?([^"'\n]+)["']?/i);
-            if (snmpLocMatch) state.global.snmpLocation = snmpLocMatch[1].trim();
-            
-            const snmpContactMatch = text.match(/snmp-server\s+contact\s+["']?([^"'\n]+)["']?/i);
-            if (snmpContactMatch) state.global.snmpContact = snmpContactMatch[1].trim();
+            // Handle combined format: "snmp-server contact "..." location "..."" (HP/Aruba)
+            const snmpCombinedMatch = text.match(/snmp-server\s+contact\s+["']?([^"']+)["']?\s+location\s+["']?([^"']+)["']?/i);
+            if (snmpCombinedMatch) {
+                state.global.snmpContact = snmpCombinedMatch[1].trim();
+                state.global.snmpLocation = snmpCombinedMatch[2].trim();
+            } else {
+                // Handle separate format
+                const snmpLocMatch = text.match(/snmp-server\s+(?:sysname|location)\s+["']?([^"'\n]+)["']?/i);
+                if (snmpLocMatch) state.global.snmpLocation = snmpLocMatch[1].trim();
+                
+                const snmpContactMatch = text.match(/snmp-server\s+contact\s+["']?([^"'\n]+)["']?/i);
+                if (snmpContactMatch) state.global.snmpContact = snmpContactMatch[1].trim();
+            }
             
             const snmpSysnameMatch = text.match(/snmp-server\s+sysname\s+["']?([^"'\n]+)["']?/i);
             if (snmpSysnameMatch) state.global.snmpSysname = snmpSysnameMatch[1].trim();
@@ -1143,12 +1188,13 @@
                     const portNum = parseInt(match[1]);
                     if (portNum > 0 && portNum <= 52) {
                         if (!state.ports[portNum]) {
-                            state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                            state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null, bpduProtection: true };
                         }
-                        if (!state.ports[portNum].stp) state.ports[portNum].stp = {};
-                        state.ports[portNum].stp.bpduProtection = true;
+                        state.ports[portNum].bpduProtection = true;
                     }
                 }
+                // For HP: All ports default to BPDU protection enabled unless explicitly disabled
+                // (We'll mark ports as having BPDU protection if they're in the list)
                 
                 // Parse loop-protect ports
                 const loopProtectMatch = text.match(/loop-protect\s+([\d,\s-]+)/i);
@@ -1587,6 +1633,15 @@
                 state.routedInterfaces.push({ id: 'vlan-1', ip: '' });
             }
             
+            // Auto-detect and set port count based on highest port number found
+            const allPortNumbers = Object.keys(state.ports).map(Number).filter(p => p > 0 && p <= 52);
+            if (allPortNumbers.length > 0) {
+                const maxPort = Math.max(...allPortNumbers);
+                // Find the smallest PORT_OPTION that fits the max port
+                const appropriateSize = PORT_OPTIONS.find(size => size >= maxPort) || PORT_OPTIONS[PORT_OPTIONS.length - 1];
+                state.portCount = appropriateSize;
+            }
+            
             // Reinitialize UI
             init();
             closeImporterModal();
@@ -1696,7 +1751,8 @@
                     }
 
                     if(port.isPoe===false) out += ` poe admin-mode disable\n`;
-                    if(p <= state.portCount) out += ` spanning-tree bpdu-guard\n`;
+                    // BPDU protection (default true, only output if enabled)
+                    if(port.bpduProtection !== false && p <= state.portCount) out += ` spanning-tree bpdu-guard\n`;
                     out += ` exit\n`;
                 });
 
@@ -1782,6 +1838,28 @@
                         out += `interface ve ${vid}\n ip address ${ri.ip}\n!\n`;
                     }
                 });
+                // Port configurations (Ruckus) - iterate by port to combine all settings
+                ports.filter(p => p <= state.portCount).forEach(p => {
+                    const port = state.ports[p];
+                    if (!port) return;
+                    
+                    // Only create interface block if there's something to configure
+                    const hasLabel = port.customLabel;
+                    const hasBpdu = port.bpduProtection !== false;
+                    const hasVoiceVlan = port.voiceVlan;
+                    
+                    if (hasLabel || hasBpdu || hasVoiceVlan) {
+                        out += `interface ethernet 1/1/${p}\n`;
+                        if (hasLabel) out += ` port-name "${port.customLabel}"\n`;
+                        if (hasBpdu) out += ` stp-bpdu-guard\n`;
+                        if (hasVoiceVlan) {
+                            const voiceVid = getVid(port.voiceVlan);
+                            out += ` voice-vlan ${voiceVid}\n`;
+                        }
+                        out += `!\n`;
+                    }
+                });
+                
                 out += `ip route 0.0.0.0/0 ${g.gateway}\n`;
             
             } else if (brand === 'aruba') {
@@ -1789,6 +1867,21 @@
                 state.lags.forEach(l => {
                     const members = ports.filter(p => state.ports[p].lagId === l.id);
                     if(members.length) out += `trunk ${members.join(',')} trk${l.id} ${l.type}\n`;
+                });
+                
+                // Port descriptions (HP/Aruba)
+                ports.forEach(p => {
+                    const port = state.ports[p];
+                    if (port && port.customLabel) {
+                        out += `interface ${p}\n name "${port.customLabel}"\n exit\n`;
+                    }
+                });
+                // BPDU protection (HP uses spanning-tree X bpdu-protection - separate commands)
+                ports.filter(p => p <= state.portCount).forEach(p => {
+                    const port = state.ports[p];
+                    if (!port || port.bpduProtection !== false) {
+                        out += `spanning-tree ${p} bpdu-protection\n`;
+                    }
                 });
                 
                 state.vlans.forEach(v => {
