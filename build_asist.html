@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deck & Dock Planner (Custom) | Homelab Playground</title>
+    <title>Deck & Dock Planner Pro | Homelab Playground</title>
     <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,39 +35,39 @@
 
     <style>
         /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #252526; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #444; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555; 
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #252526; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
 
         /* Canvas Pattern */
         .canvas-bg {
             background-image: 
                 linear-gradient(to right, #3c3c3c 1px, transparent 1px),
                 linear-gradient(to bottom, #3c3c3c 1px, transparent 1px);
-            background-size: 40px 40px; /* 40px = 1 foot scale approx */
+            background-size: 40px 40px; /* 40px = 1 foot scale */
             background-color: #1a1a1a;
+        }
+        /* Print specific styles */
+        @media print {
+            .no-print { display: none !important; }
+            .canvas-bg { background-color: #fff !important; background-image: none !important; border: 1px solid #ddd; }
+            body, aside, footer { background: #fff !important; color: #000 !important; height: auto !important; overflow: visible !important; }
+            #canvas-container { overflow: visible !important; }
         }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
 
-    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20 no-print">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-compass-drafting text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-tight text-white">Deck & Dock Planner</h1>
+            <h1 class="font-bold text-lg tracking-tight text-white">Deck & Dock Planner Pro</h1>
         </div>
         <div class="flex gap-2">
+             <button onclick="resetView()" class="text-xs bg-obsidian-bg hover:bg-white/5 border border-obsidian-border px-3 py-1.5 rounded transition">
+                <i class="fa-solid fa-crosshairs mr-1"></i> Center View
+            </button>
             <button onclick="clearCanvas()" class="text-xs bg-red-900/20 hover:bg-red-900/50 text-red-400 border border-red-900/50 px-3 py-1.5 rounded transition">
                 <i class="fa-solid fa-trash mr-1"></i> Clear
             </button>
@@ -76,14 +76,42 @@
 
     <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         
-        <aside class="w-full md:w-72 bg-obsidian-pane border-b md:border-b-0 md:border-r border-obsidian-border flex flex-col shrink-0 overflow-y-auto z-10">
-            <div class="p-4 border-b border-obsidian-border">
+        <aside class="w-full md:w-72 bg-obsidian-pane border-b md:border-b-0 md:border-r border-obsidian-border flex flex-col shrink-0 overflow-y-auto z-10 no-print">
+            
+            <div class="p-4 border-b border-obsidian-border bg-obsidian-bg/30">
+                <h2 class="text-xs font-bold text-white mb-3 uppercase tracking-wider">
+                    <i class="fa-solid fa-layer-group mr-1 text-obsidian-accent"></i> Views & Measurements
+                </h2>
                 
+                <label class="flex items-center justify-between p-2 bg-obsidian-accent/10 border border-obsidian-accent/30 rounded cursor-pointer mb-4 hover:bg-obsidian-accent/20 transition">
+                    <span class="text-xs font-bold text-white"><i class="fa-solid fa-ruler-combined mr-2"></i>Post Layout Mode</span>
+                    <div class="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="toggle-post-coords" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer transition-transform duration-200 ease-in-out right-5 border-gray-600 checked:right-0 checked:border-obsidian-accent" onchange="togglePostMode()">
+                        <label for="toggle-post-coords" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-600 cursor-pointer transition-colors duration-200 ease-in-out checked:bg-obsidian-accent"></label>
+                    </div>
+                </label>
+
+                <div class="space-y-2" id="layer-toggles">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400"><i class="fa-solid fa-circle text-[8px] text-amber-900 mr-2"></i>Posts Layer</span>
+                        <button onclick="toggleLayer('post')" id="btn-layer-post" class="text-xs px-2 py-0.5 rounded bg-obsidian-accent text-white"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400"><i class="fa-solid fa-circle text-[8px] text-amber-600 mr-2"></i>Framing Layer</span>
+                        <button onclick="toggleLayer('lumber')" id="btn-layer-lumber" class="text-xs px-2 py-0.5 rounded bg-obsidian-accent text-white"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-400"><i class="fa-solid fa-circle text-[8px] text-yellow-600 mr-2"></i>Decking Layer</span>
+                        <button onclick="toggleLayer('decking')" id="btn-layer-decking" class="text-xs px-2 py-0.5 rounded bg-obsidian-accent text-white"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-b border-obsidian-border">
                 <div class="bg-black/20 p-3 rounded border border-obsidian-border mb-6">
                     <h2 class="text-xs font-bold text-white mb-2 uppercase tracking-wider flex items-center">
                         <i class="fa-solid fa-wrench mr-2 text-obsidian-accent"></i> Custom Component
                     </h2>
-                    
                     <div class="grid grid-cols-2 gap-2 mb-2">
                         <div>
                             <label class="text-[10px] text-gray-500 uppercase">Thick (in)</label>
@@ -94,90 +122,74 @@
                             <input type="number" id="custom-width" value="9.25" step="0.25" class="w-full bg-obsidian-bg border border-obsidian-border rounded px-2 py-1 text-xs text-white focus:border-obsidian-accent outline-none">
                         </div>
                     </div>
-                    
                     <div class="mb-3">
                         <label class="text-[10px] text-gray-500 uppercase">Length (ft)</label>
                         <input type="number" id="custom-length" value="8" class="w-full bg-obsidian-bg border border-obsidian-border rounded px-2 py-1 text-xs text-white focus:border-obsidian-accent outline-none">
                     </div>
-
                     <div class="flex gap-2 mb-3">
                         <label class="flex-1 cursor-pointer">
                             <input type="radio" name="orientation" value="edge" checked class="hidden peer">
                             <div class="text-[10px] text-center p-1 border border-obsidian-border rounded bg-obsidian-bg peer-checked:bg-obsidian-accent peer-checked:text-white hover:bg-white/5 transition">
-                                <i class="fa-solid fa-arrows-up-down mr-1"></i> On Edge<br>(Framing)
+                                <i class="fa-solid fa-arrows-up-down mr-1"></i> On Edge
                             </div>
                         </label>
                         <label class="flex-1 cursor-pointer">
                             <input type="radio" name="orientation" value="flat" class="hidden peer">
                             <div class="text-[10px] text-center p-1 border border-obsidian-border rounded bg-obsidian-bg peer-checked:bg-obsidian-accent peer-checked:text-white hover:bg-white/5 transition">
-                                <i class="fa-solid fa-arrows-left-right mr-1"></i> Flat<br>(Decking)
+                                <i class="fa-solid fa-arrows-left-right mr-1"></i> Flat
                             </div>
                         </label>
                     </div>
-
                     <button onclick="addCustomItem()" class="w-full bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-bold py-2 rounded transition shadow-lg">
-                        <i class="fa-solid fa-plus mr-1"></i> Add Custom Board
+                        <i class="fa-solid fa-plus mr-1"></i> Add
                     </button>
                 </div>
 
-                <hr class="border-obsidian-border mb-4">
-
-                <h2 class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">Quick Presets</h2>
-
-                <div class="mb-4">
-                    <p class="text-[10px] text-gray-500 mb-2">Common Framing (Stand on Edge)</p>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="addItem('lumber', 1.5, 5.5, 8, '2x6')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition group">
-                            <div class="w-2 h-4 bg-amber-800/50 group-hover:bg-amber-600 mr-2 rounded-sm"></div>
-                            <span class="text-xs">2x6</span>
-                        </button>
-                        <button onclick="addItem('lumber', 1.5, 7.25, 8, '2x8')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition group">
-                            <div class="w-2 h-5 bg-amber-800/50 group-hover:bg-amber-600 mr-2 rounded-sm"></div>
-                            <span class="text-xs">2x8</span>
-                        </button>
-                        <button onclick="addItem('lumber', 1.5, 9.25, 8, '2x10')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition group">
-                            <div class="w-2 h-6 bg-amber-800/50 group-hover:bg-amber-600 mr-2 rounded-sm"></div>
-                            <span class="text-xs">2x10</span>
-                        </button>
-                        <button onclick="addItem('lumber', 1.5, 11.25, 8, '2x12')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition group">
-                            <div class="w-2 h-8 bg-amber-800/50 group-hover:bg-amber-600 mr-2 rounded-sm"></div>
-                            <span class="text-xs">2x12</span>
-                        </button>
+                <details class="group">
+                    <summary class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider cursor-pointer flex justify-between items-center">
+                        <span>Quick Presets</span>
+                        <i class="fa-solid fa-chevron-down group-open:rotate-180 transition"></i>
+                    </summary>
+                    <div class="space-y-4 pt-2">
+                        <div>
+                            <p class="text-[10px] text-gray-500 mb-2">Posts</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="addItem('post', 3.5, 3.5, 0, '4x4 Post')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition">
+                                    <div class="w-3 h-3 bg-amber-900 mr-2 border border-amber-950"></div><span class="text-xs">4x4</span>
+                                </button>
+                                <button onclick="addItem('post', 5.5, 5.5, 0, '6x6 Post')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition">
+                                    <div class="w-4 h-4 bg-amber-900 mr-2 border border-amber-950"></div><span class="text-xs">6x6</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-gray-500 mb-2">Framing (Edge)</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="addItem('lumber', 1.5, 5.5, 8, '2x6')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition"><div class="w-2 h-4 bg-amber-800/50 mr-2 rounded-sm"></div><span class="text-xs">2x6</span></button>
+                                <button onclick="addItem('lumber', 1.5, 7.25, 8, '2x8')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition"><div class="w-2 h-5 bg-amber-800/50 mr-2 rounded-sm"></div><span class="text-xs">2x8</span></button>
+                                <button onclick="addItem('lumber', 1.5, 9.25, 8, '2x10')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition"><div class="w-2 h-6 bg-amber-800/50 mr-2 rounded-sm"></div><span class="text-xs">2x10</span></button>
+                                <button onclick="addItem('lumber', 1.5, 11.25, 8, '2x12')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition"><div class="w-2 h-8 bg-amber-800/50 mr-2 rounded-sm"></div><span class="text-xs">2x12</span></button>
+                            </div>
+                        </div>
+                         <div>
+                            <p class="text-[10px] text-gray-500 mb-2">Decking (Flat)</p>
+                            <button onclick="addItem('decking', 1, 5.5, 8, '5/4x6 Decking')" class="w-full flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition group">
+                                <div class="w-6 h-2 bg-yellow-700/50 mr-2 rounded-sm"></div><span class="text-xs">5/4 x 6 Std</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
-
-                <div class="mb-4">
-                    <p class="text-[10px] text-gray-500 mb-2">Decking (Lay Flat)</p>
-                    <button onclick="addItem('decking', 1, 5.5, 8, '5/4x6 Decking')" class="w-full flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition group">
-                        <div class="w-6 h-2 bg-yellow-700/50 group-hover:bg-yellow-600 mr-2 rounded-sm"></div>
-                        <span class="text-xs">5/4 x 6 Standard</span>
-                    </button>
-                </div>
-
-                 <div class="mb-4">
-                    <p class="text-[10px] text-gray-500 mb-2">Posts</p>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="addItem('post', 3.5, 3.5, 0, '4x4 Post')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition">
-                            <div class="w-3 h-3 bg-yellow-900 mr-2"></div>
-                            <span class="text-xs">4x4</span>
-                        </button>
-                        <button onclick="addItem('post', 5.5, 5.5, 0, '6x6 Post')" class="flex items-center p-2 bg-obsidian-bg border border-obsidian-border hover:border-obsidian-accent hover:text-white rounded transition">
-                            <div class="w-4 h-4 bg-yellow-900 mr-2"></div>
-                            <span class="text-xs">6x6</span>
-                        </button>
-                    </div>
-                </div>
+                </details>
             </div>
 
             <div id="editor-controls" class="p-4 hidden bg-obsidian-bg/50 flex-1 border-t border-obsidian-border">
                 <div class="flex justify-between items-center mb-3">
                     <h2 class="text-sm font-bold text-obsidian-accent uppercase tracking-wider">Edit Selected</h2>
-                    <span id="selected-type-label" class="text-[10px] bg-obsidian-border px-1.5 py-0.5 rounded text-gray-400">ITEM</span>
+                    <span id="selected-type-label" class="text-[10px] bg-obsidian-border px-1.5 py-0.5 rounded text-gray-400 truncate max-w-[120px]">ITEM</span>
                 </div>
                 
                 <div class="mb-3">
                     <label class="text-[10px] text-gray-500 block mb-1">Length (Feet)</label>
-                    <input type="number" id="item-length" min="1" max="100" class="w-full bg-obsidian-pane border border-obsidian-border rounded px-2 py-1 text-sm focus:border-obsidian-accent outline-none text-white" oninput="updateSelectedItem()">
+                    <input type="number" id="item-length" min="0.5" max="100" step="0.5" class="w-full bg-obsidian-pane border border-obsidian-border rounded px-2 py-1 text-sm focus:border-obsidian-accent outline-none text-white" oninput="updateSelectedItem()">
                 </div>
 
                 <div class="grid grid-cols-2 gap-2 mb-3">
@@ -196,20 +208,24 @@
         </aside>
 
         <div class="flex-1 relative overflow-auto bg-obsidian-bg cursor-crosshair" id="canvas-container">
-            <div class="absolute top-4 left-4 z-10 pointer-events-none space-y-2">
-                <div class="bg-obsidian-pane/90 px-3 py-1.5 rounded text-xs border border-obsidian-border text-gray-300 shadow-lg backdrop-blur-sm">
-                   <i class="fa-solid fa-ruler-combined mr-1 text-obsidian-accent"></i> 1 Grid Sq = 1 Foot
+            <div class="absolute top-4 left-4 z-10 pointer-events-none space-y-2 no-print">
+                <div class="bg-obsidian-pane/90 px-3 py-1.5 rounded text-xs border border-obsidian-border text-gray-300 shadow-lg backdrop-blur-sm inline-flex items-center">
+                   <i class="fa-solid fa-ruler-combined mr-2 text-obsidian-accent"></i> 
+                   <span>1 Grid Sq = 1 Foot</span>
                 </div>
+                <div id="post-mode-indicator" class="hidden bg-obsidian-accent/90 px-3 py-1.5 rounded text-xs font-bold text-white shadow-lg backdrop-blur-sm">
+                    <i class="fa-solid fa-crosshairs mr-1"></i> POST LAYOUT MODE ACTIVE
+                 </div>
             </div>
             
-            <canvas id="projectCanvas" width="2400" height="2400" class="canvas-bg shadow-2xl"></canvas>
+            <canvas id="projectCanvas" width="3000" height="3000" class="canvas-bg shadow-2xl print:shadow-none"></canvas>
         </div>
 
-        <aside class="w-full md:w-64 bg-obsidian-pane border-t md:border-t-0 md:border-l border-obsidian-border flex flex-col shrink-0 z-10 h-64 md:h-auto">
+        <aside class="w-full md:w-64 bg-obsidian-pane border-t md:border-t-0 md:border-l border-obsidian-border flex flex-col shrink-0 z-10 h-64 md:h-auto no-print">
             <div class="p-3 border-b border-obsidian-border bg-obsidian-pane flex justify-between items-center">
                 <h2 class="text-sm font-bold text-white tracking-wider">Bill of Materials</h2>
-                <button onclick="window.print()" class="text-xs text-obsidian-accent hover:text-white transition">
-                    <i class="fa-solid fa-print"></i>
+                <button onclick="window.print()" class="text-xs bg-obsidian-accent hover:bg-violet-600 text-white px-2 py-1 rounded transition flex items-center">
+                    <i class="fa-solid fa-print mr-1"></i> Print View
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto p-0">
@@ -217,7 +233,7 @@
                     <thead class="bg-obsidian-bg text-gray-500 text-[10px] uppercase">
                         <tr>
                             <th class="p-2 font-normal">Item</th>
-                            <th class="p-2 font-normal">Dims</th>
+                            <th class="p-2 font-normal">Len.</th>
                             <th class="p-2 font-normal text-right">Qty</th>
                         </tr>
                     </thead>
@@ -232,23 +248,16 @@
 
     </main>
 
-    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
-        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
-            HomeLab Playground
-        </a>
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3 no-print">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">HomeLab Playground</a>
         <span class="hidden md:block text-obsidian-border mx-1">|</span>
-        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
-            <i class="fa-solid fa-mug-hot mr-1.5"></i>
-            <span>Support The Tools</span>
-        </a>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline"><i class="fa-solid fa-mug-hot mr-1.5"></i><span>Support The Tools</span></a>
     </footer>
 
     <script>
-        // Configuration
         const PIXELS_PER_FOOT = 40; 
-        const SNAP_GRID = 5; // Finer snap for detail
+        const SNAP_GRID = 5;
 
-        // State
         const canvas = document.getElementById('projectCanvas');
         const ctx = canvas.getContext('2d');
         const canvasContainer = document.getElementById('canvas-container');
@@ -256,109 +265,126 @@
         let items = []; 
         let selectedId = null;
         let isDragging = false;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
+        let dragOffsetX = 0, dragOffsetY = 0;
+
+        // View State
+        let showPostMode = false;
+        let layers = {
+            post: true,
+            lumber: true, 
+            decking: true,
+            custom: true // custom is lumped into lumber/decking usually but good to have
+        };
 
         function init() {
-            // Center view
-            canvasContainer.scrollTop = (canvas.height - canvasContainer.clientHeight) / 2;
-            canvasContainer.scrollLeft = (canvas.width - canvasContainer.clientWidth) / 2;
-            updateBOM();
+            resetView();
+            draw();
+            // Add initial example posts so the mode makes sense immediately
+            addItem('post', 5.5, 5.5, 0, '6x6 Post', canvas.width/2 - 100, canvas.height/2 - 100);
+            addItem('post', 5.5, 5.5, 0, '6x6 Post', canvas.width/2 + 100, canvas.height/2 - 100);
+             addItem('post', 5.5, 5.5, 0, '6x6 Post', canvas.width/2 - 100, canvas.height/2 + 100);
+        }
+
+        function resetView() {
+             canvasContainer.scrollTop = (canvas.height - canvasContainer.clientHeight) / 2;
+             canvasContainer.scrollLeft = (canvas.width - canvasContainer.clientWidth) / 2;
+        }
+
+        function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+        // --- Layer & View Controls ---
+
+        function togglePostMode() {
+            showPostMode = document.getElementById('toggle-post-coords').checked;
+            document.getElementById('post-mode-indicator').classList.toggle('hidden', !showPostMode);
+            
+            // Auto-hide other layers when in post mode for clarity
+            if (showPostMode) {
+                layers.lumber = false;
+                layers.decking = false;
+            } else {
+                layers.lumber = true;
+                layers.decking = true;
+            }
+            updateLayerButtons();
             draw();
         }
 
-        function generateId() {
-            return Math.random().toString(36).substr(2, 9);
+        function toggleLayer(layerName) {
+            layers[layerName] = !layers[layerName];
+            // If manually toggling, disable auto-post mode to avoid confusion
+            if (showPostMode && (layerName === 'lumber' || layerName === 'decking') && layers[layerName]) {
+                 showPostMode = false;
+                 document.getElementById('toggle-post-coords').checked = false;
+                 document.getElementById('post-mode-indicator').classList.add('hidden');
+            }
+            updateLayerButtons();
+            draw();
         }
 
-        // Add Custom Item wrapper
+        function updateLayerButtons() {
+            ['post', 'lumber', 'decking'].forEach(l => {
+                const btn = document.getElementById(`btn-layer-${l}`);
+                if(layers[l]) {
+                    btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+                    btn.classList.remove('bg-obsidian-pane', 'text-gray-500');
+                    btn.classList.add('bg-obsidian-accent', 'text-white');
+                } else {
+                     btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+                     btn.classList.remove('bg-obsidian-accent', 'text-white');
+                     btn.classList.add('bg-obsidian-pane', 'text-gray-500');
+                }
+            });
+        }
+
+
+        // --- Item Manipulation ---
+
         function addCustomItem() {
             const thick = parseFloat(document.getElementById('custom-thick').value);
             const width = parseFloat(document.getElementById('custom-width').value);
             const length = parseFloat(document.getElementById('custom-length').value);
             const orientation = document.querySelector('input[name="orientation"]:checked').value;
-            
-            // Generate name based on sizing
-            const name = `Custom ${thick}x${width}`;
-            
-            // Determine type logic
-            let type = 'custom';
-            if (orientation === 'flat') type = 'decking';
-            else type = 'lumber'; // framing
-
+            const name = `Custom ${thick}"x${width}"`;
+            let type = (orientation === 'flat') ? 'decking' : 'lumber';
             addItem(type, thick, width, length, name);
         }
 
-        /**
-         * Core Add Function
-         * @param {string} type - 'post', 'lumber', 'decking', 'custom'
-         * @param {number} dim1 - Thickness (inches)
-         * @param {number} dim2 - Width (inches)
-         * @param {number} lengthFt - Length in Feet
-         * @param {string} nameOverride - Optional display name
-         */
-        function addItem(type, dim1, dim2, lengthFt = 0, nameOverride = '') {
-            const viewX = canvasContainer.scrollLeft + (canvasContainer.clientWidth / 2);
-            const viewY = canvasContainer.scrollTop + (canvasContainer.clientHeight / 2);
+        function addItem(type, dim1, dim2, lengthFt = 0, nameOverride = '', startX = null, startY = null) {
+            const viewX = startX ?? canvasContainer.scrollLeft + (canvasContainer.clientWidth / 2);
+            const viewY = startY ?? canvasContainer.scrollTop + (canvasContainer.clientHeight / 2);
 
-            let renderW, renderH, color, zIndex, name;
-
-            // Dimensions logic for Top-Down View
-            // renderW = x-axis size, renderH = y-axis size
+            let renderW, renderH, color, zIndex, name, actualType = type;
 
             if (type === 'post') {
-                // Post: Width x Depth (dim1 x dim2)
                 renderW = (dim1 / 12) * PIXELS_PER_FOOT;
                 renderH = (dim2 / 12) * PIXELS_PER_FOOT;
-                color = '#78350f'; // amber-900
+                color = '#451a03'; // amber-950
                 zIndex = 10;
-                name = nameOverride || `${dim1}x${dim2} Post`;
-                lengthFt = 0; // Posts are vertical points in 2D
-            } 
-            else if (type === 'lumber' || type === 'custom') {
-                // Framing (On Edge):
-                // Length of board runs Left-Right on screen initially
-                // Height on screen = Thickness of board
+                name = nameOverride;
+            } else if (type === 'lumber' || type.includes('custom')) {
                 renderW = lengthFt * PIXELS_PER_FOOT;
                 renderH = (dim1 / 12) * PIXELS_PER_FOOT; // Thickness
-                
-                // Minimum visual thickness so it's clickable
-                if (renderH < 4) renderH = 4;
-
-                color = '#d97706'; // amber-600
-                if(nameOverride.includes('Custom')) color = '#ea580c'; // distinct custom color
-
+                if (renderH < 4) renderH = 4; // Min visibility
+                color = nameOverride.includes('Custom') ? '#ea580c' : '#d97706';
                 zIndex = 20;
-                name = nameOverride || `${dim1}x${dim2} Board`;
-            } 
-            else if (type === 'decking') {
-                // Decking (Flat):
-                // Length of board runs Left-Right
-                // Height on screen = Width of board
+                name = nameOverride;
+                actualType = 'lumber';
+            } else if (type === 'decking') {
                 renderW = lengthFt * PIXELS_PER_FOOT;
                 renderH = (dim2 / 12) * PIXELS_PER_FOOT; // Width
-                
-                color = '#ca8a04'; // yellow-600
+                color = '#ca8a04';
                 zIndex = 30;
-                name = nameOverride || `${dim1}x${dim2} Decking`;
+                name = nameOverride;
             }
 
             const newItem = {
-                id: generateId(),
-                type: type,
-                name: name,
-                x: viewX - (renderW/2),
-                y: viewY - (renderH/2),
-                w: renderW,
-                h: renderH,
-                lengthFt: lengthFt,
-                rotation: 0,
-                color: color,
-                zIndex: zIndex,
-                dim1: dim1, // Store original dims
-                dim2: dim2
+                id: generateId(), type: actualType, name: name,
+                x: viewX - (renderW/2), y: viewY - (renderH/2),
+                w: renderW, h: renderH,
+                lengthFt: lengthFt, rotation: 0, color: color, zIndex: zIndex,
+                dim1: dim1, dim2: dim2
             };
-
             items.push(newItem);
             selectItem(newItem.id);
             draw();
@@ -369,30 +395,18 @@
             if (!selectedId) return;
             items = items.filter(i => i.id !== selectedId);
             selectedId = null;
-            updateUI();
-            draw();
-            updateBOM();
+            updateUI(); draw(); updateBOM();
         }
 
         function clearCanvas() {
-            if(confirm('Clear all items?')) {
-                items = [];
-                selectedId = null;
-                updateUI();
-                draw();
-                updateBOM();
-            }
+            if(confirm('Clear all items?')) { items = []; selectedId = null; updateUI(); draw(); updateBOM(); }
         }
 
         function rotateItem() {
             if (!selectedId) return;
             const item = items.find(i => i.id === selectedId);
             if (item) {
-                // Swap W and H visually
-                const temp = item.w;
-                item.w = item.h;
-                item.h = temp;
-                
+                [item.w, item.h] = [item.h, item.w]; // Swap W/H
                 item.rotation = (item.rotation + 90) % 360;
                 draw();
             }
@@ -403,241 +417,219 @@
             const original = items.find(i => i.id === selectedId);
             if (original) {
                 const clone = JSON.parse(JSON.stringify(original));
-                clone.id = generateId();
-                clone.x += 15;
-                clone.y += 15;
-                items.push(clone);
-                selectItem(clone.id);
-                draw();
-                updateBOM();
+                clone.id = generateId(); clone.x += 15; clone.y += 15;
+                items.push(clone); selectItem(clone.id); draw(); updateBOM();
             }
         }
 
         function updateSelectedItem() {
             if (!selectedId) return;
             const item = items.find(i => i.id === selectedId);
-            const input = document.getElementById('item-length');
-            const newLength = parseFloat(input.value);
-
+            const newLength = parseFloat(document.getElementById('item-length').value);
             if (newLength > 0 && item.type !== 'post') {
                 item.lengthFt = newLength;
-                // Update the dimension that corresponds to Length
-                // If w > h, assumption is w is length (horizontal). If rotated, h is length.
-                if (item.w > item.h) {
-                    item.w = newLength * PIXELS_PER_FOOT;
-                } else {
-                    item.h = newLength * PIXELS_PER_FOOT;
-                }
-                draw();
-                updateBOM();
+                if (item.w > item.h) item.w = newLength * PIXELS_PER_FOOT;
+                else item.h = newLength * PIXELS_PER_FOOT;
+                draw(); updateBOM();
             }
         }
 
-        function selectItem(id) {
-            selectedId = id;
-            updateUI();
-            draw();
-        }
+        function selectItem(id) { selectedId = id; updateUI(); draw(); }
 
         function updateUI() {
             const controls = document.getElementById('editor-controls');
-            const lengthInput = document.getElementById('item-length');
-            const typeLabel = document.getElementById('selected-type-label');
-
             if (selectedId) {
                 const item = items.find(i => i.id === selectedId);
                 controls.classList.remove('hidden');
-                
-                typeLabel.innerText = item.name;
-                
-                lengthInput.value = item.lengthFt;
-                // Disable length edit for posts (they are points)
-                lengthInput.disabled = (item.type === 'post'); 
-            } else {
-                controls.classList.add('hidden');
-            }
+                document.getElementById('selected-type-label').innerText = item.name;
+                document.getElementById('item-length').value = item.lengthFt || 0;
+                document.getElementById('item-length').disabled = (item.type === 'post'); 
+            } else { controls.classList.add('hidden'); }
         }
 
         function updateBOM() {
-            const tbody = document.getElementById('bom-body');
-            tbody.innerHTML = '';
-            
+            const tbody = document.getElementById('bom-body'); tbody.innerHTML = '';
             const grouped = {};
-            
             items.forEach(item => {
                 const key = `${item.name}::${item.lengthFt}`;
-                if (!grouped[key]) {
-                    grouped[key] = {
-                        name: item.name,
-                        length: item.lengthFt,
-                        count: 0
-                    };
-                }
+                if (!grouped[key]) grouped[key] = { name: item.name, length: item.lengthFt, count: 0 };
                 grouped[key].count++;
             });
-
             let total = 0;
             Object.keys(grouped).sort().forEach(key => {
-                const g = grouped[key];
-                total += g.count;
-                // Format Length display
-                let dimDisplay = g.length > 0 ? `${g.length}'` : '-';
-                
-                const row = `
+                const g = grouped[key]; total += g.count;
+                tbody.innerHTML += `
                     <tr class="border-b border-obsidian-border/50 last:border-0 hover:bg-white/5 transition">
-                        <td class="p-2 text-white font-medium">${g.name}</td>
-                        <td class="p-2 text-obsidian-accent">${dimDisplay}</td>
+                        <td class="p-2 text-white font-medium truncate">${g.name}</td>
+                        <td class="p-2 text-obsidian-accent">${g.length > 0 ? g.length+"'" : '-'}</td>
                         <td class="p-2 text-right font-bold text-gray-400">${g.count}</td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
+                    </tr>`;
             });
-
             document.getElementById('total-count').innerText = total;
+        }
+
+        // --- Drawing Core ---
+
+        function pxToFeetInches(px) {
+            const totalFeet = px / PIXELS_PER_FOOT;
+            const feet = Math.floor(totalFeet);
+            const inches = Math.round((totalFeet - feet) * 12);
+            return `${feet}' ${inches}"`;
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Grid Lines (Every 1 foot)
-            ctx.strokeStyle = '#2a2a2a';
-            ctx.lineWidth = 1;
-            
-            // Draw Items
-            items.sort((a, b) => a.zIndex - b.zIndex);
+            // Filter visible items based on layers
+            let visibleItems = items.filter(i => layers[i.type]);
+            visibleItems.sort((a, b) => a.zIndex - b.zIndex);
 
-            items.forEach(item => {
+            // --- Post Coordinate Mode Logic ---
+            if (showPostMode) {
+                // Ensure only posts are visible regardless of layer toggle state during this mode
+                visibleItems = items.filter(i => i.type === 'post');
+
+                if (visibleItems.length > 0) {
+                    // Find Datum (Top-Left most post)
+                    let datum = visibleItems[0];
+                    visibleItems.forEach(item => {
+                        if (item.y < datum.y || (item.y === datum.y && item.x < datum.x)) {
+                            datum = item;
+                        }
+                    });
+
+                    // Draw Datum Axis
+                    ctx.save();
+                    ctx.strokeStyle = '#7c3aed'; // accent
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(datum.x + datum.w/2, datum.y + datum.w/2); ctx.lineTo(datum.x + datum.w/2 + 1000, datum.y + datum.w/2); // X axis
+                    ctx.moveTo(datum.x + datum.w/2, datum.y + datum.w/2); ctx.lineTo(datum.x + datum.w/2, datum.y + datum.w/2 + 1000); // Y axis
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#7c3aed';
+                    ctx.font = 'bold 14px sans-serif';
+                    ctx.fillText("START POINT (0,0)", datum.x - 20, datum.y - 10);
+                    ctx.restore();
+
+                    // Calculate and draw coordinates for others
+                    visibleItems.forEach(item => {
+                        if (item === datum) return;
+                        const dx = Math.abs(item.x - datum.x);
+                        const dy = Math.abs(item.y - datum.y);
+                        
+                        const coords = `X: ${pxToFeetInches(dx)} | Y: ${pxToFeetInches(dy)}`;
+
+                        ctx.save();
+                        ctx.fillStyle = '#fff';
+                        ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+                        ctx.font = '12px monospace';
+                        // Offset label slightly
+                        ctx.fillText(coords, item.x + item.w + 10, item.y + item.h / 2 + 4);
+
+                        // Draw faint connector lines to datum axis
+                        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([2, 2]);
+                        ctx.beginPath();
+                        // Horizontal back to Y-axis
+                        ctx.moveTo(item.x + item.w/2, item.y + item.h/2);
+                        ctx.lineTo(datum.x + datum.w/2, item.y + item.h/2);
+                        // Vertical up to X-axis
+                        ctx.moveTo(item.x + item.w/2, item.y + item.h/2);
+                        ctx.lineTo(item.x + item.w/2, datum.y + datum.h/2);
+                        ctx.stroke();
+                        ctx.restore();
+                    });
+                }
+            }
+
+            // --- Standard Item Drawing ---
+            visibleItems.forEach(item => {
                 ctx.save();
                 
-                // Selection Highlight
                 if (item.id === selectedId) {
-                    ctx.shadowColor = '#7c3aed';
-                    ctx.shadowBlur = 15;
-                    ctx.strokeStyle = '#a78bfa';
+                    ctx.shadowColor = '#7c3aed'; ctx.shadowBlur = 15; ctx.strokeStyle = '#a78bfa';
                 } else {
-                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                    ctx.shadowBlur = 5;
-                    ctx.strokeStyle = '#111';
+                    // Less shadow in post mode for clarity of dimensions
+                    ctx.shadowColor = showPostMode ? 'transparent' : 'rgba(0,0,0,0.5)'; 
+                    ctx.shadowBlur = showPostMode ? 0 : 5; 
+                    ctx.strokeStyle = showPostMode ? '#666' : '#111';
                 }
 
                 ctx.fillStyle = item.color;
                 ctx.fillRect(item.x, item.y, item.w, item.h);
-                
-                ctx.lineWidth = 1;
+                ctx.lineWidth = (item.type === 'post' && showPostMode) ? 2 : 1;
                 ctx.strokeRect(item.x, item.y, item.w, item.h);
 
-                // Text Label for Length
-                if (item.lengthFt > 0 && item.w > 20 && item.h > 10) {
-                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-                    ctx.font = 'bold 10px sans-serif';
-                    ctx.shadowBlur = 0;
-                    
-                    const txt = item.lengthFt + "'";
-                    const m = ctx.measureText(txt);
-                    
-                    // Only draw if it fits
+                // Length Labels (skip for posts or small items)
+                if (!showPostMode && item.lengthFt > 0 && item.w > 25 && item.h > 12) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 10px sans-serif'; ctx.shadowBlur = 0;
+                    const txt = item.lengthFt + "'"; const m = ctx.measureText(txt);
                     if (m.width < (Math.max(item.w, item.h) - 4)) {
-                         // Center text
                         ctx.fillText(txt, item.x + (item.w/2) - (m.width/2), item.y + (item.h/2) + 3);
                     }
                 }
-
                 ctx.restore();
             });
         }
 
-        // --- Mouse / Touch Handling ---
+        // --- Interactions ---
 
         function getMousePos(evt) {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
             return {
-                x: (evt.clientX - rect.left) * scaleX,
-                y: (evt.clientY - rect.top) * scaleY
+                x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+                y: (evt.clientY - rect.top) * (canvas.height / rect.height)
             };
         }
 
         function isHit(pos, item) {
-            // Simple AABB hit test
-            // Add padding for thin items (framing)
-            const padding = (item.h < 10 || item.w < 10) ? 5 : 0;
+            if (!layers[item.type] && !showPostMode) return false; // Don't hit hidden items
+            if (showPostMode && item.type !== 'post') return false;
+
+            const padding = (item.h < 10 || item.w < 10) ? 10 : 0; // Easier selection for thin items
             return pos.x >= item.x - padding && pos.x <= item.x + item.w + padding &&
                    pos.y >= item.y - padding && pos.y <= item.y + item.h + padding;
         }
 
-        canvas.addEventListener('mousedown', function(e) {
+        canvas.addEventListener('mousedown', (e) => {
+            if(e.button !== 0) return; // Only Left Click
             const pos = getMousePos(e);
             let hitItem = null;
-            // Reverse loop to catch top-most items first
             for (let i = items.length - 1; i >= 0; i--) {
-                if (isHit(pos, items[i])) {
-                    hitItem = items[i];
-                    break;
-                }
+                if (isHit(pos, items[i])) { hitItem = items[i]; break; }
             }
-
             if (hitItem) {
-                isDragging = true;
-                selectItem(hitItem.id);
-                dragOffsetX = pos.x - hitItem.x;
-                dragOffsetY = pos.y - hitItem.y;
-            } else {
-                selectedId = null;
-                updateUI();
-                draw();
-            }
+                isDragging = true; selectItem(hitItem.id);
+                dragOffsetX = pos.x - hitItem.x; dragOffsetY = pos.y - hitItem.y;
+            } else { selectedId = null; updateUI(); draw(); }
         });
 
-        canvas.addEventListener('mousemove', function(e) {
+        canvas.addEventListener('mousemove', (e) => {
             if (isDragging && selectedId) {
                 const pos = getMousePos(e);
                 const item = items.find(i => i.id === selectedId);
                 if (item) {
-                    let newX = pos.x - dragOffsetX;
-                    let newY = pos.y - dragOffsetY;
-
-                    // Snap Logic
-                    newX = Math.round(newX / SNAP_GRID) * SNAP_GRID;
-                    newY = Math.round(newY / SNAP_GRID) * SNAP_GRID;
-
-                    item.x = newX;
-                    item.y = newY;
+                    // Snap to grid normally, but if in post mode, maybe snap tighter? sticking to standard snap for now.
+                    item.x = Math.round((pos.x - dragOffsetX) / SNAP_GRID) * SNAP_GRID;
+                    item.y = Math.round((pos.y - dragOffsetY) / SNAP_GRID) * SNAP_GRID;
                     draw();
                 }
             }
         });
 
-        window.addEventListener('mouseup', function() {
-            isDragging = false;
-        });
-
-        // Basic Touch
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const t = e.touches[0];
-            canvas.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: t.clientX, clientY: t.clientY
-            }));
-        }, {passive:false});
-
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const t = e.touches[0];
-            canvas.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: t.clientX, clientY: t.clientY
-            }));
-        }, {passive:false});
-
-        canvas.addEventListener('touchend', () => {
-            window.dispatchEvent(new MouseEvent('mouseup'));
-        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
         
-        // Keyboard Delete
-        document.addEventListener('keydown', (e) => {
-            if(e.key === 'Delete' || e.key === 'Backspace') deleteItem();
-        });
+        // Basic Touch Support
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if(e.touches.length > 1) return; const t = e.touches[0]; canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY, button: 0 })); }, {passive:false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if(e.touches.length > 1) return; const t = e.touches[0]; canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY })); }, {passive:false});
+        canvas.addEventListener('touchend', (e) => { window.dispatchEvent(new MouseEvent('mouseup')); });
+        
+        document.addEventListener('keydown', (e) => { if(e.key === 'Delete' || e.key === 'Backspace') deleteItem(); });
 
+        // Initialize
         init();
     </script>
 </body>

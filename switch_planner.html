@@ -276,21 +276,38 @@
                 <h3 class="text-white font-bold"><i class="fa-solid fa-gear"></i> Switch Configuration</h3>
                 <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="p-6 overflow-y-auto">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><label class="text-xs text-gray-400 block mb-1">Hostname</label><input id="conf-hostname" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">Mgmt IP (CIDR)</label><input id="conf-ip" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono" placeholder="192.168.1.2/24"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">Default Gateway</label><input id="conf-gateway" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">DNS Server</label><input id="conf-dns" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">NTP (Time) Server</label><input id="conf-ntp" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono" placeholder="time.nist.gov"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">SNMP Community</label><input id="conf-snmp" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">SNMP Contact</label><input id="conf-snmpContact" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                    <div><label class="text-xs text-gray-400 block mb-1">SNMP Location</label><input id="conf-snmpLocation" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
-                </div>
-                <div class="border-t border-obsidian-border pt-4">
-                    <label class="text-xs text-gray-400 block mb-1">Custom Configuration (Appended to end)</label>
-                    <textarea id="conf-customConfig" class="w-full h-24 bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono" placeholder="! Enter custom CLI commands here..."></textarea>
-                </div>
+            
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                <section>
+                    <h4 class="text-xs font-bold uppercase text-obsidian-accent mb-2">Device Basics</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="text-xs text-gray-400 block mb-1">Hostname</label><input id="conf-hostname" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
+                        <div><label class="text-xs text-gray-400 block mb-1">Default Gateway (Route 0.0.0.0)</label><input id="conf-gateway" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
+                        <div><label class="text-xs text-gray-400 block mb-1">DNS Server</label><input id="conf-dns" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
+                        <div><label class="text-xs text-gray-400 block mb-1">NTP Server</label><input id="conf-ntp" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
+                        <div><label class="text-xs text-gray-400 block mb-1">SNMP Location</label><input id="conf-snmp-location" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
+                        <div><label class="text-xs text-gray-400 block mb-1">SNMP Contact</label><input id="conf-snmp-contact" class="w-full bg-[#111] text-white border border-[#333] rounded px-2 py-1 text-sm font-mono"></div>
+                    </div>
+                </section>
+
+                <hr class="border-obsidian-border">
+
+                <section>
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="text-xs font-bold uppercase text-obsidian-accent">Routed Interfaces (Layer 3)</h4>
+                        <button onclick="addRoutedInterface()" class="text-xs bg-green-900/30 text-green-400 border border-green-900 px-2 py-1 rounded hover:bg-green-900/50"><i class="fa-solid fa-plus"></i> Add Interface</button>
+                    </div>
+                    <div id="l3-interfaces-list" class="space-y-2">
+                        </div>
+                </section>
+
+                <hr class="border-obsidian-border">
+
+                <section>
+                     <h4 class="text-xs font-bold uppercase text-obsidian-accent mb-2">Custom Config Injection</h4>
+                     <p class="text-[10px] text-gray-500 mb-2">Any text here will be appended/injected into the final generated configuration. Use generic syntax or specific commands.</p>
+                     <textarea id="conf-custom" class="w-full h-32 bg-[#111] text-green-400 font-mono text-xs p-2 rounded border border-[#333]" placeholder="! Add custom commands here..."></textarea>
+                </section>
             </div>
             <div class="p-4 bg-obsidian-pane border-t border-obsidian-border flex justify-end">
                 <button onclick="saveSettings()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-6 py-2 rounded text-sm transition">Save</button>
@@ -340,20 +357,13 @@
             activeVlanId: 'vlan-1',
             activeLagId: null,
             currentTool: 'paint', 
-            vlans: [{ id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b', ip: '', igmp: false, qos: '' }],
+            vlans: [{ id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b' }],
             lags: [],
             ports: {},
-            global: { 
-                hostname: 'SWITCH-01', 
-                ip: '', 
-                gateway: '', 
-                dns: '8.8.8.8', 
-                ntp: 'time.nist.gov', 
-                snmp: 'public',
-                snmpContact: '',
-                snmpLocation: '',
-                customConfig: ''
-            }
+            routedInterfaces: [
+                { id: 'vlan-1', ip: '192.168.1.2/24' } // Default mgmt
+            ],
+            global: { hostname: 'SWITCH-01', gateway: '192.168.1.1', dns: '8.8.8.8', ntp: 'pool.ntp.org', customConfig: '', snmpLocation: '', snmpContact: '' }
         };
 
         // --- DOM Elements ---
@@ -555,13 +565,39 @@
         function selectLag(id) { state.activeLagId = id; setTool('lag'); renderLagList(); }
 
         function addVlan() {
-            const name = document.getElementById('new-vlan-name').value.trim();
-            const color = document.getElementById('new-vlan-color').value;
-            if(!name) return;
-            const id = 'vlan-'+Date.now();
-            const nextVid = state.vlans.length>0 ? Math.max(...state.vlans.map(v=>v.vid||0))+10 : 10;
-            state.vlans.push({id,name,color,vid:nextVid, ip:'', igmp:false, qos:''});
-            document.getElementById('new-vlan-name').value=''; selectVlan(id);
+            const nameInput = document.getElementById('new-vlan-name');
+            const idInput = document.getElementById('new-vlan-id');
+            const colorInput = document.getElementById('new-vlan-color');
+
+            const name = nameInput.value.trim();
+            const color = colorInput.value;
+            let vid = parseInt(idInput.value.trim());
+
+            if (!name) { alert("Please enter a VLAN Name"); return; }
+
+            // If no ID provided, auto-increment
+            if (!vid) {
+                 vid = state.vlans.length > 0 ? Math.max(...state.vlans.map(v => v.vid || 0)) + 10 : 10;
+            }
+
+            // Validate ID
+            if (state.vlans.find(v => v.vid === vid)) {
+                alert(`VLAN ID ${vid} already exists.`);
+                return;
+            }
+            if (vid < 1 || vid > 4094) {
+                alert("VLAN ID must be between 1 and 4094");
+                return;
+            }
+
+            const id = `vlan-${vid}`;
+            state.vlans.push({ id, name, color, vid });
+            
+            // Reset inputs
+            nameInput.value = '';
+            idInput.value = '';
+            
+            selectVlan(id);
         }
 
         function addLag() {
@@ -573,7 +609,7 @@
             document.getElementById('new-lag-name').value = ''; selectLag(id);
         }
 
-        function resetVlans() { if(confirm("Reset?")) location.reload(); }
+        function resetVlans() { if(confirm("Reset VLANs?")) { state.vlans=[{ id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b' }]; state.activeVlanId='vlan-1'; renderVlanList(); renderAllPorts(); } }
         function resetLags() { if(confirm("Clear LAGs?")) { state.lags = []; Object.values(state.ports).forEach(p=>p.lagId=null); renderLagList(); renderAllPorts(); } }
         function cycleSwitchSize() {
             let idx = PORT_OPTIONS.indexOf(state.portCount);
@@ -585,10 +621,17 @@
         function openSettingsModal() { loadSettingsToForm(); document.getElementById('settings-modal').classList.remove('hidden'); }
         function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
         function loadSettingsToForm() { 
-            ['hostname','ip','gateway','dns','ntp','snmp', 'snmpContact', 'snmpLocation', 'customConfig'].forEach(k => document.getElementById('conf-'+k).value = state.global[k] || ''); 
+            ['hostname','gateway','dns','ntp'].forEach(k => document.getElementById('conf-'+k).value = state.global[k] || ''); 
+            document.getElementById('conf-snmp-location').value = state.global.snmpLocation || '';
+            document.getElementById('conf-snmp-contact').value = state.global.snmpContact || '';
+            document.getElementById('conf-custom').value = state.global.customConfig || '';
+            renderL3List();
         }
         function saveSettings() { 
-            ['hostname','ip','gateway','dns','ntp','snmp', 'snmpContact', 'snmpLocation', 'customConfig'].forEach(k => state.global[k] = document.getElementById('conf-'+k).value); 
+            ['hostname','gateway','dns','ntp'].forEach(k => state.global[k] = document.getElementById('conf-'+k).value);
+            state.global.snmpLocation = document.getElementById('conf-snmp-location').value;
+            state.global.snmpContact = document.getElementById('conf-snmp-contact').value;
+            state.global.customConfig = document.getElementById('conf-custom').value;
             closeSettingsModal(); 
         }
 
@@ -606,230 +649,383 @@
 
         function openImporterModal() { document.getElementById('importer-modal').classList.remove('hidden'); }
         function closeImporterModal() { document.getElementById('importer-modal').classList.add('hidden'); }
+        // Helper: Expand port ranges (e.g., "1-4, 6, 8-10" -> [1,2,3,4,6,8,9,10])
+        function expandPortRanges(rangeStr) {
+            const ports = [];
+            const parts = rangeStr.split(',').map(s => s.trim());
+            for (const part of parts) {
+                if (part.includes('-')) {
+                    const [start, end] = part.split('-').map(n => parseInt(n.trim()));
+                    if (!isNaN(start) && !isNaN(end)) {
+                        for (let i = start; i <= end; i++) ports.push(i);
+                    }
+                } else {
+                    const num = parseInt(part);
+                    if (!isNaN(num)) ports.push(num);
+                }
+            }
+            return ports;
+        }
 
-        // --- Improved Import Logic ---
-        function parseAndLoadConfig() {
-            const text = document.getElementById('import-text').value;
-            if(!text.trim()) return;
-
-            let brand = 'netgear';
-            if(text.includes('J9772A') || text.includes('aruba-central') || text.includes('no untagged')) brand = 'hp';
-            else if(text.includes('stack unit') || text.includes('ruckuswireless')) brand = 'ruckus';
-            else if(text.includes('vlan participation') || text.includes('M4300') || text.includes('vlan pvid')) brand = 'netgear';
+        // Helper: Condense consecutive ports into ranges for Ruckus CLI (e.g., [1,2,3,4,6,8,9,10] -> "1/1/1 to 1/1/4, 1/1/6, 1/1/8 to 1/1/10")
+        function condensePortRanges(portList, prefix = '1/1/') {
+            if (portList.length === 0) return '';
             
-            const newVlans = [];
-            const newPorts = {};
-            const newLags = [];
-            const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7', '#f97316', '#ec4899', '#06b6d4'];
-            let colorIdx = 0;
-
-            // Global Parsing
-            const hostMatch = text.match(/hostname "?([^"\n]+)"?/);
-            if(hostMatch) state.global.hostname = hostMatch[1].trim();
-            const gwMatch = text.match(/ip default-gateway (\S+)/) || text.match(/ip route 0\.0\.0\.0\/0 (\S+)/);
-            if(gwMatch) state.global.gateway = gwMatch[1];
+            // Sort and get unique ports
+            const sorted = [...new Set(portList.map(p => {
+                // Handle both "1/1/5" format and just numbers
+                if (typeof p === 'string' && p.includes('/')) {
+                    const parts = p.split('/');
+                    return parseInt(parts[parts.length - 1]);
+                }
+                return parseInt(p);
+            }))].sort((a, b) => a - b);
             
-            // Global SNMP
-            const snmpLoc = text.match(/snmp-server location "([^"]+)"/);
-            if(snmpLoc) state.global.snmpLocation = snmpLoc[1];
+            const ranges = [];
+            let rangeStart = sorted[0];
+            let rangeEnd = sorted[0];
             
-            const snmpCon = text.match(/snmp-server contact "([^"]+)"/);
-            if(snmpCon) state.global.snmpContact = snmpCon[1];
-
-            // HP Combined Contact/Location
-            const snmpCombo = text.match(/snmp-server contact "([^"]+)" location "([^"]+)"/);
-            if(snmpCombo) {
-                state.global.snmpContact = snmpCombo[1];
-                state.global.snmpLocation = snmpCombo[2];
+            for (let i = 1; i < sorted.length; i++) {
+                if (sorted[i] === rangeEnd + 1) {
+                    rangeEnd = sorted[i];
+                } else {
+                    if (rangeStart === rangeEnd) {
+                        ranges.push(`${prefix}${rangeStart}`);
+                    } else {
+                        ranges.push(`${prefix}${rangeStart} to ${prefix}${rangeEnd}`);
+                    }
+                    rangeStart = sorted[i];
+                    rangeEnd = sorted[i];
+                }
             }
             
-            const snmpComm = text.match(/snmp-server community "([^"]+)"/);
-            if(snmpComm) state.global.snmp = snmpComm[1];
-
+            // Add final range
+            if (rangeStart === rangeEnd) {
+                ranges.push(`${prefix}${rangeStart}`);
+            } else {
+                ranges.push(`${prefix}${rangeStart} to ${prefix}${rangeEnd}`);
+            }
             
-            if (brand === 'hp') {
-                const vlanRegex = /^vlan (\d+)\s*\n\s*name "([^"]+)"/gm;
-                let m;
-                while ((m = vlanRegex.exec(text)) !== null) {
-                    newVlans.push({ id: `vlan-${m[1]}`, vid: parseInt(m[1]), name: m[2], color: colors[colorIdx++ % colors.length], ip: '', igmp: false, qos: '' });
+            return ranges.join(', ');
+        }
+
+        function parseAndLoadConfig() {
+            const text = document.getElementById('import-text').value.trim();
+            if (!text) { alert('Please paste a configuration first.'); return; }
+            
+            const lines = text.split('\n').map(l => l.trim());
+            let detectedBrand = null;
+            
+            // Detect brand
+            if (text.match(/hostname\s+["']?[\w-]+["']?/i) && text.match(/vlan\s+\d+/i) && text.match(/(untagged|tagged)\s+[\d,\s-]+/i)) {
+                if (text.match(/trunk\s+\d+.*trk\d+/i) || text.match(/spanning-tree force-version/i)) {
+                    detectedBrand = 'aruba';
+                } else if (text.match(/lag\s+["'].*["']/i) || text.match(/router-interface ve/i)) {
+                    detectedBrand = 'ruckus';
+                } else if (text.match(/interface lag/i) || text.match(/switchport mode/i)) {
+                    detectedBrand = 'netgear';
                 }
-                const vlanBlocks = text.split(/^vlan /m);
-                vlanBlocks.forEach(block => {
-                    const vidMatch = block.match(/^(\d+)/);
-                    if(!vidMatch) return;
-                    const vid = parseInt(vidMatch[1]);
-                    const vlanId = `vlan-${vid}`;
-                    const vlanObj = newVlans.find(v=>v.id===vlanId);
-                    
-                    const untagged = block.match(/untagged ([\d\-, ]+)/);
-                    if(untagged) parsePortList(untagged[1], newPorts, 'nativeVlanId', vlanId);
-                    
-                    // Handle "no untagged"
-                    const noUntagged = block.match(/no untagged ([\d\-, ]+)/);
-                    if(noUntagged) parsePortList(noUntagged[1], newPorts, 'nativeVlanId', null);
-
-                    // Improved Tagged Parsing - scan entire block
-                    const taggedMatches = [...block.matchAll(/\s+tagged ([\d\-, ]+)/g)];
-                    taggedMatches.forEach(tm => {
-                        parsePortList(tm[1], newPorts, 'taggedVlans', vlanId);
-                    });
-
-                    const ip = block.match(/ip address (\d+\.\d+\.\d+\.\d+ \d+\.\d+\.\d+\.\d+)/);
-                    if(ip && vlanObj) {
-                        const cidr = ip[1].split(' ').join('/'); // Simple conversion
-                        vlanObj.ip = cidr;
-                        if(vid === 1) state.global.ip = cidr; // Promote VLAN 1 IP to global
-                    }
-                    
-                    if(block.includes('ip igmp')) vlanObj.igmp = true;
-                });
+            }
+            
+            if (!detectedBrand) {
+                if (confirm('Could not auto-detect switch brand. Attempt HP/Aruba parsing? (Click Cancel to abort)')) {
+                    detectedBrand = 'aruba';
+                } else {
+                    return;
+                }
+            }
+            
+            // Reset state but preserve structure
+            const oldPortCount = state.portCount;
+            state.vlans = [{ id: 'vlan-1', name: 'Default', vid: 1, color: '#64748b' }];
+            state.lags = [];
+            state.ports = {};
+            state.routedInterfaces = [];
+            state.activeVlanId = 'vlan-1';
+            state.activeLagId = null;
+            
+            // Parse global settings
+            const hostnameMatch = text.match(/hostname\s+["']?([\w-]+)["']?/i);
+            if (hostnameMatch) state.global.hostname = hostnameMatch[1];
+            
+            const gatewayMatch = text.match(/ip\s+(?:default-)?gateway\s+(\d+\.\d+\.\d+\.\d+)/i) || 
+                                  text.match(/ip\s+route\s+0\.0\.0\.0\s+0\.0\.0\.0\s+(\d+\.\d+\.\d+\.\d+)/i);
+            if (gatewayMatch) state.global.gateway = gatewayMatch[1];
+            
+            const dnsMatch = text.match(/ip\s+name-server\s+(\d+\.\d+\.\d+\.\d+)/i) || 
+                            text.match(/dns-server\s+(\d+\.\d+\.\d+\.\d+)/i);
+            if (dnsMatch) state.global.dns = dnsMatch[1];
+            
+            const ntpMatch = text.match(/sntp\s+server\s+([\w\.-]+)/i) || 
+                           text.match(/ntp\s+server\s+([\w\.-]+)/i);
+            if (ntpMatch) state.global.ntp = ntpMatch[1];
+            
+            // SNMP parsing
+            const snmpLocMatch = text.match(/snmp-server\s+location\s+["']?([^"'\n]+)["']?/i);
+            if (snmpLocMatch) state.global.snmpLocation = snmpLocMatch[1].trim();
+            
+            const snmpContactMatch = text.match(/snmp-server\s+contact\s+["']?([^"'\n]+)["']?/i);
+            if (snmpContactMatch) state.global.snmpContact = snmpContactMatch[1].trim();
+            
+            if (detectedBrand === 'aruba') {
+                // HP/Aruba parsing
+                const vlanBlocks = [];
+                let currentVlan = null;
+                let vlanLines = [];
                 
-                // Loop Protect / Interfaces
-                const lpMatch = text.match(/loop-protect ([\d\-,]+)/);
-                if(lpMatch) parsePortList(lpMatch[1], newPorts, 'isProtect', true);
-
-            } else if (brand === 'ruckus') {
-                const lagRegex = /lag "([^"]+)" (static|dynamic) id (\d+)/g;
-                let lm;
-                while ((lm = lagRegex.exec(text)) !== null) {
-                    newLags.push({ id: parseInt(lm[3]), name: lm[1], type: lm[2]==='dynamic'?'lacp':'static' });
-                }
-                const vRegex = /^vlan (\d+) name (.*) by port/gm;
-                while ((m = vRegex.exec(text)) !== null) {
-                    newVlans.push({ id: `vlan-${m[1]}`, vid: parseInt(m[1]), name: m[2].trim(), color: colors[colorIdx++ % colors.length], ip: '', igmp: false, qos: '' });
-                }
-                const vBlocks = text.split(/^vlan /m);
-                vBlocks.forEach(block => {
-                    const vidMatch = block.match(/^(\d+)/);
-                    if(!vidMatch) return;
-                    const vlanId = `vlan-${parseInt(vidMatch[1])}`;
-                    const tagged = block.match(/tagged (.*)/);
-                    if(tagged) parseRuckusPorts(tagged[1], newPorts, 'taggedVlans', vlanId);
-                    const untagged = block.match(/untagged (.*)/);
-                    if(untagged) parseRuckusPorts(untagged[1], newPorts, 'nativeVlanId', vlanId);
+                // First pass: collect VLAN blocks (may span multiple lines)
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
                     
-                    if(block.includes('multicast-passive')) { 
-                         const v = newVlans.find(x=>x.id===vlanId); if(v) v.igmp = true; 
+                    // Start of VLAN block
+                    const vlanMatch = line.match(/^vlan\s+(\d+)/i);
+                    if (vlanMatch) {
+                        if (currentVlan) vlanBlocks.push({ ...currentVlan, lines: vlanLines });
+                        currentVlan = { vid: parseInt(vlanMatch[1]), name: '', untagged: [], tagged: [], ip: null, exitLine: -1 };
+                        vlanLines = [line];
+                        continue;
                     }
-                });
-                // Ruckus VE IPs
-                const veRegex = /^interface ve (\d+)\s*\n\s*ip address (\d+\.\d+\.\d+\.\d+\/\d+)/gm;
-                while ((m = veRegex.exec(text)) !== null) {
-                    const v = newVlans.find(x=>x.vid === parseInt(m[1]));
-                    if(v) v.ip = m[2];
-                }
-            } else if (brand === 'netgear') {
-                 // Simplified Netgear Parsing
-                const vNameRegex = /vlan name (\d+) "(.*)"/g;
-                while ((m = vNameRegex.exec(text)) !== null) {
-                    newVlans.push({ id: `vlan-${m[1]}`, vid: parseInt(m[1]), name: m[2], color: colors[colorIdx++ % colors.length], ip:'' });
-                }
-                const intSplit = text.split(/^interface /m);
-                intSplit.forEach(chunk => {
-                    if(chunk.startsWith('vlan')) {
-                        const vid = chunk.match(/vlan (\d+)/)[1];
-                        const ip = chunk.match(/ip address (\d+\.\d+\.\d+\.\d+ \d+\.\d+\.\d+\.\d+)/);
-                        const v = newVlans.find(x=>x.vid==vid);
-                        if(v && ip) v.ip = ip[1].replace(' ', '/'); // simplistic mask handling
-                    }
-                    else if(chunk.startsWith('1/0/')) {
-                        const pNumMatch = chunk.match(/^1\/0\/(\d+)/);
-                        if(pNumMatch) {
-                            const p = parseInt(pNumMatch[1]);
-                            const pvid = (chunk.match(/vlan pvid (\d+)/) || [])[1];
-                            const tagging = (chunk.match(/vlan tagging (.*)/) || [])[1];
-                            if(!newPorts[p]) newPorts[p] = { nativeVlanId:null, taggedVlans:[], customLabel:null, isPoe:undefined };
-                            if(pvid) newPorts[p].nativeVlanId = `vlan-${pvid}`;
-                            if(tagging) parsePortList(tagging, newPorts, 'taggedVlans', null, p);
-                            if(chunk.includes('poe admin-mode disable')) newPorts[p].isPoe = false;
+                    
+                    if (currentVlan) {
+                        vlanLines.push(line);
+                        
+                        // VLAN name
+                        const nameMatch = line.match(/^\s*name\s+["']?([^"'\n]+)["']?/i);
+                        if (nameMatch) currentVlan.name = nameMatch[1].trim();
+                        
+                        // IP address (L3)
+                        const ipMatch = line.match(/^\s*ip\s+address\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)/i);
+                        if (ipMatch) {
+                            const cidr = ipMaskToCidr(ipMatch[2]);
+                            currentVlan.ip = `${ipMatch[1]}/${cidr}`;
+                        }
+                        
+                        // Exit/end of VLAN block
+                        if (line.match(/^\s*(exit|end)/i)) {
+                            currentVlan.exitLine = i;
+                            vlanBlocks.push({ ...currentVlan, lines: vlanLines });
+                            currentVlan = null;
+                            vlanLines = [];
                         }
                     }
+                }
+                if (currentVlan) vlanBlocks.push({ ...currentVlan, lines: vlanLines });
+                
+                // Second pass: parse untagged/tagged with multi-line support
+                vlanBlocks.forEach(block => {
+                    const vlanId = `vlan-${block.vid}`;
+                    const vlanName = block.name || `VLAN ${block.vid}`;
+                    
+                    // Check if VLAN already exists
+                    let vlan = state.vlans.find(v => v.vid === block.vid);
+                    if (!vlan) {
+                        vlan = { id: vlanId, name: vlanName, vid: block.vid, color: `#${Math.floor(Math.random()*16777215).toString(16)}` };
+                        state.vlans.push(vlan);
+                    }
+                    
+                    // Parse untagged/tagged from the block lines
+                    // Handle multi-line: "untagged 1-4," on one line, "6, 8-10" on next
+                    let untaggedStr = '';
+                    let taggedStr = '';
+                    let inUntagged = false;
+                    let inTagged = false;
+                    
+                    for (const line of block.lines) {
+                        // Check for "no untagged" directive
+                        if (line.match(/^\s*no\s+untagged/i)) {
+                            // Remove all ports from this VLAN's untagged list
+                            // We'll handle this by not adding any untagged ports
+                            inUntagged = false;
+                            untaggedStr = '';
+                            continue;
+                        }
+                        
+                        // Start of untagged line
+                        if (line.match(/^\s*untagged\s+/i)) {
+                            inUntagged = true;
+                            inTagged = false;
+                            untaggedStr = line.replace(/^\s*untagged\s+/i, '');
+                        }
+                        // Continuation of untagged (line ends with comma or is continuation)
+                        else if (inUntagged && (line.match(/^[\d,\s-]+$/) || line.endsWith(','))) {
+                            untaggedStr += ' ' + line;
+                        }
+                        // Start of tagged line
+                        else if (line.match(/^\s*tagged\s+/i)) {
+                            inTagged = true;
+                            inUntagged = false;
+                            taggedStr = line.replace(/^\s*tagged\s+/i, '');
+                        }
+                        // Continuation of tagged
+                        else if (inTagged && (line.match(/^[\d,\s-]+$/) || line.endsWith(','))) {
+                            taggedStr += ' ' + line;
+                        }
+                        // End of block
+                        else if (line.match(/^\s*(exit|end)/i)) {
+                            inUntagged = false;
+                            inTagged = false;
+                        }
+                        else {
+                            inUntagged = false;
+                            inTagged = false;
+                        }
+                    }
+                    
+                    // Process untagged ports
+                    if (untaggedStr) {
+                        const ports = expandPortRanges(untaggedStr.replace(/,/g, ' '));
+                        ports.forEach(portNum => {
+                            if (portNum > 0 && portNum <= 48) {
+                                if (!state.ports[portNum]) {
+                                    state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                }
+                                state.ports[portNum].nativeVlanId = vlanId;
+                                // Remove from tagged if present
+                                if (state.ports[portNum].taggedVlans) {
+                                    state.ports[portNum].taggedVlans = state.ports[portNum].taggedVlans.filter(t => t !== vlanId);
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Process tagged ports
+                    if (taggedStr) {
+                        const ports = expandPortRanges(taggedStr.replace(/,/g, ' '));
+                        ports.forEach(portNum => {
+                            if (portNum > 0 && portNum <= 48) {
+                                if (!state.ports[portNum]) {
+                                    state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                }
+                                // Add to tagged if not native
+                                if (!state.ports[portNum].taggedVlans) state.ports[portNum].taggedVlans = [];
+                                if (state.ports[portNum].nativeVlanId !== vlanId && !state.ports[portNum].taggedVlans.includes(vlanId)) {
+                                    state.ports[portNum].taggedVlans.push(vlanId);
+                                }
+                            }
+                        });
+                    }
+                    
+                    // L3 interface
+                    if (block.ip) {
+                        state.routedInterfaces.push({ id: vlanId, ip: block.ip });
+                    }
+                });
+                
+                // Parse trunk/LAG definitions
+                const trunkMatch = text.match(/trunk\s+([\d,\s-]+)\s+trk(\d+)\s+(\w+)/gi);
+                if (trunkMatch) {
+                    trunkMatch.forEach(match => {
+                        const parts = match.match(/trunk\s+([\d,\s-]+)\s+trk(\d+)\s+(\w+)/i);
+                        if (parts) {
+                            const lagId = parseInt(parts[2]);
+                            const lagType = parts[3].toLowerCase() === 'lacp' ? 'lacp' : 'static';
+                            const ports = expandPortRanges(parts[1]);
+                            
+                            // Find or create LAG
+                            let lag = state.lags.find(l => l.id === lagId);
+                            if (!lag) {
+                                lag = { id: lagId, name: `Trunk ${lagId}`, type: lagType };
+                                state.lags.push(lag);
+                            }
+                            
+                            // Assign ports to LAG
+                            ports.forEach(portNum => {
+                                if (portNum > 0 && portNum <= 48) {
+                                    if (!state.ports[portNum]) {
+                                        state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                    }
+                                    state.ports[portNum].lagId = lagId;
+                                }
+                            });
+                        }
+                    });
+                }
+                
+            } else if (detectedBrand === 'ruckus') {
+                // Ruckus parsing (simplified - can be enhanced)
+                const vlanMatches = text.matchAll(/vlan\s+(\d+)\s+name\s+["']?([^"'\n]+)["']?/gi);
+                for (const match of vlanMatches) {
+                    const vid = parseInt(match[1]);
+                    const vlanId = `vlan-${vid}`;
+                    if (!state.vlans.find(v => v.vid === vid)) {
+                        state.vlans.push({ id: vlanId, name: match[2].trim(), vid, color: `#${Math.floor(Math.random()*16777215).toString(16)}` });
+                    }
+                }
+                
+                // Parse untagged/tagged (Ruckus format: "untagged ethe 1/1/1 1/1/2")
+                const vlanSections = text.split(/vlan\s+\d+/i);
+                vlanSections.forEach((section, idx) => {
+                    if (idx === 0) return; // Skip before first VLAN
+                    const vlanMatch = section.match(/^(\d+)/);
+                    if (!vlanMatch) return;
+                    const vid = parseInt(vlanMatch[1]);
+                    const vlanId = `vlan-${vid}`;
+                    
+                    // Extract untagged ports
+                    const untaggedMatch = section.match(/untagged\s+ethe\s+([\d/\s]+)/i);
+                    if (untaggedMatch) {
+                        const ports = untaggedMatch[1].trim().split(/\s+/).map(p => {
+                            const parts = p.split('/');
+                            return parseInt(parts[parts.length - 1]);
+                        });
+                        ports.forEach(portNum => {
+                            if (portNum > 0 && portNum <= 48) {
+                                if (!state.ports[portNum]) {
+                                    state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                }
+                                state.ports[portNum].nativeVlanId = vlanId;
+                            }
+                        });
+                    }
+                    
+                    // Extract tagged ports
+                    const taggedMatch = section.match(/tagged\s+ethe\s+([\d/\s]+)/i);
+                    if (taggedMatch) {
+                        const ports = taggedMatch[1].trim().split(/\s+/).map(p => {
+                            const parts = p.split('/');
+                            return parseInt(parts[parts.length - 1]);
+                        });
+                        ports.forEach(portNum => {
+                            if (portNum > 0 && portNum <= 48) {
+                                if (!state.ports[portNum]) {
+                                    state.ports[portNum] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined, lagId: null };
+                                }
+                                if (!state.ports[portNum].taggedVlans) state.ports[portNum].taggedVlans = [];
+                                if (!state.ports[portNum].taggedVlans.includes(vlanId)) {
+                                    state.ports[portNum].taggedVlans.push(vlanId);
+                                }
+                            }
+                        });
+                    }
+                    
+                    // L3 interface
+                    const veMatch = section.match(/interface\s+ve\s+\d+\s+ip\s+address\s+(\d+\.\d+\.\d+\.\d+\/\d+)/i);
+                    if (veMatch) {
+                        state.routedInterfaces.push({ id: vlanId, ip: veMatch[1] });
+                    }
                 });
             }
-
-            // Ensure Default VLAN
-            if (!newVlans.find(v => v.vid === 1)) newVlans.unshift({ id: 'vlan-1', vid: 1, name: 'Default', color: '#64748b', ip: '' });
-            state.vlans = newVlans;
-            state.ports = newPorts;
-            state.lags = newLags;
-            state.activeVlanId = newVlans[0].id;
             
-            // Guess size
-            const maxPort = Math.max(0, ...Object.keys(newPorts).map(Number));
-            if (maxPort > 24) state.portCount = 48; else if (maxPort > 16) state.portCount = 24; else state.portCount = 8;
-            
-            updateSizeBtnLabel(); renderVlanList(); renderLagList(); renderAllPorts(); loadSettingsToForm(); closeImporterModal();
-            alert(`Imported ${brand.toUpperCase()} Config! Check settings for IPs/SNMP.`);
-        }
-
-        // Improved Range Parser for "1-4, 6, 8-10"
-        function parsePortList(str, portObj, prop, value, specificPort=null) {
-            if(!str) return;
-            // Clean string: remove "ethernet", "1/1/" etc to just get numbers
-            const cleanStr = str.replace(/ethernet /gi, '').replace(/1\/1\//g, '').replace(/1\/0\//g, '');
-            
-            const processPort = (p) => {
-                if(!portObj[p]) portObj[p] = { nativeVlanId: null, taggedVlans: [], customLabel: null, isPoe: undefined };
-                if(prop === 'taggedVlans') {
-                    // Value is the VLAN ID, we are adding it to the port's list
-                    // If we are parsing a list of ports for a specific VLAN (HP style)
-                    if(value && typeof value === 'string' && value.startsWith('vlan-')) {
-                        if(!portObj[p].taggedVlans.includes(value)) portObj[p].taggedVlans.push(value);
-                    } 
-                    // If we are parsing a list of VLANs for a specific port (Netgear/Dell style)
-                    else if (specificPort) {
-                         // Logic handled outside usually, but if here:
-                    }
-                } else if(prop === 'nativeVlanId') {
-                    portObj[p].nativeVlanId = value;
-                } else if(prop === 'isProtect') {
-                    portObj[p].isProtect = value;
-                }
-            };
-
-            if(specificPort) {
-               // Parsing a list of VLANs for a specific port e.g. "10, 20-30"
-               cleanStr.split(',').forEach(part => {
-                   part = part.trim();
-                   if(part.includes('-')) { 
-                       const [s,e] = part.split('-').map(Number); 
-                       for(let i=s; i<=e; i++) {
-                           if(prop==='taggedVlans') { 
-                               if(!portObj[specificPort].taggedVlans.includes(`vlan-${i}`)) portObj[specificPort].taggedVlans.push(`vlan-${i}`); 
-                           }
-                       }
-                   } else {
-                       const i = parseInt(part);
-                       if(!isNaN(i)) {
-                           if(prop==='taggedVlans') {
-                               if(!portObj[specificPort].taggedVlans.includes(`vlan-${i}`)) portObj[specificPort].taggedVlans.push(`vlan-${i}`); 
-                           }
-                       }
-                   }
-               });
-               return;
+            // Ensure default routed interface if none exists
+            if (state.routedInterfaces.length === 0) {
+                state.routedInterfaces.push({ id: 'vlan-1', ip: '' });
             }
-
-            // Parsing a list of ports for a specific property e.g. "1-10, 12"
-            cleanStr.split(',').forEach(part => {
-                part = part.trim();
-                if (part.includes('-')) { 
-                    const [s,e] = part.split('-').map(Number); 
-                    for (let i = s; i <= e; i++) processPort(i); 
-                }
-                else if(!isNaN(parseInt(part))) processPort(parseInt(part));
-            });
+            
+            // Reinitialize UI
+            init();
+            closeImporterModal();
+            alert(`Configuration imported successfully (${detectedBrand.toUpperCase()})!`);
         }
-
-        function parseRuckusPorts(str, portObj, prop, value) {
-            // Ruckus uses "ethe 1/1/1 to 1/1/10" syntax sometimes
-            let clean = str.replace(/ethe /g, '').replace(/1\/1\//g, '').replace(/lag /g, 'L');
-            clean = clean.replace(/ to /g, '-'); 
-            const parts = clean.split(/[\s,]+/);
-            parts.forEach(part => {
-                if(part.startsWith('L')) { /* Skip LAGs in port map for now */ } 
-                else { parsePortList(part, portObj, prop, value); }
-            });
+        
+        // Helper: Convert subnet mask to CIDR
+        function ipMaskToCidr(mask) {
+            const parts = mask.split('.');
+            let cidr = 0;
+            for (const part of parts) {
+                const num = parseInt(part);
+                cidr += (num >>> 0).toString(2).split('1').length - 1;
+            }
+            return cidr;
         }
 
         function openExportModal() {
@@ -885,110 +1081,169 @@
             let out = `! Generated for ${brand.toUpperCase()}\n! Hostname: ${g.hostname}\n`;
             const ports = Object.keys(state.ports).map(Number).sort((a,b)=>a-b);
             
-            // Common SNMP/NTP logic can be interpolated
-            const snmpBlock = `snmp-server community "${g.snmp}"\n${g.snmpContact ? 'snmp-server contact "'+g.snmpContact+'"\n' : ''}${g.snmpLocation ? 'snmp-server location "'+g.snmpLocation+'"\n' : ''}`;
+            // --- Helper to inject custom config ---
+            const injectCustom = () => {
+                if(g.customConfig) out += `\n! --- Custom Config Injection ---\n${g.customConfig}\n! -----------------------------\n`;
+            };
+            
+            // Common SNMP block
+            const snmpBlock = `${g.snmpContact ? 'snmp-server contact "'+g.snmpContact+'"\n' : ''}${g.snmpLocation ? 'snmp-server location "'+g.snmpLocation+'"\n' : ''}`;
 
             if (brand === 'netgear_m') {
                 out += `hostname "${g.hostname}"\n${snmpBlock}sntp server "${g.ntp}"\nip name-server ${g.dns}\n!\n`;
                 state.vlans.forEach(v => { 
                     if(v.vid) {
-                        out += `vlan ${v.vid}\n name "${v.name}"\n exit\n`; 
-                        if(v.ip) out += `interface vlan ${v.vid}\n ip address ${v.ip.replace('/', ' ')}\n exit\n`;
+                        out += `vlan ${v.vid}\n name "${v.name}"\n exit\n`;
                     }
                 });
-                ports.forEach(p => {
-                    const port = state.ports[p];
-                    out += `interface 1/0/${p}\n description "${port.customLabel || 'Port '+p}"\n`;
-                    if(port.lagId) out += ` addport 1/0/${p} lag ${port.lagId}\n`; 
-                    else if(port.nativeVlanId) out += ` switchport mode access\n switchport access vlan ${getVid(port.nativeVlanId)}\n`;
-                    if(port.isPoe===false) out += ` poe admin-mode disable\n`;
+                // LAGs
+                state.lags.forEach(l => {
+                    out += `interface lag ${l.id}\n description "${l.name}"\n`;
+                    if(l.type==='lacp') out += ` no port-channel static\n`;
                     out += ` exit\n`;
                 });
+
+                // Ports
+                ports.forEach(p => {
+                    const port = state.ports[p];
+                    const desc = port.customLabel || `Port ${p}`;
+                    out += `interface 1/0/${p}\n description "${desc}"\n`;
+                    if(port.lagId) out += ` addport 1/0/${p} lag ${port.lagId}\n`; 
+                    else if(port.nativeVlanId) {
+                         const n = getVid(port.nativeVlanId);
+                         out += ` switchport mode access\n switchport access vlan ${n}\n`;
+                    }
+                    if(port.taggedVlans && port.taggedVlans.length > 0) {
+                         const t = port.taggedVlans.map(getVid).join(',');
+                         out += ` switchport mode trunk\n switchport trunk allowed vlan ${t}\n`;
+                         if(port.nativeVlanId) out += ` switchport trunk native vlan ${getVid(port.nativeVlanId)}\n`;
+                    }
+
+                    if(port.isPoe===false) out += ` poe admin-mode disable\n`;
+                    if(p <= state.portCount) out += ` spanning-tree bpdu-guard\n`;
+                    out += ` exit\n`;
+                });
+
+                // L3
+                state.routedInterfaces.forEach(ri => {
+                    if(ri.id && ri.ip) {
+                        const vid = getVid(ri.id);
+                        out += `interface vlan ${vid}\n ip address ${ri.ip.split('/')[0]} ${ipMask(ri.ip.split('/')[1])}\n no shutdown\n exit\n`;
+                    }
+                });
+                out += `ip route 0.0.0.0 0.0.0.0 ${g.gateway}\n`;
             
             } else if (brand === 'ruckus') {
-                out += `hostname ${g.hostname}\n${snmpBlock}\n`;
+                out += `hostname ${g.hostname}\n! LAGs\n`;
+                state.lags.forEach(l => {
+                    out += `lag "${l.name}" ${l.type==='lacp'?'dynamic':'static'} id ${l.id}\n`;
+                    const memberPorts = ports.filter(p => state.ports[p].lagId === l.id);
+                    if(memberPorts.length) {
+                        const condensed = condensePortRanges(memberPorts);
+                        out += ` ports ethe ${condensed}\n`;
+                    }
+                    out += `!\n`;
+                });
+                out += `! VLANs\n`;
                 state.vlans.forEach(v => {
                     if(!v.vid) return;
                     out += `vlan ${v.vid} name "${v.name}" by port\n`;
-                    if(v.igmp) out += ` multicast-passive\n`;
-                    if(v.ip) out += ` router-interface ve ${v.vid}\n`;
-                    
                     let u = [], t = [];
                     ports.filter(p=>!state.ports[p].lagId).forEach(p => {
                         const port = state.ports[p];
                         if(getVid(port.nativeVlanId)===v.vid) u.push(p);
                         if(port.taggedVlans.map(getVid).includes(v.vid)) t.push(p);
                     });
+                    // Add LAGs to VLANs
+                    state.lags.forEach(l => {
+                        const memberId = ports.find(p => state.ports[p].lagId === l.id);
+                        if(memberId) {
+                            const port = state.ports[memberId];
+                            if(getVid(port.nativeVlanId)===v.vid) u.push(`lag ${l.id}`);
+                            if(port.taggedVlans.map(getVid).includes(v.vid)) t.push(`lag ${l.id}`);
+                        }
+                    });
+
+                    // Condense port ranges for cleaner output
+                    const untaggedPorts = u.filter(p => typeof p === 'number');
+                    const untaggedLags = u.filter(p => typeof p === 'string');
+                    const taggedPorts = t.filter(p => typeof p === 'number');
+                    const taggedLags = t.filter(p => typeof p === 'string');
                     
-                    if(u.length) {
-                        const r = ruckusRange(u);
-                        out += ` untagged ethe ${r.join(' ')}\n`;
+                    if(untaggedPorts.length > 0 || untaggedLags.length > 0) {
+                        const parts = [];
+                        if(untaggedPorts.length > 0) {
+                            parts.push(`ethe ${condensePortRanges(untaggedPorts)}`);
+                        }
+                        if(untaggedLags.length > 0) {
+                            parts.push(untaggedLags.join(' '));
+                        }
+                        out += ` untagged ${parts.join(' ')}\n`;
                     }
-                    if(t.length) {
-                         const r = ruckusRange(t);
-                         out += ` tagged ethe ${r.join(' ')}\n`;
+                    
+                    if(taggedPorts.length > 0 || taggedLags.length > 0) {
+                        const parts = [];
+                        if(taggedPorts.length > 0) {
+                            parts.push(`ethe ${condensePortRanges(taggedPorts)}`);
+                        }
+                        if(taggedLags.length > 0) {
+                            parts.push(taggedLags.join(' '));
+                        }
+                        out += ` tagged ${parts.join(' ')}\n`;
                     }
-                    out += `!\n`;
+                    
+                    // L3 for this VLAN?
+                    const l3 = state.routedInterfaces.find(ri => getVid(ri.id) === v.vid);
+                    if(l3 && l3.ip) out += ` router-interface ve ${v.vid}\n`;
+
+                    out += ` spanning-tree 802-1w\n spanning-tree 802-1w priority 0\n!\n`;
                 });
-                // Virtual Interfaces
-                state.vlans.forEach(v => {
-                    if(v.ip) out += `interface ve ${v.vid}\n ip address ${v.ip}\n!\n`;
-                });
-                
-                // Grouped Interface Configs
-                const protectPorts = ports.filter(p => state.ports[p].isProtect);
-                if(protectPorts.length) {
-                    const ranges = ruckusRange(protectPorts);
-                    ranges.forEach(r => out += `interface ethernet ${r}\n stp-bpdu-guard\n!\n`);
-                }
-                
-                // Group POE Off
-                const noPoePorts = ports.filter(p => state.ports[p].isPoe === false);
-                if(noPoePorts.length) {
-                     const ranges = ruckusRange(noPoePorts);
-                     ranges.forEach(r => out += `interface ethernet ${r}\n no inline power\n!\n`);
-                }
-                
-                // Labels must be individual
-                ports.forEach(p => {
-                    if(state.ports[p].customLabel) {
-                        out += `interface ethernet 1/1/${p}\n port-name "${state.ports[p].customLabel}"\n!\n`;
+
+                // L3 Interfaces
+                state.routedInterfaces.forEach(ri => {
+                    if(ri.id && ri.ip) {
+                        const vid = getVid(ri.id);
+                        out += `interface ve ${vid}\n ip address ${ri.ip}\n!\n`;
                     }
                 });
+                out += `ip route 0.0.0.0/0 ${g.gateway}\n`;
 
             } else if (brand === 'aruba') {
-                out += `hostname "${g.hostname}"\n${snmpBlock}timesync sntp\nsntp unicast\nsntp server ${g.ntp}\n`;
+                out += `hostname "${g.hostname}"\n! Enable RSTP\nspanning-tree force-version rstp-operation\n`;
+                state.lags.forEach(l => {
+                    const members = ports.filter(p => state.ports[p].lagId === l.id);
+                    if(members.length) out += `trunk ${members.join(',')} trk${l.id} ${l.type}\n`;
+                });
                 
-                // Loop protect
-                const protectPorts = ports.filter(p => state.ports[p].isProtect);
-                if(protectPorts.length) out += `loop-protect ${groupPorts(protectPorts)}\n`;
-
                 state.vlans.forEach(v => {
                     if(!v.vid) return;
                     out += `vlan ${v.vid}\n name "${v.name}"\n`;
-                    if(v.ip) {
-                        const parts = v.ip.split(' ');
-                        const ip = parts[0] || v.ip.split('/')[0];
-                        const mask = parts[1] || ipMask(v.ip.split('/')[1]);
-                        out += ` ip address ${ip} ${mask}\n`;
-                    }
-                    if(v.igmp) out += ` ip igmp\n`;
-                    if(v.qos) out += ` qos priority ${v.qos==='voice'?7:5}\n`; // simplified mapping
-                    
                     let u = [], t = [];
                     ports.filter(p=>!state.ports[p].lagId).forEach(p => {
                         if(getVid(state.ports[p].nativeVlanId)===v.vid) u.push(p);
                         if(state.ports[p].taggedVlans.map(getVid).includes(v.vid)) t.push(p);
                     });
-                    if(u.length) out += ` untagged ${groupPorts(u)}\n`;
-                    if(t.length) out += ` tagged ${groupPorts(t)}\n`;
+                     state.lags.forEach(l => {
+                        const mem = ports.find(p => state.ports[p].lagId === l.id);
+                        if(mem) {
+                            if(getVid(state.ports[mem].nativeVlanId)===v.vid) u.push(`trk${l.id}`);
+                            if(state.ports[mem].taggedVlans.map(getVid).includes(v.vid)) t.push(`trk${l.id}`);
+                        }
+                    });
+
+                    if(u.length) out += ` untagged ${u.join(',')}\n`;
+                    if(t.length) out += ` tagged ${t.join(',')}\n`;
+                    
+                    // L3
+                    const l3 = state.routedInterfaces.find(ri => getVid(ri.id) === v.vid);
+                    if(l3 && l3.ip) out += ` ip address ${l3.ip.split('/')[0]} ${ipMask(l3.ip.split('/')[1])}\n`;
+                    
                     out += ` exit\n`;
                 });
                 out += `ip default-gateway ${g.gateway}\n`;
             }
 
-            if(g.customConfig) out += `\n! Custom Configuration\n${g.customConfig}\n`;
-            
+            injectCustom();
             cliOutput.textContent = out;
         }
 
