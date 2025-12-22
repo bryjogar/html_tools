@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homelab RSS Reader v1.1</title>
+    <title>Homelab RSS Reader v1.2</title>
     <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -63,6 +63,10 @@
             from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .heart-beat:active {
+            transform: scale(1.2);
+            transition: transform 0.1s;
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
@@ -98,15 +102,25 @@
             </div>
 
             <div class="flex-1 overflow-y-auto p-2">
-                <div onclick="app.filterFeed('all')" class="cursor-pointer px-3 py-2 rounded mb-1 hover:bg-white/5 transition-colors flex items-center justify-between group active-feed-item" data-id="all">
-                    <div class="flex items-center gap-3 overflow-hidden">
-                        <i class="fa-solid fa-layer-group text-blue-400 text-xs w-4"></i>
-                        <span class="text-sm font-medium truncate">All Feeds</span>
+                <div class="mb-2 pb-2 border-b border-obsidian-border/50">
+                    <div onclick="app.filterFeed('all')" class="cursor-pointer px-3 py-2 rounded mb-1 hover:bg-white/5 transition-colors flex items-center justify-between group active-feed-item" data-id="all">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <i class="fa-solid fa-layer-group text-blue-400 text-xs w-4"></i>
+                            <span class="text-sm font-medium truncate">All Feeds</span>
+                        </div>
+                        <span id="totalCount" class="text-xs text-gray-500 bg-obsidian-bg px-1.5 py-0.5 rounded">0</span>
                     </div>
-                    <span id="totalCount" class="text-xs text-gray-500 bg-obsidian-bg px-1.5 py-0.5 rounded">0</span>
+
+                    <div onclick="app.filterFeed('favorites')" class="cursor-pointer px-3 py-2 rounded mb-1 hover:bg-white/5 transition-colors flex items-center justify-between group active-feed-item" data-id="favorites">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <i class="fa-solid fa-heart text-pink-500 text-xs w-4"></i>
+                            <span class="text-sm font-medium truncate">Favorites</span>
+                        </div>
+                        <span id="favCount" class="text-xs text-gray-500 bg-obsidian-bg px-1.5 py-0.5 rounded">0</span>
+                    </div>
                 </div>
                 
-                <div id="feedListContainer" class="space-y-0.5 mt-2">
+                <div id="feedListContainer" class="space-y-0.5">
                     </div>
             </div>
 
@@ -167,6 +181,7 @@
             feeds: [],
             articles: [],
             readItems: new Set(),
+            favoriteItems: new Set(),
             currentFilter: 'all',
             showRead: false,
             // Using rss2json to bypass CORS issues for a frontend-only app
@@ -205,7 +220,6 @@
 
             loadState() {
                 if(!this.storageAvailable) {
-                     // Default Feeds for memory-only mode
                     this.feeds = [
                         { url: 'https://feeds.feedburner.com/TechCrunch', title: 'TechCrunch', id: 'techcrunch' },
                         { url: 'https://news.ycombinator.com/rss', title: 'Hacker News', id: 'hackernews' }
@@ -215,9 +229,11 @@
 
                 const savedFeeds = localStorage.getItem('hl_rss_feeds');
                 const savedRead = localStorage.getItem('hl_rss_read');
+                const savedFavs = localStorage.getItem('hl_rss_favorites');
                 
                 if (savedFeeds) this.feeds = JSON.parse(savedFeeds);
                 if (savedRead) this.readItems = new Set(JSON.parse(savedRead));
+                if (savedFavs) this.favoriteItems = new Set(JSON.parse(savedFavs));
 
                 // Default Feeds if empty
                 if (this.feeds.length === 0) {
@@ -231,6 +247,7 @@
             saveState() {
                 this.safeSave('hl_rss_feeds', JSON.stringify(this.feeds));
                 this.safeSave('hl_rss_read', JSON.stringify([...this.readItems]));
+                this.safeSave('hl_rss_favorites', JSON.stringify([...this.favoriteItems]));
             },
 
             async addFeed() {
@@ -272,8 +289,6 @@
                 if(!confirm('Remove this feed?')) return;
                 
                 this.feeds = this.feeds.filter(f => f.id !== id);
-                
-                // Cleanup read items from this feed (optional optimization)
                 this.articles = this.articles.filter(a => a.feedId !== id);
                 
                 this.saveState();
@@ -315,7 +330,6 @@
                     if(items) allArticles = [...allArticles, ...items];
                 });
 
-                // Sort by date desc
                 this.articles = allArticles.sort((a, b) => b.timestamp - a.timestamp);
                 
                 loader.classList.add('hidden');
@@ -327,7 +341,7 @@
 
             renderFeedList() {
                 const container = document.getElementById('feedListContainer');
-                if(!container) return; // safety
+                if(!container) return; 
                 container.innerHTML = '';
 
                 this.feeds.forEach(feed => {
@@ -335,7 +349,6 @@
                     div.className = `cursor-pointer px-3 py-2 rounded mb-1 hover:bg-white/5 transition-colors flex items-center justify-between group ${this.currentFilter === feed.id ? 'bg-white/10 text-white' : 'text-gray-400'}`;
                     div.onclick = () => this.filterFeed(feed.id);
                     
-                    // Fallback favicon logic
                     div.innerHTML = `
                         <div class="flex items-center gap-3 overflow-hidden flex-1">
                              <div class="w-4 h-4 flex-shrink-0 flex items-center justify-center">
@@ -361,50 +374,42 @@
                 const container = document.getElementById('articlesContainer');
                 const emptyState = document.getElementById('emptyState');
                 
-                if (!container || !emptyState) return; // Critical safety check
+                if (!container || !emptyState) return; 
 
                 let filtered = this.articles;
 
-                // 1. Filter by Feed
-                if (this.currentFilter !== 'all') {
+                // 1. Filter by Feed or Favorites
+                if (this.currentFilter === 'favorites') {
+                    filtered = filtered.filter(a => this.favoriteItems.has(a.id));
+                } else if (this.currentFilter !== 'all') {
                     filtered = filtered.filter(a => a.feedId === this.currentFilter);
                 }
 
-                // 2. Filter by Read Status
+                // 2. Filter by Read Status (always apply unless in favorites view where we might want to see read ones too? 
+                // Let's keep logic simple: Hide read unless showRead is true, EVEN in favorites)
                 if (!this.showRead) {
                     filtered = filtered.filter(a => !this.readItems.has(a.id));
                 }
 
-                // If empty, show empty state (CSS toggle, DO NOT remove from DOM)
                 if (filtered.length === 0) {
-                    container.innerHTML = ''; // Clear items only
+                    container.innerHTML = '';
                     container.classList.add('hidden');
                     emptyState.classList.remove('hidden');
                     return;
                 }
                 
-                // If items exist
                 emptyState.classList.add('hidden');
                 container.classList.remove('hidden');
                 container.innerHTML = '';
 
                 filtered.forEach(article => {
                     const isRead = this.readItems.has(article.id);
+                    const isFav = this.favoriteItems.has(article.id);
                     const dateStr = new Date(article.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
 
                     const card = document.createElement('div');
                     card.className = `bg-obsidian-pane border border-obsidian-border rounded-lg p-4 transition-all hover:border-obsidian-accent/50 fade-in ${isRead ? 'opacity-50 grayscale-[0.5]' : ''}`;
                     
-                    // Simple logic to extract an image if description contains one (rudimentary)
-                    let imgHtml = '';
-                    if(article.description) {
-                        const imgMatch = article.description.match(/<img[^>]+src="([^">]+)"/);
-                        if (imgMatch) {
-                            imgHtml = `<div class="mb-3 h-32 w-full overflow-hidden rounded bg-obsidian-bg"><img src="${imgMatch[1]}" class="w-full h-full object-cover opacity-80" loading="lazy" onerror="this.parentNode.style.display='none'"></div>`;
-                        }
-                    }
-
-                    // Clean tags from description for snippet
                     let snippet = '';
                     if(article.description) {
                          snippet = article.description.replace(/<[^>]*>?/gm, '').substring(0, 150) + '...';
@@ -413,7 +418,9 @@
                     card.innerHTML = `
                         <div class="flex justify-between items-start mb-2">
                             <span class="text-xs font-mono text-obsidian-accent bg-obsidian-accent/10 px-2 py-0.5 rounded">${article.feedTitle}</span>
-                            <span class="text-xs text-gray-500">${dateStr}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-gray-500">${dateStr}</span>
+                            </div>
                         </div>
                         <h3 class="text-lg font-bold text-gray-200 mb-2 leading-tight">
                             <a href="${article.link}" target="_blank" class="hover:text-obsidian-accent transition-colors">${article.title}</a>
@@ -422,12 +429,19 @@
                         <p class="text-sm text-gray-400 mb-4 line-clamp-2">${snippet}</p>
 
                         <div class="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-                            <button onclick="app.toggleRead('${article.id}')" class="text-xs flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${isRead ? 'text-gray-500 hover:text-gray-300' : 'text-obsidian-accent hover:bg-obsidian-accent/10'}">
-                                <i class="fa-solid ${isRead ? 'fa-circle-check' : 'fa-circle'}"></i>
-                                ${isRead ? 'Read' : 'Mark Done'}
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="app.toggleRead('${article.id}')" class="text-xs flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${isRead ? 'text-gray-500 hover:text-gray-300' : 'text-obsidian-accent hover:bg-obsidian-accent/10'}">
+                                    <i class="fa-solid ${isRead ? 'fa-circle-check' : 'fa-circle'}"></i>
+                                    ${isRead ? 'Read' : 'Mark Done'}
+                                </button>
+                                
+                                <button onclick="app.toggleFavorite('${article.id}')" class="heart-beat w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isFav ? 'text-pink-500 bg-pink-500/10' : 'text-gray-600 hover:text-pink-400 hover:bg-white/5'}" title="Toggle Favorite">
+                                    <i class="fa-${isFav ? 'solid' : 'regular'} fa-heart"></i>
+                                </button>
+                            </div>
+
                             <a href="${article.link}" target="_blank" class="text-xs text-gray-400 hover:text-white flex items-center gap-1.5 transition-colors">
-                                Read Article <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                Read <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                             </a>
                         </div>
                     `;
@@ -442,7 +456,18 @@
                     this.readItems.add(id);
                 }
                 this.saveState();
-                this.renderArticles(); // Re-render to update UI state
+                this.renderArticles();
+                this.updateCounts();
+            },
+
+            toggleFavorite(id) {
+                if (this.favoriteItems.has(id)) {
+                    this.favoriteItems.delete(id);
+                } else {
+                    this.favoriteItems.add(id);
+                }
+                this.saveState();
+                this.renderArticles(); // Re-render to show updated icon state
                 this.updateCounts();
             },
 
@@ -450,7 +475,9 @@
                 if(!confirm('Mark visible articles as read?')) return;
                 
                 let targets = this.articles;
-                if(this.currentFilter !== 'all') {
+                if(this.currentFilter === 'favorites') {
+                    targets = targets.filter(a => this.favoriteItems.has(a.id));
+                } else if(this.currentFilter !== 'all') {
                     targets = targets.filter(a => a.feedId === this.currentFilter);
                 }
 
@@ -478,31 +505,36 @@
             filterFeed(id) {
                 this.currentFilter = id;
                 
-                // Update Sidebar UI
-                document.querySelectorAll('#feedListContainer > div, .active-feed-item').forEach(el => {
+                // Reset styling for all sidebar items
+                document.querySelectorAll('.active-feed-item').forEach(el => {
                     el.classList.remove('bg-white/10', 'text-white');
                     el.classList.add('text-gray-400');
+                    
+                    // Specific fix for icons colors when inactive
+                    const icon = el.querySelector('i.fa-layer-group, i.fa-heart');
+                    // We don't need to change icon color, just background/text
                 });
 
-                if (id === 'all') {
-                    document.querySelector('.active-feed-item[data-id="all"]').classList.add('bg-white/10', 'text-white');
-                    document.getElementById('currentFilter').innerText = 'View: All Feeds';
-                } else {
-                    // Try to find the element
-                    const btn = document.querySelector(`button[onclick="app.removeFeed('${id}', event)"]`);
-                    if(btn) {
-                        const parent = btn.closest('.group');
-                        parent.classList.add('bg-white/10', 'text-white');
-                        parent.classList.remove('text-gray-400');
-                        
-                        const feed = this.feeds.find(f => f.id === id);
-                        document.getElementById('currentFilter').innerText = `View: ${feed ? feed.title : 'Feed'}`;
-                    }
+                // Find and activate the clicked item
+                const activeEl = document.querySelector(`.active-feed-item[data-id="${id}"]`) 
+                              || document.querySelector(`button[onclick="app.removeFeed('${id}', event)"]`)?.closest('.group');
+                
+                if(activeEl) {
+                    activeEl.classList.add('bg-white/10', 'text-white');
+                    activeEl.classList.remove('text-gray-400');
+                }
+
+                // Update Header Text
+                const filterTitle = document.getElementById('currentFilter');
+                if (id === 'all') filterTitle.innerText = 'View: All Feeds';
+                else if (id === 'favorites') filterTitle.innerText = 'View: Favorites';
+                else {
+                     const feed = this.feeds.find(f => f.id === id);
+                     filterTitle.innerText = `View: ${feed ? feed.title : 'Feed'}`;
                 }
 
                 // Close sidebar on mobile
                 const sidebar = document.getElementById('sidebar');
-                const overlay = document.getElementById('sidebarOverlay');
                 if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
                     this.toggleSidebar();
                 }
@@ -521,6 +553,10 @@
                 // Update 'All' count (unread only)
                 const unreadTotal = this.articles.filter(a => !this.readItems.has(a.id)).length;
                 document.getElementById('totalCount').innerText = unreadTotal;
+
+                // Update 'Favorites' count
+                const favTotal = this.favoriteItems.size;
+                document.getElementById('favCount').innerText = favTotal;
 
                 // Update individual counts
                 const badges = document.querySelectorAll('.count-badge');
