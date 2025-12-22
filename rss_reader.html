@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homelab RSS Reader v1.2</title>
+    <title>Homelab RSS Reader v1.3</title>
     <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -88,7 +88,7 @@
 
     <div class="flex flex-1 overflow-hidden relative">
         
-        <aside id="sidebar" class="absolute md:relative z-10 inset-y-0 left-0 w-72 bg-obsidian-pane border-r border-obsidian-border transform -translate-x-full md:translate-x-0 transition-transform duration-300 flex flex-col h-full shadow-2xl md:shadow-none">
+        <aside id="sidebar" class="absolute md:relative z-20 inset-y-0 left-0 w-72 bg-obsidian-pane border-r border-obsidian-border transform -translate-x-full md:translate-x-0 transition-transform duration-300 flex flex-col h-full shadow-2xl md:shadow-none">
             
             <div class="p-4 border-b border-obsidian-border shrink-0">
                 <label class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Add Subscription</label>
@@ -131,14 +131,14 @@
             </div>
         </aside>
 
-        <div id="sidebarOverlay" onclick="app.toggleSidebar()" class="fixed inset-0 bg-black/50 z-0 hidden md:hidden glass"></div>
+        <div id="sidebarOverlay" onclick="app.toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden glass"></div>
 
         <main class="flex-1 flex flex-col h-full overflow-hidden bg-obsidian-bg relative">
             
-            <div class="h-10 border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 bg-obsidian-bg/50 backdrop-blur-sm">
+            <div class="relative z-30 h-10 border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 bg-obsidian-bg/95 backdrop-blur-sm shadow-sm">
                 <span id="currentFilter" class="text-xs font-mono text-gray-500">View: All Feeds</span>
                 <div class="flex gap-2 text-xs">
-                    <button onclick="app.toggleShowRead()" id="toggleReadBtn" class="text-gray-500 hover:text-obsidian-accent transition-colors">
+                    <button onclick="app.toggleShowRead()" id="toggleReadBtn" class="cursor-pointer text-gray-500 hover:text-obsidian-accent transition-colors flex items-center px-2 py-1 rounded hover:bg-white/5">
                         <i class="fa-regular fa-eye-slash mr-1"></i> <span id="toggleReadText">Hide Read</span>
                     </button>
                 </div>
@@ -149,7 +149,7 @@
                 <p class="text-gray-500 text-sm animate-pulse">Syncing Feeds...</p>
             </div>
 
-            <div id="emptyState" class="hidden absolute inset-0 z-0 flex flex-col items-center justify-center text-gray-600 pb-20">
+            <div id="emptyState" class="hidden absolute inset-x-0 bottom-0 top-10 z-0 flex flex-col items-center justify-center text-gray-600 pb-20">
                 <i class="fa-solid fa-mug-hot text-4xl mb-4 text-obsidian-border"></i>
                 <p class="text-sm">No articles found.</p>
                 <p class="text-xs mt-2">Add a feed or refresh to get started.</p>
@@ -385,8 +385,7 @@
                     filtered = filtered.filter(a => a.feedId === this.currentFilter);
                 }
 
-                // 2. Filter by Read Status (always apply unless in favorites view where we might want to see read ones too? 
-                // Let's keep logic simple: Hide read unless showRead is true, EVEN in favorites)
+                // 2. Filter by Read Status
                 if (!this.showRead) {
                     filtered = filtered.filter(a => !this.readItems.has(a.id));
                 }
@@ -467,7 +466,7 @@
                     this.favoriteItems.add(id);
                 }
                 this.saveState();
-                this.renderArticles(); // Re-render to show updated icon state
+                this.renderArticles();
                 this.updateCounts();
             },
 
@@ -505,17 +504,11 @@
             filterFeed(id) {
                 this.currentFilter = id;
                 
-                // Reset styling for all sidebar items
                 document.querySelectorAll('.active-feed-item').forEach(el => {
                     el.classList.remove('bg-white/10', 'text-white');
                     el.classList.add('text-gray-400');
-                    
-                    // Specific fix for icons colors when inactive
-                    const icon = el.querySelector('i.fa-layer-group, i.fa-heart');
-                    // We don't need to change icon color, just background/text
                 });
 
-                // Find and activate the clicked item
                 const activeEl = document.querySelector(`.active-feed-item[data-id="${id}"]`) 
                               || document.querySelector(`button[onclick="app.removeFeed('${id}', event)"]`)?.closest('.group');
                 
@@ -524,7 +517,6 @@
                     activeEl.classList.remove('text-gray-400');
                 }
 
-                // Update Header Text
                 const filterTitle = document.getElementById('currentFilter');
                 if (id === 'all') filterTitle.innerText = 'View: All Feeds';
                 else if (id === 'favorites') filterTitle.innerText = 'View: Favorites';
@@ -533,7 +525,6 @@
                      filterTitle.innerText = `View: ${feed ? feed.title : 'Feed'}`;
                 }
 
-                // Close sidebar on mobile
                 const sidebar = document.getElementById('sidebar');
                 if (!sidebar.classList.contains('-translate-x-full') && window.innerWidth < 768) {
                     this.toggleSidebar();
