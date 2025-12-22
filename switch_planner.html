@@ -117,7 +117,7 @@
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-network-wired text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Designer <span class="text-obsidian-accent font-light">v22</span></h1>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200 hidden md:block">Switch Designer <span class="text-obsidian-accent font-light">v23</span></h1>
         </div>
         <div class="flex items-center gap-2">
             <button onclick="cycleSwitchSize()" id="size-btn" class="text-xs bg-obsidian-border hover:bg-white/10 text-white px-3 py-1.5 rounded transition font-mono border border-transparent hover:border-gray-500">
@@ -653,18 +653,76 @@
         function openSettingsModal() { loadSettingsToForm(); document.getElementById('settings-modal').classList.remove('hidden'); }
         function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
         function loadSettingsToForm() { 
-            ['hostname','gateway','dns','ntp'].forEach(k => document.getElementById('conf-'+k).value = state.global[k] || ''); 
+            document.getElementById('conf-hostname').value = state.global.hostname || '';
+            document.getElementById('conf-gateway').value = state.global.gateway || '';
+            // DNS - handle array, show first or comma-separated
+            const dnsValue = Array.isArray(state.global.dns) ? state.global.dns.join(', ') : (state.global.dns || '');
+            document.getElementById('conf-dns').value = dnsValue;
+            // NTP - handle array, show first server
+            const ntpValue = Array.isArray(state.global.ntp) && state.global.ntp.length > 0 ? state.global.ntp[0].server : (state.global.ntp || '');
+            document.getElementById('conf-ntp').value = ntpValue;
             document.getElementById('conf-snmp-location').value = state.global.snmpLocation || '';
             document.getElementById('conf-snmp-contact').value = state.global.snmpContact || '';
             document.getElementById('conf-custom').value = state.global.customConfig || '';
             renderL3List();
         }
         function saveSettings() { 
-            ['hostname','gateway','dns','ntp'].forEach(k => state.global[k] = document.getElementById('conf-'+k).value);
+            state.global.hostname = document.getElementById('conf-hostname').value;
+            state.global.gateway = document.getElementById('conf-gateway').value;
+            // DNS - parse comma-separated or single value
+            const dnsInput = document.getElementById('conf-dns').value.trim();
+            if (dnsInput) {
+                state.global.dns = dnsInput.split(',').map(s => s.trim()).filter(s => s);
+            }
+            // NTP - parse single server (for now, can be enhanced to handle multiple)
+            const ntpInput = document.getElementById('conf-ntp').value.trim();
+            if (ntpInput) {
+                state.global.ntp = [{ server: ntpInput, priority: null }];
+            }
             state.global.snmpLocation = document.getElementById('conf-snmp-location').value;
             state.global.snmpContact = document.getElementById('conf-snmp-contact').value;
             state.global.customConfig = document.getElementById('conf-custom').value;
             closeSettingsModal(); 
+        }
+
+        function renderL3List() {
+            const l3List = document.getElementById('l3-interfaces-list');
+            if (!l3List) return;
+            l3List.innerHTML = '';
+            state.routedInterfaces.forEach((int, index) => {
+                const row = document.createElement('div');
+                row.className = "flex gap-2 items-center bg-[#111] p-2 rounded border border-obsidian-border";
+                
+                // VLAN Selector
+                let vlanOpts = `<option value="">Select VLAN...</option>`;
+                state.vlans.forEach(v => {
+                    const sel = int.id === v.id ? 'selected' : '';
+                    vlanOpts += `<option value="${v.id}" ${sel}>${v.name} (${v.vid})</option>`;
+                });
+                
+                row.innerHTML = `
+                    <select onchange="updateRoutedInterface(${index}, 'id', this.value)" class="bg-obsidian-pane text-white text-xs border border-obsidian-border rounded p-1 w-1/3">
+                        ${vlanOpts}
+                    </select>
+                    <input type="text" value="${int.ip}" placeholder="IP/CIDR (e.g. 192.168.1.1/24)" onchange="updateRoutedInterface(${index}, 'ip', this.value)" class="bg-obsidian-pane text-white text-xs border border-obsidian-border rounded p-1 w-1/2 font-mono">
+                    <button onclick="removeRoutedInterface(${index})" class="text-red-400 hover:text-red-300 ml-auto"><i class="fa-solid fa-trash"></i></button>
+                `;
+                l3List.appendChild(row);
+            });
+        }
+
+        function addRoutedInterface() {
+            state.routedInterfaces.push({id: 'vlan-1', ip: ''});
+            renderL3List();
+        }
+        
+        function removeRoutedInterface(index) {
+            state.routedInterfaces.splice(index, 1);
+            renderL3List();
+        }
+        
+        function updateRoutedInterface(index, field, val) {
+            state.routedInterfaces[index][field] = val;
         }
 
         function downloadJson() {
