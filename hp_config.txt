@@ -1,0 +1,172 @@
+hostname "FBP-VideoProd-sw02"
+module 1 type jl262a
+mirror 1 port 30
+console idle-timeout 1800
+console idle-timeout serial-usb 1800
+timesync sntp
+sntp unicast
+sntp server priority 1 10.101.0.56
+sntp server priority 2 129.6.15.29
+sntp server priority 3 129.6.15.30
+time daylight-time-rule continental-us-and-canada
+time timezone -360
+ip default-gateway 10.101.0.1
+interface 25
+   name "Intercoms"
+   exit
+interface 26
+   name "Intercoms"
+   exit
+interface 27
+   name "Intercoms"
+   exit
+interface 28
+   name "Intercoms"
+   exit
+interface 29
+   name "Intercoms"
+   exit
+interface 30
+   name "Intercoms"
+   exit
+interface 31
+   name "Intercoms"
+   exit
+interface 32
+   name "Intercoms"
+   exit
+interface 33
+   name "Intercoms"
+   exit
+interface 34
+   name "Intercoms"
+   exit
+interface 35
+   name "Intercoms"
+   exit
+interface 36
+   name "Intercoms"
+   exit
+interface 37
+   monitor all both mirror 1
+   exit
+interface 47
+   name "Uplink: 2530-48G-Video-Prod"
+   exit
+snmp-server community "$0l3r@n+RW!&*9" unrestricted
+snmp-server community "NetInfoReader" operator
+snmp-server contact "Enable" location "Video Production Rack Room"
+vlan 1
+   name "DEFAULT_VLAN"
+   no untagged 1-16,25-46
+   untagged 17-24,47-52
+   ip address 10.101.0.16 255.255.248.0
+   qos priority 6
+   exit
+vlan 24
+   name "Media"
+   untagged 5,9-16
+   tagged 47,50,52
+   no ip address
+   exit
+vlan 28
+   name "Media Intercoms"
+   untagged 25-36
+   tagged 50
+   no ip address
+   exit
+vlan 35
+   name "Digital Signage"
+   untagged 37-46
+   tagged 47,50,52
+   ip address 10.101.35.2 255.255.255.0
+   ip igmp
+   exit
+vlan 40
+   name "Media Switcher"
+   untagged 1-4
+   no ip address
+   ip igmp
+   exit
+vlan 45
+   name "Video Router"
+   untagged 6-8
+   no ip address
+   ip igmp
+   exit
+vlan 50
+   name "GUEST"
+   tagged 47,50,52
+   no ip address
+   exit
+vlan 400
+   name "VOICE"
+   tagged 47,50,52
+   no ip address
+   voice
+   exit
+vlan 500
+   name "Camera"
+   tagged 47,50,52
+   no ip address
+   exit
+spanning-tree
+spanning-tree 1 bpdu-protection
+spanning-tree 2 bpdu-protection
+spanning-tree 3 bpdu-protection
+spanning-tree 4 bpdu-protection
+spanning-tree 5 bpdu-protection
+spanning-tree 6 bpdu-protection
+spanning-tree 7 bpdu-protection
+spanning-tree 8 bpdu-protection
+spanning-tree 9 bpdu-protection
+spanning-tree 10 bpdu-protection
+spanning-tree 11 bpdu-protection
+spanning-tree 12 bpdu-protection
+spanning-tree 13 bpdu-protection
+spanning-tree 14 bpdu-protection
+spanning-tree 15 bpdu-protection
+spanning-tree 16 bpdu-protection
+spanning-tree 17 bpdu-protection
+spanning-tree 18 bpdu-protection
+spanning-tree 19 bpdu-protection
+spanning-tree 20 bpdu-protection
+spanning-tree 21 bpdu-protection
+spanning-tree 22 bpdu-protection
+spanning-tree 23 bpdu-protection
+spanning-tree 24 bpdu-protection
+spanning-tree 25 bpdu-protection
+spanning-tree 26 bpdu-protection
+spanning-tree 27 bpdu-protection
+spanning-tree 28 bpdu-protection
+spanning-tree 29 bpdu-protection
+spanning-tree 30 bpdu-protection
+spanning-tree 31 bpdu-protection
+spanning-tree 32 bpdu-protection
+spanning-tree 33 bpdu-protection
+spanning-tree 34 bpdu-protection
+spanning-tree 35 bpdu-protection
+spanning-tree 36 bpdu-protection
+spanning-tree 37 bpdu-protection
+spanning-tree 38 bpdu-protection
+spanning-tree 39 bpdu-protection
+spanning-tree 40 bpdu-protection
+spanning-tree 41 bpdu-protection
+spanning-tree 42 bpdu-protection
+spanning-tree 43 bpdu-protection
+spanning-tree 44 bpdu-protection
+spanning-tree 45 bpdu-protection
+spanning-tree 46 bpdu-protection
+spanning-tree 48 bpdu-protection
+spanning-tree trap topology-change instance cst
+spanning-tree trap errant-bpdu
+spanning-tree bpdu-protection-timeout 600 priority 10 force-version
+rstp-operation
+no tftp server
+loop-protect 1-46,48
+loop-protect trap loop-detected
+loop-protect disable-timer 600
+no autorun
+no dhcp config-file-update
+no dhcp image-file-update
+no dhcp tr69-acs-url

@@ -1,0 +1,135 @@
+!
+ver 10.0.10d_cd3T253
+!
+stack unit 1
+  module 1 icx8200-48pf-port-management-module
+  module 2 icx8200-4-sfp-plus-port-100g-module
+  stack-port ethernet 1/2/1
+  stack-port ethernet 1/2/3
+!
+!
+!
+
+!
+!
+global-stp
+!
+!
+vlan 1 name DEFAULT-VLAN by port
+ spanning-tree
+!
+vlan 11 name Voice by port
+ tagged ethe 1/1/48 
+!
+vlan 20 name Checkin by port
+ tagged ethe 1/1/2 to 1/1/4 ethe 1/1/6 ethe 1/1/9 ethe 1/1/11 ethe 1/1/13 ethe 1/1/15 ethe 1/1/17 ethe 1/1/19 ethe 1/1/21 ethe 1/1/23 ethe 1/1/25 ethe 1/1/27 ethe 1/1/29 ethe 1/1/31 ethe 1/1/35 ethe 1/1/37 ethe 1/1/39 ethe 1/1/41 ethe 1/1/43 ethe 1/1/48 
+ untagged ethe 1/1/34 ethe 1/1/36 ethe 1/1/38 ethe 1/1/40 ethe 1/1/42 ethe 1/1/44 
+ spanning-tree 802-1w
+!
+vlan 25 name Guest by port
+ tagged ethe 1/1/2 ethe 1/1/4 ethe 1/1/6 ethe 1/1/9 ethe 1/1/11 ethe 1/1/13 ethe 1/1/15 ethe 1/1/17 ethe 1/1/19 ethe 1/1/21 ethe 1/1/23 ethe 1/1/25 ethe 1/1/27 ethe 1/1/29 ethe 1/1/31 ethe 1/1/35 ethe 1/1/37 ethe 1/1/39 ethe 1/1/41 ethe 1/1/43 ethe 1/1/48 
+ untagged ethe 1/1/3 
+ spanning-tree 802-1w
+!
+vlan 30 name Production by port
+ tagged ethe 1/1/2 ethe 1/1/4 ethe 1/1/6 ethe 1/1/9 ethe 1/1/11 ethe 1/1/13 ethe 1/1/15 ethe 1/1/17 ethe 1/1/19 ethe 1/1/21 ethe 1/1/23 ethe 1/1/25 ethe 1/1/27 ethe 1/1/29 ethe 1/1/31 ethe 1/1/35 ethe 1/1/37 ethe 1/1/39 ethe 1/1/41 ethe 1/1/43 ethe 1/1/48 
+ untagged ethe 1/1/7 to 1/1/8 
+ spanning-tree 802-1w
+!
+vlan 40 name Security by port
+ tagged ethe 1/1/2 ethe 1/1/4 ethe 1/1/6 ethe 1/1/9 ethe 1/1/11 ethe 1/1/13 ethe 1/1/15 ethe 1/1/17 ethe 1/1/19 ethe 1/1/21 ethe 1/1/23 ethe 1/1/25 ethe 1/1/27 ethe 1/1/29 ethe 1/1/31 ethe 1/1/35 ethe 1/1/37 ethe 1/1/39 ethe 1/1/41 ethe 1/1/43 ethe 1/1/48 
+ spanning-tree 802-1w
+!
+vlan 50 name Facilities by port
+ tagged ethe 1/1/2 ethe 1/1/4 ethe 1/1/6 ethe 1/1/9 ethe 1/1/11 ethe 1/1/13 ethe 1/1/15 ethe 1/1/17 ethe 1/1/19 ethe 1/1/21 ethe 1/1/23 ethe 1/1/25 ethe 1/1/27 ethe 1/1/29 ethe 1/1/31 ethe 1/1/35 ethe 1/1/37 ethe 1/1/39 ethe 1/1/41 ethe 1/1/43 ethe 1/1/48 
+ untagged ethe 1/1/5 
+ spanning-tree 802-1w
+!
+vlan 55 name POS by port
+ tagged ethe 1/1/2 to 1/1/4 ethe 1/1/6 ethe 1/1/9 ethe 1/1/11 ethe 1/1/13 ethe 1/1/15 ethe 1/1/17 ethe 1/1/19 ethe 1/1/21 ethe 1/1/23 ethe 1/1/25 ethe 1/1/27 ethe 1/1/29 ethe 1/1/31 ethe 1/1/35 ethe 1/1/37 ethe 1/1/39 ethe 1/1/41 ethe 1/1/43 ethe 1/1/48 
+ spanning-tree 802-1w
+!
+vlan 999 name TEMP by port
+!
+!
+!
+!
+!
+ip route 0.0.0.0/0 10.0.16.2
+!
+!
+hostname MSC-HLT-MDF-A-CORE
+ip dns server-address 9.9.9.9 1.1.1.2 1.0.0.2
+ip tftp blocksize 8192
+!
+!
+ntp
+ server ntp.ruckuswireless.com
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface management 1
+!
+interface ethernet 1/1/48
+ voice-vlan 11
+!
+interface ve 1
+ ip address 10.0.16.1 255.255.248.0
+!
+!
+
+!
+!
+
+
+
+!
+!
+!
+!
+username admin password 1 $6$M78fhauw$dc2ZfsB4CrdFZUkXo8c.0Ok77g4HXLBFN6h4lVu1gYev1dcvuooAQeUZPKprTpBqAF9/xbhy0dWdsqKj0r1Ab/    
+!
+aaa authentication login default local
+!
+aaa authentication web-server default local
+!
+aaa authentication snmp-server default local
+!
+ip dhcp-client disable
+!
+restconf enable
+!
+
+
+!
+web-management disable
+!
+
+
+!
+
+
+!
+snmp-server community 2 $dG5vJ2dHc1BuIUBuVQ== ro
+snmp-server contact "Enable - Help@Enable.email"
+snmp-server enable vlan 1
+snmp-server location "MDF"
+!
+manager registrar 
+manager registrar-list device.ruckus.cloud 34.66.194.67
+manager port-list 987
+!
+
+
+!
+
+
+!
+
+end

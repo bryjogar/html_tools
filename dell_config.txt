@@ -1,0 +1,271 @@
+!Current Configuration:
+!System Description "PowerConnect 6224P, 3.3.17.1, VxWorks 6.5"
+!System Software Version 3.3.17.1
+!Cut-through mode is configured as disabled
+!
+configure
+vlan database
+vlan 15,75,100,302,405,433-434,800,810,820,1016,2000,3016,3116,4000
+exit
+snmp-server contact "Enable"
+hostname "NWC335-6224P"
+sntp unicast client enable
+sntp server 10.1.51.254
+clock summer-time recurring USA zone "CDT"
+clock timezone -6 minutes 0 zone "CST"
+stack
+member 1 4
+exit
+ip address 10.15.0.61 255.255.255.0
+ip default-gateway 10.15.0.1
+ip address vlan 15
+ 
+interface vlan 15
+name "Management"
+exit
+interface vlan 75
+name "Public Wire"
+exit
+interface vlan 100
+name "FBDAL-Voice"
+exit
+interface vlan 302
+name "Worship_Credit"
+exit
+interface vlan 405
+name "Cameras"
+exit
+interface vlan 433
+name "NWC 335 Data"
+exit
+interface vlan 434
+name "NWC 335 Voice"
+exit
+ 
+username "admin" password ef9a82f8540aacd50bdf2cfec6ffba3e level 15 encrypted
+username "jgerch" password ef9a82f8540aacd50bdf2cfec6ffba3e level 15 encrypted
+voice vlan
+no spanning-tree
+classofservice dot1p-mapping 6 4
+classofservice trust ip-dscp
+classofservice ip-dscp-mapping 46 4
+cos-queue strict 4
+!
+interface ethernet 1/g1
+spanning-tree portfast
+switchport access vlan 4000
+exit
+!
+interface ethernet 1/g2
+spanning-tree portfast
+switchport access vlan 4000
+exit
+!
+interface ethernet 1/g3
+spanning-tree portfast
+ 
+switchport access vlan 4000
+exit
+!
+interface ethernet 1/g4
+spanning-tree portfast
+switchport access vlan 4000
+exit
+!
+interface ethernet 1/g5
+spanning-tree portfast
+switchport mode general
+switchport general pvid 405
+switchport general allowed vlan add 405
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g6
+spanning-tree portfast
+switchport access vlan 4000
+exit
+!
+ 
+interface ethernet 1/g7
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+switchport general allowed vlan add 1016
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+voice vlan 434
+exit
+!
+interface ethernet 1/g8
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+switchport general allowed vlan add 1016
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+voice vlan 434
+exit
+!
+interface ethernet 1/g9
+ 
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+switchport general allowed vlan add 1016
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g10
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+switchport general allowed vlan add 1016
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g11
+spanning-tree portfast
+switchport access vlan 75
+exit
+ 
+!
+interface ethernet 1/g12
+spanning-tree portfast
+switchport access vlan 75
+exit
+!
+interface ethernet 1/g13
+spanning-tree portfast
+switchport mode general
+switchport general pvid 75
+switchport general allowed vlan add 75
+switchport general allowed vlan remove 1
+voice vlan 434
+exit
+!
+interface ethernet 1/g14
+spanning-tree portfast
+switchport mode general
+switchport general pvid 433
+switchport general allowed vlan add 433
+switchport general allowed vlan add 434 tagged
+ 
+switchport general allowed vlan remove 1
+voice vlan 434
+exit
+!
+interface ethernet 1/g15
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+switchport general allowed vlan add 1016
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g16
+spanning-tree portfast
+switchport mode general
+switchport general pvid 75
+switchport general allowed vlan add 75
+switchport general allowed vlan remove 1
+exit
+!
+ 
+interface ethernet 1/g17
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+switchport general allowed vlan add 1016
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g18
+spanning-tree portfast
+switchport mode general
+switchport general pvid 75
+switchport general allowed vlan add 75
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g19
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+ 
+switchport general allowed vlan add 1016
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g20
+spanning-tree portfast
+switchport access vlan 4000
+exit
+!
+interface ethernet 1/g21
+spanning-tree portfast
+switchport mode general
+switchport general pvid 820
+switchport general allowed vlan add 820
+switchport general allowed vlan add 302,800,810 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g22
+spanning-tree portfast
+ 
+switchport mode general
+switchport general pvid 820
+switchport general allowed vlan add 820
+switchport general allowed vlan add 302,800,810 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g23
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+switchport general allowed vlan add 1016
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/g24
+spanning-tree portfast
+switchport mode general
+switchport general pvid 1016
+switchport general allowed vlan add 1016
+ 
+switchport general allowed vlan add 2000,3016 tagged
+switchport general allowed vlan remove 1
+exit
+!
+interface ethernet 1/xg1
+switchport mode trunk
+switchport trunk allowed vlan add 15,75,302,405,433-434,800,810,820,1016
+switchport trunk allowed vlan add 2000,3016,3116,4000
+lldp transmit-tlv port-desc sys-name
+exit
+!
+interface ethernet 1/xg2
+switchport mode trunk
+switchport trunk allowed vlan add 15,75,100,302,405,433-434,800,810,820
+switchport trunk allowed vlan add 1016,2000,3016,3116,4000
+lldp transmit-tlv sys-name
+exit
+!
+interface port-channel 4
+switchport mode general
+switchport general allowed vlan add 15,75,302,405,433-434,800,810 tagged
+ 
+switchport general allowed vlan add 820,1016,2000,3016,3116,4000 tagged
+exit
+snmp-server community $0l3r@n+RW!&*9 rw ro
+snmp-server community FBCDALLAS ro
+snmp-server community NetInfoReader ro
+snmp-server host 10.1.51.254 FBCDALLAS traps v2
+exit
