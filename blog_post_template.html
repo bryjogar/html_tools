@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Content Publisher v3.1</title>
+    <title>Content Publisher v3.2</title>
     
     <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -76,7 +76,7 @@
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-layer-group text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-wide text-gray-200">Content Publisher <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-600 rounded px-1">v3.1</span></h1>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200">Content Publisher <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-600 rounded px-1">v3.2</span></h1>
         </div>
         <div class="flex items-center gap-3">
             <button onclick="toggleHelp()" class="text-gray-400 hover:text-white transition-colors">
@@ -162,12 +162,12 @@
                 <h4 class="font-bold text-white text-xs uppercase mt-4 mb-2">Wiki Link Support</h4>
                 <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border font-mono text-xs space-y-2">
                     <div>
-                        <span class="text-obsidian-accent">[[Folder/Note]]</span> <br>
-                        <span class="text-gray-500">becomes &lt;a href="Folder/Note.html"&gt;Folder/Note&lt;/a&gt;</span>
+                        <span class="text-obsidian-accent">[[God's Grace]]</span> <br>
+                        <span class="text-gray-500">becomes &lt;a href="gods-grace.html"&gt;God's Grace&lt;/a&gt;</span>
                     </div>
                     <div>
-                        <span class="text-obsidian-accent">[[Folder/Note|My Alias]]</span> <br>
-                        <span class="text-gray-500">becomes &lt;a href="Folder/Note.html"&gt;My Alias&lt;/a&gt;</span>
+                        <span class="text-obsidian-accent">[[Folder/Note|Alias]]</span> <br>
+                        <span class="text-gray-500">becomes &lt;a href="folder/note.html"&gt;Alias&lt;/a&gt;</span>
                     </div>
                 </div>
 
@@ -256,7 +256,6 @@
     </div>
 </article>`;
 
-        // Same template as before
         const PAGE_TEMPLATE = `<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
@@ -378,7 +377,7 @@ title: Refining the Zettelkasten Workflow
 date: 2025-09-20
 category: PKM
 permalink: notes/zettelkasten.html
-hero_image: walkway.jpg
+hero_image: https://images.unsplash.com/photo-1456324504439-367cee10d632?auto=format&fit=crop&q=80&w=1000
 excerpt: I've spent the last six months trying to force my notes into a rigid hierarchy of folders. It hasn't worked. Today, I'm refactoring my vault.
 tags: [meta, pkm, obsidian]
 ---
@@ -397,6 +396,7 @@ You can now link to other notes using Wiki syntax:
 
 * Standard Link: [[Philosophy/Metaphysics/Time]]
 * Aliased Link: [[Theology/Patristics/Augustine|St. Augustine's view on time]]
+* Special Chars: [[God's Infinite Goodness]]
 
 The answer is **all of them**.`;
 
@@ -420,6 +420,23 @@ The answer is **all of them**.`;
         }
 
         /**
+         * Sluggifies text for URLs.
+         * 1. Lowercase
+         * 2. Remove apostrophes (so "God's" becomes "gods", not "god-s")
+         * 3. Replace non-alphanumeric chars (except /) with hyphens
+         * 4. Remove duplicate hyphens
+         */
+        function slugify(text) {
+            return text
+                .toLowerCase()
+                .trim()
+                .replace(/'/g, '')              // Remove apostrophes specially
+                .replace(/[^\w\s-\/]/g, '')     // Remove non-word chars (allow / for folders)
+                .replace(/[\s]+/g, '-')         // Replace spaces with hyphens
+                .replace(/-+/g, '-');           // Remove duplicate hyphens
+        }
+
+        /**
          * Transforms WikiLinks [[target]] and [[target|alias]] into HTML <a> tags
          * before parsing markdown.
          */
@@ -427,7 +444,7 @@ The answer is **all of them**.`;
             // 1. Handle [[target|alias]]
             // Regex breakdown: \[\[ matches opening, ([^\]|]+) captures target, \| matches pipe, ([^\]]+) captures alias, \]\] matches closing
             let processed = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, (match, link, alias) => {
-                const url = link.trim() + '.html'; // Append .html extension
+                const url = slugify(link) + '.html'; 
                 return `<a href="${url}">${alias.trim()}</a>`;
             });
 
@@ -435,7 +452,8 @@ The answer is **all of them**.`;
             // Regex breakdown: \[\[ matches opening, ([^\]|]+) captures target, \]\] matches closing
             processed = processed.replace(/\[\[([^\]|]+)\]\]/g, (match, link) => {
                 const cleanLink = link.trim();
-                const url = cleanLink + '.html'; // Append .html extension
+                const url = slugify(cleanLink) + '.html';
+                // Note: We use cleanLink for display (preserving Case/Space), but slugify for href
                 return `<a href="${url}">${cleanLink}</a>`;
             });
 
