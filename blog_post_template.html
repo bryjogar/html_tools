@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog Injector v2.4 (Date Fix)</title>
+    <title>Content Publisher v3.0</title>
     
     <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,6 +11,7 @@
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <script>
         tailwind.config = {
@@ -23,7 +24,13 @@
                             pane: '#252526',    // Headers/Panels
                             border: '#3c3c3c',  // Borders
                             accent: '#7c3aed',  // Violet Primary
-                            text: '#cccccc'     // Standard Text
+                            text: '#cccccc',    // Standard Text
+                            800: '#151516'      // Card Dark BG
+                        },
+                        brand: {
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed'
                         }
                     },
                     fontFamily: {
@@ -42,7 +49,6 @@
         ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #505050; }
 
-        /* Editor Styles */
         .editor-input {
             width: 100%;
             height: 100%;
@@ -57,9 +63,7 @@
             line-height: 1.6;
         }
         
-        .tab-btn {
-            border-bottom: 2px solid transparent;
-        }
+        .tab-btn { border-bottom: 2px solid transparent; }
         .tab-btn.active {
             border-bottom: 2px solid #7c3aed;
             color: #fff;
@@ -71,13 +75,10 @@
 
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
-            <i class="fa-solid fa-file-code text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-wide text-gray-200">Blog Injector <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-600 rounded px-1">v2.4</span></h1>
+            <i class="fa-solid fa-layer-group text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200">Content Publisher <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-600 rounded px-1">v3.0</span></h1>
         </div>
         <div class="flex items-center gap-3">
-            <button onclick="downloadHtml()" class="hidden md:inline-flex items-center px-3 py-1.5 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded transition-colors">
-                <i class="fa-solid fa-download mr-1.5"></i> Download HTML
-            </button>
             <button onclick="toggleHelp()" class="text-gray-400 hover:text-white transition-colors">
                 <i class="fa-solid fa-circle-question text-lg"></i>
             </button>
@@ -88,11 +89,11 @@
         
         <section class="flex-1 flex flex-col border-r border-obsidian-border min-w-0 h-1/2 md:h-full relative z-10">
             <div class="flex border-b border-obsidian-border bg-obsidian-pane shrink-0">
-                <button id="tab-markdown" onclick="switchTab('markdown')" class="tab-btn active flex-1 py-3 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors">
+                <button id="tab-input-md" onclick="switchInputTab('markdown')" class="tab-btn active flex-1 py-3 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors">
                     <i class="fa-brands fa-markdown mr-1"></i> MARKDOWN (YAML)
                 </button>
-                <button id="tab-template" onclick="switchTab('template')" class="tab-btn flex-1 py-3 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors">
-                    <i class="fa-solid fa-code mr-1"></i> TEMPLATE HTML
+                <button id="tab-input-tpl" onclick="switchInputTab('template')" class="tab-btn flex-1 py-3 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-code mr-1"></i> PAGE TEMPLATE
                 </button>
             </div>
 
@@ -100,29 +101,39 @@
                 <textarea id="markdown-input" class="editor-input absolute inset-0" spellcheck="false"></textarea>
                 <textarea id="template-input" class="editor-input absolute inset-0 hidden" spellcheck="false"></textarea>
             </div>
-            
-            <div class="md:hidden flex p-2 border-t border-obsidian-border bg-obsidian-pane gap-2 shrink-0">
-                <button onclick="copyToClipboard()" class="flex-1 bg-obsidian-border hover:bg-gray-600 text-white py-2 rounded text-xs font-bold">
-                    <i class="fa-regular fa-copy mr-1"></i> Copy Code
-                </button>
-                <button onclick="downloadHtml()" class="flex-1 bg-obsidian-accent hover:bg-violet-600 text-white py-2 rounded text-xs font-bold">
-                    <i class="fa-solid fa-download mr-1"></i> Download
-                </button>
-            </div>
         </section>
 
         <section class="flex-1 flex flex-col bg-[#111] h-1/2 md:h-full relative z-0">
-            <div class="h-8 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0">
-                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Preview</span>
-                <div class="flex gap-2">
-                     <button onclick="copyToClipboard()" class="hidden md:inline-block text-xs text-obsidian-accent hover:text-violet-400 font-mono cursor-pointer" title="Copy Output HTML">
-                        <i class="fa-regular fa-copy"></i> Copy Output HTML
+            <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-0 shrink-0">
+                <div class="flex h-full">
+                    <button id="tab-out-page" onclick="switchOutputTab('page')" class="tab-btn active h-full px-4 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors border-r border-obsidian-border">
+                        <i class="fa-regular fa-file-lines mr-1"></i> FULL PAGE
+                    </button>
+                    <button id="tab-out-card" onclick="switchOutputTab('card')" class="tab-btn h-full px-4 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors border-r border-obsidian-border">
+                        <i class="fa-solid fa-id-card mr-1"></i> INDEX CARD
+                    </button>
+                </div>
+                <div class="pr-3">
+                     <button onclick="handleDownloadOrCopy()" class="text-xs text-obsidian-accent hover:text-violet-400 font-mono cursor-pointer flex items-center gap-1">
+                        <i id="action-icon" class="fa-solid fa-download"></i> <span id="action-text">Download Page</span>
                     </button>
                 </div>
             </div>
             
-            <div class="flex-1 relative overflow-hidden w-full h-full bg-[#111]">
+            <div id="view-page" class="flex-1 relative overflow-hidden w-full h-full bg-[#111]">
                 <iframe id="preview-frame" class="absolute inset-0 w-full h-full border-none"></iframe>
+            </div>
+
+            <div id="view-card" class="flex-1 hidden flex-col w-full h-full bg-obsidian-bg">
+                
+                <div class="p-8 flex items-center justify-center bg-[#111] border-b border-obsidian-border">
+                    <div id="card-visual-container" class="w-full max-w-md"></div>
+                </div>
+
+                <div class="flex-1 flex flex-col min-h-0 bg-obsidian-pane p-4">
+                    <label class="text-xs font-mono text-gray-500 mb-2 block uppercase">Card HTML Code</label>
+                    <textarea id="card-code-output" readonly class="flex-1 w-full bg-obsidian-bg border border-obsidian-border rounded p-3 font-mono text-xs text-gray-400 focus:outline-none resize-none custom-scrollbar whitespace-pre"></textarea>
+                </div>
             </div>
         </section>
 
@@ -131,26 +142,22 @@
     <div id="help-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-obsidian-pane border border-obsidian-border rounded-lg max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-4 border-b border-obsidian-border flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-white">How to use</h3>
+                <h3 class="font-bold text-white">YAML Variables</h3>
                 <button onclick="toggleHelp()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </div>
             <div class="p-4 text-sm text-gray-300 space-y-4 overflow-y-auto">
-                <p>1. <strong>YAML Frontmatter:</strong> Add metadata at the top of your markdown.</p>
+                <p>Fill out the YAML at the top of your markdown to populate both the Page and the Index Card.</p>
                 <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border font-mono text-xs">
-                    <span class="text-pink-400">---</span><br>
-                    <span class="text-blue-400">title:</span> "My Blog Post"<br>
-                    <span class="text-blue-400">date:</span> 2025-09-20<br>
-                    <span class="text-blue-400">hero_image:</span> walkway.jpg<br>
-                    <span class="text-pink-400">---</span>
+<span class="text-pink-400">---</span><br>
+<span class="text-blue-400">title:</span> "My Blog Post"<br>
+<span class="text-blue-400">date:</span> 2025-09-20<br>
+<span class="text-blue-400">category:</span> Networking <span class="text-gray-500">// Used for Card Pill</span><br>
+<span class="text-blue-400">tags:</span> [obsidian, pkm] <span class="text-gray-500">// Used for Post Footer</span><br>
+<span class="text-blue-400">hero_image:</span> https://... <span class="text-gray-500">// Optional</span><br>
+<span class="text-blue-400">excerpt:</span> "Short summary for the card..."<br>
+<span class="text-blue-400">permalink:</span> notes/my-post.html <span class="text-gray-500">// Where card links to</span><br>
+<span class="text-pink-400">---</span>
                 </div>
-                <p>2. <strong>Template Placeholders:</strong></p>
-                <ul class="list-disc list-inside space-y-1 text-xs text-gray-400">
-                    <li><code>{{HERO_BLOCK}}</code> (Contains the image tag)</li>
-                    <li><code>{{CONTENT}}</code> (Required)</li>
-                    <li><code>{{TITLE}}</code></li>
-                    <li><code>{{DATE}}</code></li>
-                    <li><code>{{TAGS}}</code></li>
-                </ul>
             </div>
             <div class="p-4 bg-obsidian-bg border-t border-obsidian-border text-center shrink-0">
                 <button onclick="toggleHelp()" class="px-4 py-2 bg-obsidian-accent hover:bg-violet-600 text-white rounded text-sm transition-colors">Close</button>
@@ -158,57 +165,82 @@
         </div>
     </div>
 
-    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
-        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
-            HomeLab Playground
-        </a>
-        <span class="hidden md:block text-obsidian-border mx-1">|</span>
-        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
-            <i class="fa-solid fa-mug-hot mr-1.5"></i>
-            <span>Support The Tools</span>
-        </a>
-    </footer>
-
     <script>
         // --- DOM Elements ---
         const els = {
             mdInput: document.getElementById('markdown-input'),
             tplInput: document.getElementById('template-input'),
             iframe: document.getElementById('preview-frame'),
+            cardVisual: document.getElementById('card-visual-container'),
+            cardCode: document.getElementById('card-code-output'),
+            actionText: document.getElementById('action-text'),
+            actionIcon: document.getElementById('action-icon'),
+            modal: document.getElementById('help-modal'),
             tabs: {
-                md: document.getElementById('tab-markdown'),
-                tpl: document.getElementById('tab-template')
+                inMd: document.getElementById('tab-input-md'),
+                inTpl: document.getElementById('tab-input-tpl'),
+                outPage: document.getElementById('tab-out-page'),
+                outCard: document.getElementById('tab-out-card')
             },
-            modal: document.getElementById('help-modal')
+            views: {
+                page: document.getElementById('view-page'),
+                card: document.getElementById('view-card')
+            }
         };
 
-        const STORAGE_KEYS = {
-            MD: 'hlp_blog_v24_md',
-            TPL: 'hlp_blog_v24_tpl'
-        };
-        
-        // --- DEFAULTS ---
-        const DEFAULT_MD = `---
-title: Refining the Zettelkasten Workflow
-date: 2025-09-20
-tags: [meta, pkm, obsidian]
-hero_image: walkway.jpg
----
+        const STORAGE_KEYS = { MD: 'hlp_pub_v3_md', TPL: 'hlp_pub_v3_tpl' };
+        let currentOutputMode = 'page'; // 'page' or 'card'
 
->I've spent the last six months trying to force my notes into a rigid hierarchy of folders. It hasn't worked. Today, I'm refactoring my vault to rely on MOCs.
+        // --- Templates ---
+        // 1. The Card Templates (From your Link Generator)
+        const CARD_STANDARD = `<article class="group bg-white dark:bg-obsidian-800 rounded-xl p-6 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md hover:ring-brand-500 dark:hover:ring-brand-500 transition-all duration-300">
+    <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+        <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{{CATEGORY}}</span>
+        <span>•</span>
+        <time>{{DATE}}</time>
+    </div>
+    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-brand-600 dark:group-hover:text-brand-400">
+        <a href="{{PERMALINK}}">{{TITLE}}</a>
+    </h3>
+    <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4">
+        {{EXCERPT}}
+    </p>
+    <div class="flex items-center text-brand-600 dark:text-brand-400 text-sm font-medium">
+        Read more <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+    </div>
+</article>`;
 
-## The Folder Trap
+        const CARD_HERO = `<article class="note-card group bg-white dark:bg-obsidian-800 rounded-xl shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md hover:ring-brand-500 dark:hover:ring-brand-500 transition-all duration-300 flex flex-col overflow-hidden">
+    <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-700 relative">
+         <img src="{{HERO_IMAGE}}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="{{TITLE}}">
+    </div>
+    <div class="p-6 flex flex-col flex-grow">
+        <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+            <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{{CATEGORY}}</span>
+            <span>•</span>
+            <time>{{DATE}}</time>
+        </div>
+        <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-brand-600 dark:group-hover:text-brand-400">
+            <a href="{{PERMALINK}}">{{TITLE}}</a>
+        </h3>
+        <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4 flex-grow">
+            {{EXCERPT}}
+        </p>
+        <div class="flex items-center text-brand-600 dark:text-brand-400 text-sm font-medium mt-auto">
+            Read more <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+        </div>
+    </div>
+</article>`;
 
-Coming from a Windows SysAdmin background, I love folders. But ideas, especially theological and philosophical ones, don't fit into neat boxes.
-`;
-
-        const DEFAULT_TEMPLATE = `<!DOCTYPE html>
+        // 2. The Full Page Template (From your Blog Injector)
+        // I have inserted your requested nav fixes here.
+        const PAGE_TEMPLATE = `<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{TITLE}} | Bryan Garrison</title>
-    <meta name="description" content="{{TITLE}} - A post by Bryan Garrison">
+    <meta name="description" content="{{EXCERPT}}">
     
     <script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
     
@@ -221,23 +253,15 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        serif: ['Merriweather', 'serif'],
-                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['Merriweather', 'serif'] },
                     colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            900: '#0c4a6e',
-                        },
-                        obsidian: {
-                            800: '#202020',
-                            900: '#161616',
-                        }
-                    }
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
+                        obsidian: { 800: '#202020', 900: '#161616' }
+                    },
+                    typography: (theme) => ({
+                        DEFAULT: { css: { color: theme('colors.slate.700'), fontFamily: theme('fontFamily.serif'), a: { color: theme('colors.brand.600'), '&:hover': { color: theme('colors.brand.500') } }, code: { color: theme('colors.pink.600'), backgroundColor: theme('colors.slate.100'), padding: '2px 4px', borderRadius: '4px', fontWeight: '500' } } },
+                        dark: { css: { color: theme('colors.slate.200'), a: { color: theme('colors.brand.400') }, h1: { color: '#ffffff' }, h2: { color: '#ffffff' }, h3: { color: '#ffffff' }, strong: { color: theme('colors.slate.100') }, code: { color: theme('colors.pink.400'), backgroundColor: theme('colors.obsidian.800') } } }
+                    })
                 }
             }
         }
@@ -254,19 +278,16 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
                         <span>Bryan Garrison</span>
                     </a>
                 </div>
-
                 <div class="hidden sm:flex sm:items-center sm:space-x-8">
                     <a href="notes.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Notes</a>
                     <a href="about.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">About</a>
                     <a href="projects.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Projects</a>
                     <a href="now.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Now</a>
-                    
                     <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle Dark Mode">
                         <i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
                         <i data-lucide="sun" class="w-5 h-5 block dark:hidden"></i>
                     </button>
                 </div>
-                
                 <div class="flex items-center sm:hidden gap-4">
                      <button id="theme-toggle-mobile" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
                         <i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
@@ -308,63 +329,52 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
         </div>
     </main>
 
-        <!-- Footer -->
     <footer class="bg-white dark:bg-obsidian-900 border-t border-slate-200 dark:border-slate-800 mt-auto">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-slate-500 dark:text-slate-400 text-sm">
-                    &copy; 2025 Bryan Garrison.
-                </p>
-                <!-- <div class="flex space-x-6">
-                    <a href="#" class="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
-                        <span class="sr-only">Twitter</span>
-                        <i data-lucide="twitter" class="w-5 h-5"></i>
-                    </a>
-                    <a href="#" class="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
-                        <span class="sr-only">LinkedIn</span>
-                        <i data-lucide="linkedin" class="w-5 h-5"></i>
-                    </a>
-                    <a href="#" class="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
-                        <span class="sr-only">RSS</span>
-                        <i data-lucide="rss" class="w-5 h-5"></i>
-                    </a>
-                </div> -->
-            </div>
-        </div>
+        <div class="max-w-4xl mx-auto px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">&copy; 2025 Bryan Garrison.</div>
     </footer>
 
     <script>
         lucide.createIcons();
-        
         const btn = document.getElementById('theme-toggle');
         const btnMobile = document.getElementById('theme-toggle-mobile');
         const html = document.documentElement;
-        
-        // Check theme
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            html.classList.add('dark');
-        } else {
-            html.classList.remove('dark');
-        }
-
-        // Toggle function
-        function toggleTheme() {
-            html.classList.toggle('dark');
-            localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
-        }
-
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) { html.classList.add('dark'); } else { html.classList.remove('dark'); }
+        function toggleTheme() { html.classList.toggle('dark'); localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light'; }
         if(btn) btn.addEventListener('click', toggleTheme);
         if(btnMobile) btnMobile.addEventListener('click', toggleTheme);
     <\/script>
 </body>
 </html>`;
 
-        // --- APP LOGIC ---
+        const DEFAULT_MD = `---
+title: Refining the Zettelkasten Workflow
+date: 2025-09-20
+category: PKM
+permalink: notes/zettelkasten.html
+hero_image: https://images.unsplash.com/photo-1456324504439-367cee10d632?auto=format&fit=crop&q=80&w=1000
+excerpt: I've spent the last six months trying to force my notes into a rigid hierarchy of folders. It hasn't worked. Today, I'm refactoring my vault.
+tags: [meta, pkm, obsidian]
+---
+
+## The Folder Trap
+
+Coming from a Windows SysAdmin background, I love folders. But ideas, especially theological and philosophical ones, don't fit into neat boxes.
+
+For example, does a note on *"The concept of Time in St. Augustine"* belong in:
+
+1. \`/Theology/Patristics/Augustine\`
+2. \`/Philosophy/Metaphysics/Time\`
+
+The answer is **all of them**.`;
+
+        // --- Logic ---
 
         function init() {
             els.mdInput.value = localStorage.getItem(STORAGE_KEYS.MD) || DEFAULT_MD;
-            els.tplInput.value = localStorage.getItem(STORAGE_KEYS.TPL) || DEFAULT_TEMPLATE;
-            updatePreview();
+            els.tplInput.value = localStorage.getItem(STORAGE_KEYS.TPL) || PAGE_TEMPLATE;
+            
+            updateOutputs();
+
             els.mdInput.addEventListener('input', handleInput);
             els.tplInput.addEventListener('input', handleInput);
         }
@@ -373,7 +383,7 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
             const isMd = e.target === els.mdInput;
             const key = isMd ? STORAGE_KEYS.MD : STORAGE_KEYS.TPL;
             localStorage.setItem(key, e.target.value);
-            updatePreview();
+            updateOutputs();
         }
 
         function parseInput() {
@@ -386,8 +396,11 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
                 date: new Date().toISOString().split('T')[0],
                 tags: [],
                 hero_image: '',
+                category: 'Uncategorized',
+                permalink: '#',
+                excerpt: 'No excerpt provided.'
             };
-
+            
             let markdownBody = raw;
 
             if (match) {
@@ -397,17 +410,25 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
                         metadata = { ...metadata, ...parsed };
                     }
                     markdownBody = raw.replace(fmRegex, '');
-                } catch (e) {
-                    console.log("YAML Parse Error (ignoring)", e);
-                }
+                } catch (e) { console.log("YAML Parse Error", e); }
             }
 
+            // Word count / read time
             const cleanText = markdownBody.replace(/[#*`]/g, '').trim();
             const wordCount = cleanText ? cleanText.split(/\s+/).length : 0;
             const readTime = Math.ceil(wordCount / 200) + ' min read';
             const bodyHtml = marked.parse(markdownBody);
 
-            return { metadata, bodyHtml, readTime };
+            // Date Formatting
+            let displayDate = metadata.date;
+            if (metadata.date) {
+                const d = new Date(metadata.date);
+                if (!isNaN(d.getTime())) {
+                    displayDate = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+                }
+            }
+
+            return { metadata, bodyHtml, readTime, displayDate };
         }
 
         function generateTagsHtml(tags) {
@@ -417,66 +438,120 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
             ).join('\n');
         }
 
-        function getFinalHtml() {
-            const { metadata, bodyHtml, readTime } = parseInput();
-            let tpl = els.tplInput.value;
-
+        function updateOutputs() {
+            const { metadata, bodyHtml, readTime, displayDate } = parseInput();
+            const safeReplace = (str, pattern, replacement) => str.split(pattern).join(replacement);
             const tagsHtml = generateTagsHtml(metadata.tags);
-            
-            // --- DATE CLEANING LOGIC ---
-            // Force Format: "Sep 20, 2025" (removing time completely)
-            let displayDate = '';
-            if (metadata.date) {
-                const d = new Date(metadata.date);
-                if (!isNaN(d.getTime())) {
-                    displayDate = d.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        timeZone: 'UTC' // Forces UTC to avoid day shifting based on local timezone
-                    });
-                } else {
-                    displayDate = metadata.date; // Fallback if it's just a string text
-                }
-            }
 
-            // --- HERO BLOCK LOGIC ---
+            // 1. Generate FULL PAGE HTML
+            let pageHtml = els.tplInput.value;
             let heroHtml = '';
             if (metadata.hero_image) {
                 heroHtml = `<img src="${metadata.hero_image}" alt="Hero Image" class="w-full h-64 object-cover rounded-xl mb-8 shadow-sm">`;
             }
 
-            const safeReplace = (str, pattern, replacement) => str.split(pattern).join(replacement);
+            pageHtml = safeReplace(pageHtml, '{{TITLE}}', metadata.title);
+            pageHtml = safeReplace(pageHtml, '{{DATE}}', displayDate);
+            pageHtml = safeReplace(pageHtml, '{{READING_TIME}}', readTime);
+            pageHtml = safeReplace(pageHtml, '{{TAGS}}', tagsHtml);
+            pageHtml = safeReplace(pageHtml, '{{HERO_BLOCK}}', heroHtml);
+            pageHtml = safeReplace(pageHtml, '{{EXCERPT}}', metadata.excerpt);
+            pageHtml = safeReplace(pageHtml, '{{CONTENT}}', bodyHtml);
 
-            tpl = safeReplace(tpl, '{{TITLE}}', metadata.title || 'Untitled');
-            tpl = safeReplace(tpl, '{{DATE}}', displayDate); // Uses the cleaned date
-            tpl = safeReplace(tpl, '{{READING_TIME}}', readTime);
-            tpl = safeReplace(tpl, '{{TAGS}}', tagsHtml);
-            tpl = safeReplace(tpl, '{{HERO_BLOCK}}', heroHtml);
-            tpl = safeReplace(tpl, '{{CONTENT}}', bodyHtml);
-
-            return tpl;
-        }
-
-        function updatePreview() {
-            const finalHtml = getFinalHtml();
+            // Update Iframe
             const iframeDoc = els.iframe.contentDocument || els.iframe.contentWindow.document;
             iframeDoc.open();
-            iframeDoc.write(finalHtml);
+            iframeDoc.write(pageHtml);
             iframeDoc.close();
+
+            // 2. Generate CARD HTML
+            // Decide between Standard and Hero card based on image presence
+            let cardHtml = metadata.hero_image ? CARD_HERO : CARD_STANDARD;
+            
+            cardHtml = safeReplace(cardHtml, '{{TITLE}}', metadata.title);
+            cardHtml = safeReplace(cardHtml, '{{DATE}}', displayDate);
+            cardHtml = safeReplace(cardHtml, '{{CATEGORY}}', metadata.category);
+            cardHtml = safeReplace(cardHtml, '{{PERMALINK}}', metadata.permalink);
+            cardHtml = safeReplace(cardHtml, '{{EXCERPT}}', metadata.excerpt);
+            cardHtml = safeReplace(cardHtml, '{{HERO_IMAGE}}', metadata.hero_image); // Only affects Hero template
+
+            // Update Card Visual
+            els.cardVisual.innerHTML = cardHtml;
+            // Update Card Code
+            els.cardCode.value = cardHtml;
+
+            // Re-render icons in the card visual container
+            if (window.lucide) lucide.createIcons({ root: els.cardVisual });
+            
+            // Store final HTML for download
+            window.finalPageHtml = pageHtml;
         }
 
-        function switchTab(tabName) {
-            if (tabName === 'markdown') {
-                els.tabs.md.classList.add('active');
-                els.tabs.tpl.classList.remove('active');
+        // --- Interaction Logic ---
+        function switchInputTab(tab) {
+            if (tab === 'markdown') {
+                els.tabs.inMd.classList.add('active');
+                els.tabs.inTpl.classList.remove('active');
                 els.mdInput.classList.remove('hidden');
                 els.tplInput.classList.add('hidden');
             } else {
-                els.tabs.tpl.classList.add('active');
-                els.tabs.md.classList.remove('active');
+                els.tabs.inTpl.classList.add('active');
+                els.tabs.inMd.classList.remove('active');
                 els.tplInput.classList.remove('hidden');
                 els.mdInput.classList.add('hidden');
+            }
+        }
+
+        function switchOutputTab(tab) {
+            currentOutputMode = tab;
+            if (tab === 'page') {
+                els.tabs.outPage.classList.add('active');
+                els.tabs.outCard.classList.remove('active');
+                els.views.page.classList.remove('hidden');
+                els.views.card.classList.add('hidden');
+                els.views.card.classList.remove('flex');
+                
+                els.actionText.textContent = "Download Page";
+                els.actionIcon.className = "fa-solid fa-download";
+            } else {
+                els.tabs.outCard.classList.add('active');
+                els.tabs.outPage.classList.remove('active');
+                els.views.card.classList.remove('hidden');
+                els.views.card.classList.add('flex');
+                els.views.page.classList.add('hidden');
+
+                els.actionText.textContent = "Copy Card HTML";
+                els.actionIcon.className = "fa-regular fa-copy";
+                
+                // Trigger icon refresh when card becomes visible
+                if (window.lucide) lucide.createIcons({ root: els.cardVisual });
+            }
+        }
+
+        function handleDownloadOrCopy() {
+            if (currentOutputMode === 'page') {
+                // Download
+                const blob = new Blob([window.finalPageHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'post.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else {
+                // Copy Card
+                els.cardCode.select();
+                navigator.clipboard.writeText(els.cardCode.value).then(() => {
+                    const originalText = els.actionText.textContent;
+                    els.actionText.textContent = "Copied!";
+                    els.actionIcon.className = "fa-solid fa-check";
+                    setTimeout(() => {
+                        els.actionText.textContent = originalText;
+                        els.actionIcon.className = "fa-regular fa-copy";
+                    }, 1500);
+                });
             }
         }
 
@@ -484,31 +559,9 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
             els.modal.classList.toggle('hidden');
         }
 
-        function downloadHtml() {
-            const html = getFinalHtml();
-            const blob = new Blob([html], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'blog-post.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        async function copyToClipboard() {
-            const html = getFinalHtml();
-            try {
-                await navigator.clipboard.writeText(html);
-                const btnIcon = document.querySelector('.fa-copy');
-                const originalClass = btnIcon.className;
-                btnIcon.className = "fa-solid fa-check text-green-500";
-                setTimeout(() => { btnIcon.className = originalClass; }, 1500);
-            } catch (err) { alert('Failed to copy to clipboard'); }
-        }
-
+        // Init
         init();
+
     </script>
 </body>
 </html>
