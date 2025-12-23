@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homelab Card Generator</title>
-	<link rel="icon" type="image/png" href="favicon.png">
-    <link rel="apple-touch-icon" href="favicon.png">
+    <title>Universal Card Generator | HomeLab Playground</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <script>
         tailwind.config = {
@@ -16,11 +17,17 @@
                 extend: {
                     colors: {
                         obsidian: {
-                            bg: '#1e1e1e',       // Main background
-                            pane: '#252526',     // Headers/Panels
-                            border: '#3c3c3c',   // Borders
-                            accent: '#7c3aed',   // Violet Primary
-                            text: '#cccccc'      // Standard Text
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc',    // Standard Text
+                            800: '#151516'      // Darker shade for card bg
+                        },
+                        brand: {
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed'
                         }
                     },
                     fontFamily: {
@@ -34,228 +41,389 @@
 
     <style>
         /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #505050; }
+        
+        /* Smooth fade for inputs */
+        .input-group {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
         }
-        ::-webkit-scrollbar-track {
-            background: #1e1e1e; 
+        .input-group.hidden {
+            display: none; /* fallback */
+            opacity: 0;
+            max-height: 0;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding: 0 !important;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #3c3c3c; 
-            border-radius: 5px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #505050; 
-        }
-
-        body {
-            background-color: #1e1e1e;
-            color: #cccccc;
-        }
-
-        /* Syntax Highlighting Mockup for the Output */
-        .code-preview {
-            tab-size: 4;
+        .input-group.visible {
+            display: block; /* fallback */
+            opacity: 1;
+            max-height: 500px;
         }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden font-sans bg-obsidian-bg text-obsidian-text">
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
 
-    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-6 shrink-0 justify-between z-20">
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 md:px-6 shrink-0 z-20">
         <div class="flex items-center gap-3">
-            <i class="fa-solid fa-hammer text-obsidian-accent"></i>
-            <h1 class="font-semibold text-lg text-white">Card Generator</h1>
+            <i class="fa-solid fa-swatchbook text-obsidian-accent text-lg"></i>
+            <h1 class="font-semibold text-white tracking-wide">Card Generator</h1>
         </div>
-        <div class="text-xs text-gray-500 font-mono">Homelab Playground System</div>
+        <button onclick="resetForm()" class="text-xs text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+        </button>
     </header>
 
-    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        
-        <aside class="w-full md:w-1/3 bg-obsidian-pane border-r border-obsidian-border flex flex-col h-full z-10">
-            <div class="p-6 border-b border-obsidian-border">
-                <h2 class="text-white font-semibold mb-1">Configuration</h2>
-                <p class="text-xs text-gray-500">Customize card variables below.</p>
-            </div>
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
             
-            <div class="p-6 overflow-y-auto space-y-6 flex-1">
+            <div class="flex flex-col gap-6">
+                
+                <div class="pb-2 border-b border-obsidian-border">
+                    <h2 class="text-white font-medium mb-1">Configuration</h2>
+                    <p class="text-xs text-gray-500">Select a card style and customize fields.</p>
+                </div>
+
+                <form id="cardForm" class="space-y-5" onsubmit="event.preventDefault();">
+                    
+                    <div>
+                        <label class="text-xs font-mono uppercase text-gray-500 mb-2 block">Card Layout</label>
+                        <div class="grid grid-cols-3 gap-2 p-1 bg-obsidian-bg border border-obsidian-border rounded-lg">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="cardType" value="standard" class="peer sr-only" checked onchange="toggleInputs()">
+                                <div class="text-center py-2 rounded text-sm font-medium text-gray-400 peer-checked:bg-obsidian-accent peer-checked:text-white transition-all hover:bg-obsidian-pane">
+                                    <i class="fa-regular fa-file-lines block md:inline mb-1 md:mb-0 md:mr-1"></i> Standard
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="cardType" value="image" class="peer sr-only" onchange="toggleInputs()">
+                                <div class="text-center py-2 rounded text-sm font-medium text-gray-400 peer-checked:bg-obsidian-accent peer-checked:text-white transition-all hover:bg-obsidian-pane">
+                                    <i class="fa-regular fa-image block md:inline mb-1 md:mb-0 md:mr-1"></i> Hero
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="cardType" value="tool" class="peer sr-only" onchange="toggleInputs()">
+                                <div class="text-center py-2 rounded text-sm font-medium text-gray-400 peer-checked:bg-obsidian-accent peer-checked:text-white transition-all hover:bg-obsidian-pane">
+                                    <i class="fa-solid fa-cube block md:inline mb-1 md:mb-0 md:mr-1"></i> Tool
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="metaFields" class="input-group visible grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-500">Category</label>
+                            <input type="text" id="inputCategory" placeholder="Networking" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-500">Date</label>
+                            <input type="date" id="inputDate" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent transition-all [color-scheme:dark]">
+                        </div>
+                    </div>
+
+                    <div id="imageFields" class="input-group hidden space-y-4 pt-1">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-obsidian-accent font-bold">Image Source</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-gray-500 text-xs"><i class="fa-solid fa-link"></i></span>
+                                <input type="text" id="inputImgSrc" placeholder="https://..." 
+                                    class="w-full bg-obsidian-pane border border-obsidian-border rounded pl-8 pr-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-500">Alt Text</label>
+                            <input type="text" id="inputImgAlt" placeholder="Server Rack" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                        </div>
+                    </div>
+
+                    <div id="iconFields" class="input-group hidden space-y-1.5">
+                        <label class="text-xs font-mono uppercase text-obsidian-accent font-bold">Icon Class <span class="text-gray-600 font-normal normal-case">(FontAwesome)</span></label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2.5 text-gray-500 text-xs"><i class="fa-brands fa-font-awesome"></i></span>
+                            <input type="text" id="inputIconClass" placeholder="fa-solid fa-diagram-project" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded pl-8 pr-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 border-t border-obsidian-border pt-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-500">Title</label>
+                            <input type="text" id="inputTitle" placeholder="Content Title" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-500">Link URL</label>
+                            <input type="text" id="inputLink" placeholder="page.html" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-500">Description / Excerpt</label>
+                            <textarea id="inputExcerpt" rows="3" placeholder="Brief summary of the content..." 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600 resize-none"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="flex flex-col gap-6">
                 
                 <div class="space-y-2">
-                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Card Title</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-3 text-gray-500"><i class="fa-solid fa-heading"></i></span>
-                        <input type="text" id="inputTitle" value="Mermaid Editor" 
-                            class="w-full bg-obsidian-bg border border-obsidian-border rounded-lg py-2.5 pl-10 pr-3 text-sm text-white focus:outline-none focus:border-obsidian-accent transition-colors font-mono placeholder-gray-600">
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Target URL (href)</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-3 text-gray-500"><i class="fa-solid fa-link"></i></span>
-                        <input type="text" id="inputHref" value="mermaid.html" 
-                            class="w-full bg-obsidian-bg border border-obsidian-border rounded-lg py-2.5 pl-10 pr-3 text-sm text-obsidian-accent focus:outline-none focus:border-obsidian-accent transition-colors font-mono placeholder-gray-600">
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">FontAwesome Icon Class</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-3 text-gray-500"><i class="fa-solid fa-icons"></i></span>
-                        <input type="text" id="inputIcon" value="fa-solid fa-diagram-project" 
-                            class="w-full bg-obsidian-bg border border-obsidian-border rounded-lg py-2.5 pl-10 pr-3 text-sm text-yellow-500 focus:outline-none focus:border-obsidian-accent transition-colors font-mono placeholder-gray-600">
-                    </div>
-                    <p class="text-[10px] text-gray-500">E.g., fa-solid fa-server, fa-brands fa-docker</p>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Description</label>
-                    <textarea id="inputDesc" rows="4" 
-                        class="w-full bg-obsidian-bg border border-obsidian-border rounded-lg p-3 text-sm text-gray-300 focus:outline-none focus:border-obsidian-accent transition-colors font-sans placeholder-gray-600 resize-none">Live preview editor for Mermaid.js diagrams. Supports Flowcharts, Sequence diagrams, and Gantt charts.</textarea>
-                </div>
-            </div>
-        </aside>
-
-        <section class="w-full md:w-2/3 bg-obsidian-bg overflow-y-auto p-8 relative">
-            
-            <div class="max-w-3xl mx-auto space-y-8">
-                
-                <div class="space-y-3">
-                    <div class="flex justify-between items-end">
-                        <h3 class="text-sm font-semibold text-white">Visual Preview</h3>
-                        <span class="text-xs text-gray-500">Renders as it will appear in index.html</span>
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xs font-mono uppercase text-gray-500">Visual Preview</h2>
+                        <span class="text-[10px] text-gray-600 bg-obsidian-pane px-2 py-0.5 rounded border border-obsidian-border">Dark Mode</span>
                     </div>
                     
-                    <div class="p-8 border-2 border-dashed border-obsidian-border rounded-xl bg-obsidian-bg/50 flex justify-center items-center">
-                        <div id="previewContainer" class="w-full max-w-sm">
+                    <div class="p-6 bg-black/20 rounded-lg border border-obsidian-border border-dashed flex items-center justify-center min-h-[280px]">
+                        <div id="previewContainer" class="w-full max-w-sm transition-all duration-300">
                             </div>
                     </div>
                 </div>
 
-                <div class="space-y-3 h-full pb-8">
-                    <div class="flex justify-between items-end">
-                        <h3 class="text-sm font-semibold text-white">HTML Output</h3>
-                        <button id="copyBtn" class="text-xs flex items-center gap-2 bg-obsidian-pane hover:bg-violet-500/10 hover:text-obsidian-accent px-3 py-1.5 rounded border border-obsidian-border transition-colors">
+                <div class="flex-1 flex flex-col min-h-0 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xs font-mono uppercase text-gray-500">HTML Output</h2>
+                        <button onclick="copyCode()" id="copyBtn" class="group flex items-center gap-1.5 text-xs text-obsidian-accent hover:text-white transition-colors">
                             <i class="fa-regular fa-copy"></i>
                             <span id="copyText">Copy HTML</span>
                         </button>
                     </div>
                     
-                    <div class="relative group">
-                        <textarea id="outputCode" readonly 
-                            class="w-full h-64 bg-obsidian-pane border border-obsidian-border rounded-xl p-4 font-mono text-xs text-green-400 focus:outline-none resize-none code-preview"></textarea>
+                    <div class="relative flex-1 group">
+                        <textarea id="codeOutput" readonly 
+                            class="w-full h-48 md:h-full bg-obsidian-pane border border-obsidian-border rounded p-4 font-mono text-xs text-gray-400 focus:outline-none resize-none custom-scrollbar whitespace-pre"></textarea>
                     </div>
                 </div>
 
             </div>
-        </section>
-
+        </div>
     </main>
 
     <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
-
-    <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
-
-        HomeLab Playground
-
-    </a>
-
-
-
-    <span class="hidden md:block text-obsidian-border mx-1">|</span>
-
-
-
-    <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
-
-        <i class="fa-solid fa-mug-hot mr-1.5"></i>
-
-        <span>Support The Tools</span>
-
-    </a>
-
-</footer>
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
 
     <script>
-        // DOM Elements
-        const inputs = {
-            title: document.getElementById('inputTitle'),
-            href: document.getElementById('inputHref'),
-            icon: document.getElementById('inputIcon'),
-            desc: document.getElementById('inputDesc')
-        };
-        const previewContainer = document.getElementById('previewContainer');
-        const outputCode = document.getElementById('outputCode');
-        const copyBtn = document.getElementById('copyBtn');
-        const copyText = document.getElementById('copyText');
+        // --- Templates ---
+        const TEMPLATE_STANDARD = `<article class="group bg-white dark:bg-obsidian-800 rounded-xl p-6 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md hover:ring-brand-500 dark:hover:ring-brand-500 transition-all duration-300">
+    <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+        <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{category}</span>
+        <span>•</span>
+        <time>{date}</time>
+    </div>
+    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-brand-600 dark:group-hover:text-brand-400">
+        <a href="{link}">{title}</a>
+    </h3>
+    <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4">
+        {excerpt}
+    </p>
+    <div class="flex items-center text-brand-600 dark:text-brand-400 text-sm font-medium">
+        Read more <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+    </div>
+</article>`;
 
-        // Indentation helper
-        const indent = (str) => {
-            // This purely helps visual formatting in the textarea
-            return str;
-        }
+        const TEMPLATE_IMAGE = `<article class="note-card group bg-white dark:bg-obsidian-800 rounded-xl shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md hover:ring-brand-500 dark:hover:ring-brand-500 transition-all duration-300 flex flex-col overflow-hidden" data-category="{category}">
+    <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-700 relative">
+         <img src="{imgSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="{imgAlt}">
+    </div>
+    <div class="p-6 flex flex-col flex-grow">
+        <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+            <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{category}</span>
+            <span>•</span>
+            <time>{date}</time>
+        </div>
+        <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-brand-600 dark:group-hover:text-brand-400">
+            <a href="{link}">{title}</a>
+        </h3>
+        <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4 flex-grow">
+            {excerpt}
+        </p>
+        <div class="flex items-center text-brand-600 dark:text-brand-400 text-sm font-medium mt-auto">
+            Read more <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+        </div>
+    </div>
+</article>`;
 
-        // Generator Function
-        function generateHTML() {
-            const title = inputs.title.value || 'Card Title';
-            const href = inputs.href.value || '#';
-            const icon = inputs.icon.value || 'fa-solid fa-cube';
-            const desc = inputs.desc.value || 'Description goes here...';
-
-            // The exact structure requested
-            const html = `<a href="${href}" class="block group">
+        const TEMPLATE_TOOL = `<a href="{link}" class="block group">
     <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-6 h-full transition-all duration-300 card-hover group-hover:border-obsidian-accent/50">
         <div class="flex items-start justify-between mb-4">
             <div class="p-3 bg-[#111827] rounded-lg text-obsidian-accent group-hover:bg-obsidian-accent group-hover:text-white transition-colors">
-                <i class="${icon} text-xl"></i>
+                <i class="{iconClass} text-xl"></i>
             </div>
             <i class="fa-solid fa-arrow-right text-gray-600 group-hover:text-obsidian-accent -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all"></i>
         </div>
-        <h3 class="text-xl font-semibold text-white mb-2">${title}</h3>
+        <h3 class="text-xl font-semibold text-white mb-2">{title}</h3>
         <p class="text-sm text-gray-500 leading-relaxed">
-            ${desc}
+            {excerpt}
         </p>
     </div>
 </a>`;
 
-            return html;
+        // --- Elements ---
+        const inputs = {
+            category: document.getElementById('inputCategory'),
+            date: document.getElementById('inputDate'),
+            title: document.getElementById('inputTitle'),
+            link: document.getElementById('inputLink'),
+            excerpt: document.getElementById('inputExcerpt'),
+            imgSrc: document.getElementById('inputImgSrc'),
+            imgAlt: document.getElementById('inputImgAlt'),
+            iconClass: document.getElementById('inputIconClass')
+        };
+        const previewContainer = document.getElementById('previewContainer');
+        const codeOutput = document.getElementById('codeOutput');
+        
+        // Sections
+        const secMeta = document.getElementById('metaFields');
+        const secImage = document.getElementById('imageFields');
+        const secIcon = document.getElementById('iconFields');
+
+        // --- Helpers ---
+        function formatDate(dateString) {
+            if (!dateString) return '{date}';
+            const date = new Date(dateString);
+            return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
         }
 
-        function updateUI() {
-            const html = generateHTML();
-            
-            // Update Visual Preview
-            previewContainer.innerHTML = html;
-            
-            // Update Code View
-            outputCode.value = html;
+        function getCardType() {
+            return document.querySelector('input[name="cardType"]:checked').value;
         }
 
-        // Copy Functionality
-        copyBtn.addEventListener('click', () => {
-            outputCode.select();
-            navigator.clipboard.writeText(outputCode.value).then(() => {
-                const originalText = copyText.innerText;
-                const originalIcon = copyBtn.querySelector('i').className;
+        // --- UI Logic ---
+        function toggleInputs() {
+            const type = getCardType();
+            
+            // Helper to toggle visibility
+            const setVisible = (el, show) => {
+                if(show) {
+                    el.classList.remove('hidden');
+                    el.classList.add('visible');
+                } else {
+                    el.classList.remove('visible');
+                    el.classList.add('hidden');
+                }
+            };
+
+            if (type === 'standard') {
+                setVisible(secMeta, true);
+                setVisible(secImage, false);
+                setVisible(secIcon, false);
+            } else if (type === 'image') {
+                setVisible(secMeta, true);
+                setVisible(secImage, true);
+                setVisible(secIcon, false);
+            } else if (type === 'tool') {
+                setVisible(secMeta, false); // Tool card doesn't use date/category
+                setVisible(secImage, false);
+                setVisible(secIcon, true);
+            }
+
+            updateOutput();
+        }
+
+        function updateOutput() {
+            const type = getCardType();
+            
+            // Common Data
+            const data = {
+                category: inputs.category.value.trim() || 'Category',
+                date: formatDate(inputs.date.value),
+                title: inputs.title.value.trim() || 'Card Title',
+                link: inputs.link.value.trim() || '#',
+                excerpt: inputs.excerpt.value.trim() || 'A brief description of the content or tool...'
+            };
+
+            let html = '';
+
+            if (type === 'standard') {
+                html = TEMPLATE_STANDARD
+                    .replace(/{category}/g, data.category)
+                    .replace(/{date}/g, data.date)
+                    .replace(/{link}/g, data.link)
+                    .replace(/{title}/g, data.title)
+                    .replace(/{excerpt}/g, data.excerpt);
+            } else if (type === 'image') {
+                const imgData = {
+                    src: inputs.imgSrc.value.trim() || 'https://images.unsplash.com/photo-1544197150-b99a580bbc7c?auto=format&fit=crop&w=800&q=80',
+                    alt: inputs.imgAlt.value.trim() || 'Hero Image'
+                };
+                html = TEMPLATE_IMAGE
+                    .replace(/{category}/g, data.category)
+                    .replace(/{date}/g, data.date)
+                    .replace(/{link}/g, data.link)
+                    .replace(/{title}/g, data.title)
+                    .replace(/{excerpt}/g, data.excerpt)
+                    .replace(/{imgSrc}/g, imgData.src)
+                    .replace(/{imgAlt}/g, imgData.alt);
+            } else if (type === 'tool') {
+                const iconClass = inputs.iconClass.value.trim() || 'fa-solid fa-diagram-project';
+                html = TEMPLATE_TOOL
+                    .replace(/{link}/g, data.link)
+                    .replace(/{title}/g, data.title)
+                    .replace(/{excerpt}/g, data.excerpt)
+                    .replace(/{iconClass}/g, iconClass);
+            }
+
+            // Render Preview
+            // Important: For preview, if it's a tool card, we disable link navigation
+            const previewHtml = type === 'tool' ? html.replace('href="{link}"', 'href="#" onclick="return false;"') : html;
+            previewContainer.innerHTML = previewHtml;
+            
+            // Output Code
+            codeOutput.value = html;
+
+            // Refresh Lucide Icons (only needed for standard/image cards)
+            if (window.lucide && type !== 'tool') lucide.createIcons();
+        }
+
+        function resetForm() {
+            document.getElementById('cardForm').reset();
+            inputs.date.value = new Date().toISOString().split('T')[0];
+            document.querySelector('input[value="standard"]').checked = true;
+            toggleInputs();
+        }
+
+        function copyCode() {
+            codeOutput.select();
+            codeOutput.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(codeOutput.value).then(() => {
+                const btnText = document.getElementById('copyText');
+                const originalText = btnText.innerText;
+                const icon = document.querySelector('#copyBtn i');
                 
-                copyText.innerText = "Copied!";
-                copyBtn.querySelector('i').className = "fa-solid fa-check text-green-400";
+                btnText.innerText = "Copied!";
+                icon.classList.remove('fa-copy', 'fa-regular');
+                icon.classList.add('fa-check', 'fa-solid');
                 
                 setTimeout(() => {
-                    copyText.innerText = originalText;
-                    copyBtn.querySelector('i').className = originalIcon;
+                    btnText.innerText = originalText;
+                    icon.classList.add('fa-copy', 'fa-regular');
+                    icon.classList.remove('fa-check', 'fa-solid');
                 }, 2000);
             });
+        }
+
+        // --- Initialization ---
+        Object.values(inputs).forEach(input => input.addEventListener('input', updateOutput));
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            resetForm();
         });
-
-        // Event Listeners
-        Object.values(inputs).forEach(input => {
-            input.addEventListener('input', updateUI);
-        });
-
-        // Initialize
-        updateUI();
-
     </script>
 </body>
 </html>
