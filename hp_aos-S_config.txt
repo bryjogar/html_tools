@@ -1,0 +1,108 @@
+! Aruba AOS-S (Provision) Configuration Template
+! ----------------------------------------------
+
+! System Initialization
+! ---------------------
+hostname "{{ hostname }}"
+
+! Time and SNTP (Simple Network Time Protocol)
+! Timezone is offset from GMT (e.g., -300 for US EST/ -360 for CST)
+time timezone {{ timezone_offset_minutes }}
+sntp unicast
+sntp server priority 1 {{ ntp_server_ip }}
+timesync sntp
+
+! Account Security
+! ----------------
+! 'manager' is the super-user (Privilege 15 equivalent)
+! 'operator' is read-only
+password manager user-name {{ admin_username }} plaintext {{ admin_password }}
+
+! Remote Access & SSH
+! -------------------
+! Generate crypto keys (auto-enabled usually, but good to force)
+crypto key generate ssh
+ip ssh
+no telnet-server
+web-management ssl
+
+! Global Settings
+! ---------------
+! Enable handling of multicast for AV/Phones
+ip igmp
+spanning-tree
+
+! VLAN Configuration (VLAN-Centric Syntax)
+! ----------------------------------------
+
+! Management VLAN
+vlan {{ management_vlan_id }}
+   name "{{ management_vlan_name }}"
+   ! Tagged on uplinks
+   tagged {{ uplink_ports_range }}
+   ! IP Address for the switch itself
+   ip address {{ switch_management_ip }} {{ subnet_mask }}
+   exit
+
+! Data VLAN (PCs)
+vlan {{ data_vlan_id }}
+   name "{{ data_vlan_name }}"
+   ! PCs are untagged (Access)
+   untagged {{ user_access_ports_range }}
+   ! Uplinks carry this tagged
+   tagged {{ uplink_ports_range }}
+   exit
+
+! Voice VLAN (Phones)
+vlan {{ voice_vlan_id }}
+   name "{{ voice_vlan_name }}"
+   ! Phones expect tagged traffic usually
+   tagged {{ user_access_ports_range }}
+   tagged {{ uplink_ports_range }}
+   ! This single keyword 'voice' enables LLDP-MED and priority for this VLAN
+   voice
+   exit
+
+! Guest VLAN
+vlan {{ guest_vlan_id }}
+   name "{{ guest_vlan_name }}"
+   ! Typically unused on wired ports unless specified
+   tagged {{ uplink_ports_range }}
+   exit
+
+! Interface Specific Settings
+! ---------------------------
+! Loop Protection (Optional but recommended)
+loop-protect {{ user_access_ports_range }}
+loop-protect disable-timer 300
+
+! Spanning Tree Edge Ports (PortFast equivalent)
+! Critical for PC/Phone connectivity speed
+spanning-tree {{ user_access_ports_range }} admin-edge-port
+spanning-tree {{ user_access_ports_range }} bpdu-protection
+
+! Interface Names (Optional)
+interface {{ uplink_ports_range }}
+   name "{{ uplink_description }}"
+   exit
+
+! Routing / Gateway
+! -----------------
+! If Layer 2 (Default Gateway)
+ip default-gateway {{ gateway_ip_address }}
+
+! If Layer 3 (Routing Enabled)
+! ip routing
+! ip route 0.0.0.0 0.0.0.0 {{ next_hop_gateway_ip }}
+
+! Logging & SNMP
+! --------------
+logging {{ syslog_server_ip }}
+snmp-server community "{{ snmp_read_string }}" operator
+snmp-server community "{{ snmp_write_string }}" manager
+snmp-server location "{{ physical_location }}"
+snmp-server contact "{{ contact_email }}"
+
+! Final Save
+! ----------
+! write memory

@@ -1,589 +1,127 @@
-!Current Configuration:
-!
-!System Description "M4300-52G-PoE+ ProSAFE 48-port 1G PoE+ and 2-port 10GBASE-T and 2-port 10G SFP+, 12.0.17.19, B1.0.0.17"
-!System Software Version "12.0.17.19"
-!System Up Time          "20 days 20 hrs 49 mins 10 secs"
-!Additional Packages     QOS,Multicast,IPv6,IPv6 Management,Stacking,Routing
-!Current SNTP Synchronized Time: SNTP Last Attempt Status Is Not Successful
-!
-vlan database
-vlan 1400,1404-1405
-vlan name 1400 "Staff"
-vlan name 1404 "AV"
-vlan name 1405 "Dante"
-set igmp-plus 1405
-vlan routing 1 1
-vlan routing 1400 2
-vlan routing 1405 3
-vlan routing 1404 4
-exit
+! Netgear M-Series (AV Line) Configuration Template
+! -------------------------------------------------
 
-ip http port 49151
-ip http secure-port 49152
+! System Initialization
+! ---------------------
+hostname {{ hostname }}
+
+! Set Time Zone and SNTP (Critical for logs)
+clock timezone {{ timezone_region }} {{ timezone_offset }}
+sntp server {{ ntp_server_ip }}
+sntp interval 60
+sntp unicast-client enable
+
+! Administration & Security
+! -------------------------
+! Create Admin User
+username {{ admin_username }} password {{ admin_password }} privilege 15
+
+! Enable SSH and Disable Telnet
 ip ssh server enable
-sshcon timeout 15
 no ip telnet server enable
-configure
-clock summer-time recurring USA offset 60
-clock timezone -6 minutes 0 zone "ZZZZ"
-stack
-member 1 4
-exit
-no ip routing
-username "admin" password $6$IIX4P02oSYDHSARB$13HtbJ4FDRbod8pXfDx3X/vXCZhfT5iiCRflQ0v84FyLzE.KBPacdAVMgINRb6qqEagcnoTxfLaVwE4eDcLE/0 encryption-type sha512 level 15 encrypted
-username "EnableTech" password $6$HzvM8RyP0gtke.mo$qrUoe304/2h55mN0PetZzCL3d/ajQlGprOMKvd6Axq2LZoDV4YmxpYCKFSXK0olWA69mCcMboE8TYJDdNhcWQ/ encryption-type sha512 level 15 encrypted
-no username guest
-line console
-serial timeout 30
-no transport input telnet
-exit
-
-line telnet
-exit
-
-line ssh
-exit
-
-snmp-server sysname "FWW-BOOTH-SW01"
-snmp-server location "AVL Booth in main building auditorium"
-snmp-server contact "Enable"
-!
-snmp-server community "NetInfoReader"
-snmp-server user "admin" DefaultWrite auth-sha512-key fe241da0e0c564b775c013af9cb22f26f4426b0f50ee83d079e4217dc2a15f935ec2f5e65ea5dcc6abc0b03603510bb76924f468edf997b1db7329430160b431 priv-aes128-key fe241da0e0c564b775c013af9cb22f26f4426b0f50ee83d079e4217dc2a15f935ec2f5e65ea5dcc6abc0b03603510bb76924f468edf997b1db7329430160b431
-set igmp querier query-interval 30
-classofservice ip-dscp-mapping 8 2
-classofservice ip-dscp-mapping 46 5
-classofservice ip-dscp-mapping 48 5
-classofservice ip-dscp-mapping 56 6
-cos-queue strict 2 5 6
-keepalive
-
-interface 1/0/1
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/2
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/3
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/4
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/5
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/6
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/7
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/8
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/9
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/10
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/11
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/12
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/13
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/14
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/15
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/16
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/17
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/18
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/19
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/20
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/21
-no auto-negotiate
-speed 100 full-duplex
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/22
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/23
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/24
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/25
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/26
-vlan pvid 1405
-vlan participation auto 1
-vlan participation include 1405
-keepalive action both
-ptp clock e2e-transparent
-exit
-
-
-
-interface 1/0/27
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/28
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
 
-interface 1/0/29
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/30
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/31
-description 'TV 4'
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/32
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/33
-description 'FWW-AV-UPS02'
-vlan pvid 1400
-vlan participation exclude 1
-vlan participation include 1400
-keepalive action both
-exit
-
-
-
-interface 1/0/34
-description 'FWW-AV-UPS03'
-vlan pvid 1400
-vlan participation exclude 1
-vlan participation include 1400
-keepalive action both
-exit
-
-
-
-interface 1/0/35
-vlan pvid 1400
-vlan participation exclude 1
-vlan participation include 1400
-keepalive action both
-exit
-
-
-
-interface 1/0/36
-description 'FWW-AV-UPS01'
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/37
-description 'TV 1'
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/38
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/39
-vlan pvid 1400
-vlan participation exclude 1
-vlan participation include 1400
-keepalive action both
-exit
-
-
-
-interface 1/0/40
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/41
-description 'TV 7'
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/42
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/43
-description 'TV 5'
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
+! Enable HTTP/HTTPS for the AV Web Interface (The nice GUI)
+ip http server enable
+ip http secure-server enable
+
+! Global AV / Multicast Settings (Crucial for M-Series)
+! -----------------------------------------------------
+! Enable IGMP Snooping Globally to handle AV-over-IP streams
+ip igmp snooping
+
+! VLAN Database Configuration
+! ---------------------------
+vlan database
+ vlan {{ management_vlan_id }} name {{ management_vlan_name }}
+ vlan {{ audio_vlan_id }} name {{ audio_vlan_name }}
+ vlan {{ video_vlan_id }} name {{ video_vlan_name }}
+ vlan {{ control_vlan_id }} name {{ control_vlan_name }}
+ exit
+
+! VLAN Interface Configuration (Layer 3 SVIs)
+! -------------------------------------------
+! Management Interface
+interface vlan {{ management_vlan_id }}
+ ip address {{ switch_management_ip }} {{ subnet_mask }}
+ no shutdown
+ exit
+
+! AV VLAN IGMP Configuration (The "Secret Sauce" for AV)
+! ------------------------------------------------------
+! Configure Video VLAN for multicast (e.g., NDI, Crestron NVX)
+interface vlan {{ video_vlan_id }}
+ ! Enable IGMP Snooping on this VLAN
+ ip igmp snooping enable
+ ! Enable Querier (Required if no core router is doing it)
+ ip igmp snooping querier
+ ! Fast Leave (Essential for fast video switching)
+ ip igmp snooping fast-leave
+ ! Suppression (Prevents multicast flooding to all ports)
+ ip igmp snooping report-suppression
+ exit
+
+! Configure Audio VLAN (e.g., Dante, AES67)
+interface vlan {{ audio_vlan_id }}
+ ip igmp snooping enable
+ ip igmp snooping querier
+ exit
+
+! Interface Configuration (AV Endpoints)
+! --------------------------------------
+! Ports connecting to Cameras, Encoders, Decoders
+interface range {{ av_endpoint_ports_range }}
+ description {{ av_endpoints_description }}
+ 
+ ! Set VLAN membership (Untagged/Access)
+ vlan pvid {{ video_vlan_id }}
+ vlan participation include {{ video_vlan_id }}
+ vlan participation exclude 1
+ 
+ ! PoE Settings (Power up devices)
+ poe
+ poe priority critical
+ 
+ ! Enable Jumbo Frames if using raw video (SDVoE)
+ mtu 9000
+ exit
+
+! Interface Configuration (Control/Data Ports)
+! --------------------------------------------
+interface range {{ control_ports_range }}
+ description {{ control_ports_description }}
+ vlan pvid {{ control_vlan_id }}
+ vlan participation include {{ control_vlan_id }}
+ vlan participation exclude 1
+ exit
+
+! Interface Configuration (Uplinks/Trunks)
+! ----------------------------------------
+interface range {{ uplink_ports_range }}
+ description {{ uplink_description }}
+ 
+ ! Trunking Mode (Tagging all VLANs)
+ vlan participation include {{ management_vlan_id }}
+ vlan tagging {{ management_vlan_id }}
+ 
+ vlan participation include {{ video_vlan_id }}
+ vlan tagging {{ video_vlan_id }}
+ 
+ vlan participation include {{ audio_vlan_id }}
+ vlan tagging {{ audio_vlan_id }}
+ 
+ ! Uplinks usually exclude default VLAN 1 untagged
+ vlan participation exclude 1
+ exit
+
+! IP Routing & Gateway
+! --------------------
+! If L2 mode (Gateway)
+ip default-gateway {{ gateway_ip_address }}
+
+! If L3 mode (Routing enabled)
+! ip route 0.0.0.0 0.0.0.0 {{ next_hop_gateway_ip }}
 
-interface 1/0/44
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
+! Final Save
+! ----------
 exit
-
-
-
-interface 1/0/45
-description 'TV 2'
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/46
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/47
-description 'TV 8'
-vlan pvid 1404
-vlan participation auto 1
-vlan participation include 1404
-keepalive action both
-exit
-
-
-
-interface 1/0/48
-vlan pvid 1400
-vlan participation exclude 1
-vlan participation include 1400
-keepalive action both
-exit
-
-
-
-interface 1/0/49
-vlan participation auto 1
-exit
-
-
-
-interface 1/0/50
-vlan participation auto 1
-exit
-
-
-
-interface 1/0/51
-vlan pvid 1400
-vlan participation exclude 1
-vlan participation include 1400,1404-1405
-vlan tagging 1404-1405
-exit
-
-
-
-interface 1/0/52
-vlan participation auto 1
-vlan participation include 1404-1405
-vlan tagging 1404-1405
-ptp clock e2e-transparent
-exit
-
-
-
-interface lag 1
-vlan participation auto 1
-vlan participation include 1400,1404-1405
-vlan tagging 1400,1404-1405
-ptp clock e2e-transparent
-exit
-
-
-
-interface vlan 1
-routing
-ip address dhcp
-exit
-
-
-
-interface vlan 1400
-routing
-ip address 10.40.8.5 255.255.248.0
-exit
-
-
-
-interface vlan 1405
-routing
-ip address 10.40.40.5 255.255.254.0
-exit
-
-
-
-interface vlan 1404
-routing
-ip address 10.40.32.5 255.255.252.0
-exit
-
-
-router rip
-exit
-router ospf
-exit
-ipv6 router ospf
-exit
-ip route 0.0.0.0 0.0.0.0 10.40.8.4
-
-exit
-
+write memory
