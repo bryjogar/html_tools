@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown to HTML Blog Injector</title>
+    <title>Blog Injector v2.4 (Date Fix)</title>
     
     <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -36,40 +37,33 @@
 
     <style>
         /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1e1e1e; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #3c3c3c; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #505050; 
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #505050; }
 
         /* Editor Styles */
         .editor-input {
             width: 100%;
             height: 100%;
             background-color: #1e1e1e;
-            color: #cccccc;
+            color: #e5e5e5;
             font-family: 'Fira Code', Consolas, monospace;
             font-size: 0.9rem;
             border: none;
             resize: none;
             outline: none;
-            padding: 1rem;
-            line-height: 1.5;
+            padding: 1.5rem;
+            line-height: 1.6;
         }
         
+        .tab-btn {
+            border-bottom: 2px solid transparent;
+        }
         .tab-btn.active {
             border-bottom: 2px solid #7c3aed;
             color: #fff;
-            background-color: rgba(124, 58, 237, 0.1);
+            background-color: rgba(124, 58, 237, 0.05);
         }
     </style>
 </head>
@@ -78,7 +72,7 @@
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-file-code text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-wide text-gray-200">Blog Injector</h1>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200">Blog Injector <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-600 rounded px-1">v2.4</span></h1>
         </div>
         <div class="flex items-center gap-3">
             <button onclick="downloadHtml()" class="hidden md:inline-flex items-center px-3 py-1.5 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded transition-colors">
@@ -92,27 +86,22 @@
 
     <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         
-        <section class="flex-1 flex flex-col border-r border-obsidian-border min-w-0 h-1/2 md:h-full">
+        <section class="flex-1 flex flex-col border-r border-obsidian-border min-w-0 h-1/2 md:h-full relative z-10">
             <div class="flex border-b border-obsidian-border bg-obsidian-pane shrink-0">
                 <button id="tab-markdown" onclick="switchTab('markdown')" class="tab-btn active flex-1 py-3 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors">
-                    <i class="fa-brands fa-markdown mr-1"></i> MARKDOWN
+                    <i class="fa-brands fa-markdown mr-1"></i> MARKDOWN (YAML)
                 </button>
                 <button id="tab-template" onclick="switchTab('template')" class="tab-btn flex-1 py-3 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors">
-                    <i class="fa-solid fa-code mr-1"></i> HTML TEMPLATE
+                    <i class="fa-solid fa-code mr-1"></i> TEMPLATE HTML
                 </button>
             </div>
 
             <div class="flex-1 relative overflow-hidden group">
-                <textarea id="markdown-input" class="editor-input absolute inset-0 p-4" placeholder="# Write your blog post here..."></textarea>
-                
-                <textarea id="template-input" class="editor-input absolute inset-0 p-4 hidden" spellcheck="false"></textarea>
-                
-                <div class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <span class="text-xs text-gray-500 bg-obsidian-pane px-2 py-1 rounded border border-obsidian-border">Auto-saving...</span>
-                </div>
+                <textarea id="markdown-input" class="editor-input absolute inset-0" spellcheck="false"></textarea>
+                <textarea id="template-input" class="editor-input absolute inset-0 hidden" spellcheck="false"></textarea>
             </div>
             
-            <div class="md:hidden flex p-2 border-t border-obsidian-border bg-obsidian-pane gap-2">
+            <div class="md:hidden flex p-2 border-t border-obsidian-border bg-obsidian-pane gap-2 shrink-0">
                 <button onclick="copyToClipboard()" class="flex-1 bg-obsidian-border hover:bg-gray-600 text-white py-2 rounded text-xs font-bold">
                     <i class="fa-regular fa-copy mr-1"></i> Copy Code
                 </button>
@@ -122,43 +111,49 @@
             </div>
         </section>
 
-        <section class="flex-1 flex flex-col bg-white h-1/2 md:h-full relative z-0">
+        <section class="flex-1 flex flex-col bg-[#111] h-1/2 md:h-full relative z-0">
             <div class="h-8 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0">
                 <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Preview</span>
                 <div class="flex gap-2">
                      <button onclick="copyToClipboard()" class="hidden md:inline-block text-xs text-obsidian-accent hover:text-violet-400 font-mono cursor-pointer" title="Copy Output HTML">
-                        <i class="fa-regular fa-copy"></i> Copy HTML
+                        <i class="fa-regular fa-copy"></i> Copy Output HTML
                     </button>
                 </div>
             </div>
-            <iframe id="preview-frame" class="w-full h-full bg-white border-none"></iframe>
+            
+            <div class="flex-1 relative overflow-hidden w-full h-full bg-[#111]">
+                <iframe id="preview-frame" class="absolute inset-0 w-full h-full border-none"></iframe>
+            </div>
         </section>
 
     </main>
 
     <div id="help-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg max-w-md w-full shadow-2xl overflow-hidden">
-            <div class="p-4 border-b border-obsidian-border flex justify-between items-center">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-obsidian-border flex justify-between items-center shrink-0">
                 <h3 class="font-bold text-white">How to use</h3>
                 <button onclick="toggleHelp()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </div>
-            <div class="p-4 text-sm text-gray-300 space-y-3">
-                <p>1. <strong>Edit Template:</strong> Switch to the "HTML Template" tab. Paste your standard HTML layout.</p>
-                <div class="bg-obsidian-bg p-2 rounded border border-obsidian-border font-mono text-xs text-green-400">
-                    &lt;html&gt;<br>
-                    ...<br>
-                    &lt;article&gt;<br>
-                    &nbsp;&nbsp;{{CONTENT}}<br>
-                    &lt;/article&gt;<br>
-                    ...<br>
-                    &lt;/html&gt;
+            <div class="p-4 text-sm text-gray-300 space-y-4 overflow-y-auto">
+                <p>1. <strong>YAML Frontmatter:</strong> Add metadata at the top of your markdown.</p>
+                <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border font-mono text-xs">
+                    <span class="text-pink-400">---</span><br>
+                    <span class="text-blue-400">title:</span> "My Blog Post"<br>
+                    <span class="text-blue-400">date:</span> 2025-09-20<br>
+                    <span class="text-blue-400">hero_image:</span> walkway.jpg<br>
+                    <span class="text-pink-400">---</span>
                 </div>
-                <p>2. <strong>Injection Point:</strong> Ensure you include the placeholder <code class="text-obsidian-accent bg-obsidian-bg px-1 rounded">{{CONTENT}}</code> anywhere in your template. This is where your markdown gets injected.</p>
-                <p>3. <strong>Write Markdown:</strong> Switch to "Markdown" tab and write your post.</p>
-                <p>4. <strong>Export:</strong> Click "Download HTML" or "Copy HTML" to get the final file.</p>
+                <p>2. <strong>Template Placeholders:</strong></p>
+                <ul class="list-disc list-inside space-y-1 text-xs text-gray-400">
+                    <li><code>{{HERO_BLOCK}}</code> (Contains the image tag)</li>
+                    <li><code>{{CONTENT}}</code> (Required)</li>
+                    <li><code>{{TITLE}}</code></li>
+                    <li><code>{{DATE}}</code></li>
+                    <li><code>{{TAGS}}</code></li>
+                </ul>
             </div>
-            <div class="p-4 bg-obsidian-bg border-t border-obsidian-border text-center">
-                <button onclick="toggleHelp()" class="px-4 py-2 bg-obsidian-accent hover:bg-violet-600 text-white rounded text-sm transition-colors">Got it</button>
+            <div class="p-4 bg-obsidian-bg border-t border-obsidian-border text-center shrink-0">
+                <button onclick="toggleHelp()" class="px-4 py-2 bg-obsidian-accent hover:bg-violet-600 text-white rounded text-sm transition-colors">Close</button>
             </div>
         </div>
     </div>
@@ -167,9 +162,7 @@
         <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
             HomeLab Playground
         </a>
-    
         <span class="hidden md:block text-obsidian-border mx-1">|</span>
-    
         <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
             <i class="fa-solid fa-mug-hot mr-1.5"></i>
             <span>Support The Tools</span>
@@ -177,7 +170,7 @@
     </footer>
 
     <script>
-        // DOM Elements
+        // --- DOM Elements ---
         const els = {
             mdInput: document.getElementById('markdown-input'),
             tplInput: document.getElementById('template-input'),
@@ -189,100 +182,215 @@
             modal: document.getElementById('help-modal')
         };
 
-        // Constants
         const STORAGE_KEYS = {
-            MD: 'hlp_blog_markdown',
-            TPL: 'hlp_blog_template'
+            MD: 'hlp_blog_v24_md',
+            TPL: 'hlp_blog_v24_tpl'
         };
         
-        // Default Template if none exists
+        // --- DEFAULTS ---
+        const DEFAULT_MD = `---
+title: Refining the Zettelkasten Workflow
+date: 2025-09-20
+tags: [meta, pkm, obsidian]
+hero_image: https://images.unsplash.com/photo-1456324504439-367cee10d632?auto=format&fit=crop&q=80&w=1000
+---
+
+<p class="lead">I've spent the last six months trying to force my notes into a rigid hierarchy of folders. It hasn't worked. Today, I'm refactoring my vault to rely on MOCs.</p>
+
+## The Folder Trap
+
+Coming from a Windows SysAdmin background, I love folders. But ideas, especially theological and philosophical ones, don't fit into neat boxes.
+`;
+
         const DEFAULT_TEMPLATE = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Blog Post</title>
-    <style>
-        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
-        h1, h2, h3 { color: #111; }
-        pre { background: #f4f4f4; padding: 15px; overflow-x: auto; border-radius: 4px; }
-        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
-        img { max-width: 100%; height: auto; }
-        blockquote { border-left: 4px solid #ccc; margin: 0; padding-left: 1rem; color: #666; }
-    </style>
+    <title>{{TITLE}} | Bryan Garrison</title>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
+    <script src="https://unpkg.com/lucide@latest"><\/script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['Merriweather', 'serif'] },
+                    colors: {
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
+                        obsidian: { 800: '#202020', 900: '#161616' }
+                    },
+                    typography: (theme) => ({
+                        DEFAULT: { css: { color: theme('colors.slate.700'), fontFamily: theme('fontFamily.serif'), a: { color: theme('colors.brand.600'), '&:hover': { color: theme('colors.brand.500') } }, code: { color: theme('colors.pink.600'), backgroundColor: theme('colors.slate.100'), padding: '2px 4px', borderRadius: '4px', fontWeight: '500' } } },
+                        dark: { css: { color: theme('colors.slate.300'), a: { color: theme('colors.brand.400') }, h1: { color: '#fff' }, h2: { color: '#fff' }, h3: { color: '#fff' }, strong: { color: '#fff' }, code: { color: theme('colors.pink.400'), backgroundColor: theme('colors.obsidian.800') } } }
+                    })
+                }
+            }
+        }
+    <\/script>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 dark:bg-obsidian-900 dark:text-slate-200 transition-colors duration-300 flex flex-col min-h-screen font-sans">
     
-    <main>
-        {{CONTENT}}
+    <nav class="sticky top-0 z-50 bg-slate-50/80 dark:bg-obsidian-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
+             <a href="index.html" class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><i data-lucide="terminal-square" class="w-6 h-6 text-brand-600 dark:text-brand-500"></i><span>Bryan Garrison</span></a>
+             <div class="hidden sm:flex items-center space-x-8">
+                <a href="index.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400">Digital Garden</a>
+                <button id="theme-toggle" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg"><i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i><i data-lucide="sun" class="w-5 h-5 block dark:hidden"></i></button>
+             </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+        <div class="mb-8">
+            <a href="index.html" class="inline-flex items-center text-sm text-slate-500 hover:text-brand-600 dark:hover:text-brand-400"><i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Garden</a>
+        </div>
+
+        {{HERO_BLOCK}}
+
+        <header class="mb-10">
+            <div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mb-4 font-mono">
+                <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> <time>{{DATE}}</time></span>
+                <span>/</span>
+                <span class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> {{READING_TIME}}</span>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white font-sans tracking-tight">{{TITLE}}</h1>
+        </header>
+
+        <article class="prose prose-slate dark:prose-invert prose-lg max-w-none">
+            {{CONTENT}}
+        </article>
+
+        <div class="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Tags</h3>
+            <div class="flex flex-wrap gap-2">
+                {{TAGS}}
+            </div>
+        </div>
     </main>
 
-    <footer>
-        <hr>
-        <p>&copy; ${new Date().getFullYear()} My Blog</p>
+    <footer class="bg-white dark:bg-obsidian-900 border-t border-slate-200 dark:border-slate-800 mt-auto">
+        <div class="max-w-4xl mx-auto px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">&copy; 2025 Bryan Garrison.</div>
     </footer>
+
+    <script>
+        lucide.createIcons();
+        const btn = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) html.classList.add('dark');
+        btn.addEventListener('click', () => { html.classList.toggle('dark'); localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light'; });
+    <\/script>
 </body>
 </html>`;
 
-        const DEFAULT_MD = `# Hello World
-        
-This is a sample blog post. You can write **bold** text, _italics_, and even code:
+        // --- APP LOGIC ---
 
-\`\`\`javascript
-console.log('Hello from the blog!');
-\`\`\`
-
-1. Switch to the **Template Tab** to edit the HTML skeleton.
-2. Make sure to keep the \`{{CONTENT}}\` placeholder.
-3. Your markdown is automatically injected!
-`;
-
-        // Initialization
         function init() {
-            // Load from LS or Defaults
             els.mdInput.value = localStorage.getItem(STORAGE_KEYS.MD) || DEFAULT_MD;
             els.tplInput.value = localStorage.getItem(STORAGE_KEYS.TPL) || DEFAULT_TEMPLATE;
-
-            // Initial Render
             updatePreview();
-
-            // Event Listeners
             els.mdInput.addEventListener('input', handleInput);
             els.tplInput.addEventListener('input', handleInput);
         }
 
-        // Handle Input with Debounce/Save
         function handleInput(e) {
             const isMd = e.target === els.mdInput;
             const key = isMd ? STORAGE_KEYS.MD : STORAGE_KEYS.TPL;
-            
-            // Save to LS
             localStorage.setItem(key, e.target.value);
-            
-            // Update Preview
             updatePreview();
         }
 
-        // Core Render Logic
+        function parseInput() {
+            const raw = els.mdInput.value;
+            const fmRegex = /^---\n([\s\S]*?)\n---/;
+            const match = raw.match(fmRegex);
+
+            let metadata = {
+                title: 'Untitled Post',
+                date: new Date().toISOString().split('T')[0],
+                tags: [],
+                hero_image: '',
+            };
+
+            let markdownBody = raw;
+
+            if (match) {
+                try {
+                    const parsed = jsyaml.load(match[1]);
+                    if (parsed && typeof parsed === 'object') {
+                        metadata = { ...metadata, ...parsed };
+                    }
+                    markdownBody = raw.replace(fmRegex, '');
+                } catch (e) {
+                    console.log("YAML Parse Error (ignoring)", e);
+                }
+            }
+
+            const cleanText = markdownBody.replace(/[#*`]/g, '').trim();
+            const wordCount = cleanText ? cleanText.split(/\s+/).length : 0;
+            const readTime = Math.ceil(wordCount / 200) + ' min read';
+            const bodyHtml = marked.parse(markdownBody);
+
+            return { metadata, bodyHtml, readTime };
+        }
+
+        function generateTagsHtml(tags) {
+            if (!Array.isArray(tags)) return '';
+            return tags.map(tag => 
+                `<span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs rounded-md">#${tag}</span>`
+            ).join('\n');
+        }
+
+        function getFinalHtml() {
+            const { metadata, bodyHtml, readTime } = parseInput();
+            let tpl = els.tplInput.value;
+
+            const tagsHtml = generateTagsHtml(metadata.tags);
+            
+            // --- DATE CLEANING LOGIC ---
+            // Force Format: "Sep 20, 2025" (removing time completely)
+            let displayDate = '';
+            if (metadata.date) {
+                const d = new Date(metadata.date);
+                if (!isNaN(d.getTime())) {
+                    displayDate = d.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        timeZone: 'UTC' // Forces UTC to avoid day shifting based on local timezone
+                    });
+                } else {
+                    displayDate = metadata.date; // Fallback if it's just a string text
+                }
+            }
+
+            // --- HERO BLOCK LOGIC ---
+            let heroHtml = '';
+            if (metadata.hero_image) {
+                heroHtml = `<img src="${metadata.hero_image}" alt="Hero Image" class="w-full h-64 object-cover rounded-xl mb-8 shadow-sm">`;
+            }
+
+            const safeReplace = (str, pattern, replacement) => str.split(pattern).join(replacement);
+
+            tpl = safeReplace(tpl, '{{TITLE}}', metadata.title || 'Untitled');
+            tpl = safeReplace(tpl, '{{DATE}}', displayDate); // Uses the cleaned date
+            tpl = safeReplace(tpl, '{{READING_TIME}}', readTime);
+            tpl = safeReplace(tpl, '{{TAGS}}', tagsHtml);
+            tpl = safeReplace(tpl, '{{HERO_BLOCK}}', heroHtml);
+            tpl = safeReplace(tpl, '{{CONTENT}}', bodyHtml);
+
+            return tpl;
+        }
+
         function updatePreview() {
-            const mdText = els.mdInput.value;
-            const tplText = els.tplInput.value;
-
-            // Parse Markdown
-            const htmlContent = marked.parse(mdText);
-
-            // Inject into Template
-            // We use a simple replace. 
-            let finalHtml = tplText.replace('{{CONTENT}}', htmlContent);
-
-            // Update Iframe
+            const finalHtml = getFinalHtml();
             const iframeDoc = els.iframe.contentDocument || els.iframe.contentWindow.document;
             iframeDoc.open();
             iframeDoc.write(finalHtml);
             iframeDoc.close();
         }
 
-        // Tab Switching
         function switchTab(tabName) {
             if (tabName === 'markdown') {
                 els.tabs.md.classList.add('active');
@@ -297,16 +405,8 @@ console.log('Hello from the blog!');
             }
         }
 
-        // Utilities
         function toggleHelp() {
             els.modal.classList.toggle('hidden');
-        }
-
-        function getFinalHtml() {
-            const mdText = els.mdInput.value;
-            const tplText = els.tplInput.value;
-            const htmlContent = marked.parse(mdText);
-            return tplText.replace('{{CONTENT}}', htmlContent);
         }
 
         function downloadHtml() {
@@ -326,21 +426,13 @@ console.log('Hello from the blog!');
             const html = getFinalHtml();
             try {
                 await navigator.clipboard.writeText(html);
-                
-                // Visual feedback on button
                 const btnIcon = document.querySelector('.fa-copy');
                 const originalClass = btnIcon.className;
-                
                 btnIcon.className = "fa-solid fa-check text-green-500";
-                setTimeout(() => {
-                    btnIcon.className = originalClass;
-                }, 1500);
-            } catch (err) {
-                alert('Failed to copy to clipboard');
-            }
+                setTimeout(() => { btnIcon.className = originalClass; }, 1500);
+            } catch (err) { alert('Failed to copy to clipboard'); }
         }
 
-        // Run Init
         init();
     </script>
 </body>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index Card Generator | HomeLab Playground</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc',    // Standard Text
+                            800: '#151516'      // Darker shade for card bg (matching template)
+                        },
+                        // Mapping "brand" to the design system accent for the template preview
+                        brand: {
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+        
+        /* Prevent layout shift */
+        html, body { height: 100%; margin: 0; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 md:px-6 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-layer-group text-obsidian-accent text-lg"></i>
+            <h1 class="font-semibold text-white tracking-wide">Card Generator</h1>
+        </div>
+        <button onclick="resetForm()" class="text-xs text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <div class="flex flex-col gap-6">
+                
+                <div class="pb-2 border-b border-obsidian-border">
+                    <h2 class="text-white font-medium mb-1">Card Details</h2>
+                    <p class="text-xs text-gray-500">Enter the content to populate the HTML template.</p>
+                </div>
+
+                <form id="cardForm" class="space-y-4" onsubmit="event.preventDefault();">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-500">Category</label>
+                            <input type="text" id="inputCategory" placeholder="e.g. Homelab" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-mono uppercase text-gray-500">Date</label>
+                            <input type="date" id="inputDate" 
+                                class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent transition-all [color-scheme:dark]">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-mono uppercase text-gray-500">Post Title</label>
+                        <input type="text" id="inputTitle" placeholder="My Awesome Server Setup" 
+                            class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-mono uppercase text-gray-500">Link URL</label>
+                        <input type="text" id="inputLink" placeholder="/posts/my-setup.html" 
+                            class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-mono uppercase text-gray-500">Excerpt</label>
+                        <textarea id="inputExcerpt" rows="3" placeholder="A brief summary of the article..." 
+                            class="w-full bg-obsidian-pane border border-obsidian-border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-all placeholder-gray-600 resize-none"></textarea>
+                    </div>
+                </form>
+            </div>
+
+            <div class="flex flex-col gap-6">
+                
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xs font-mono uppercase text-gray-500">Visual Preview</h2>
+                        <span class="text-[10px] text-gray-600 bg-obsidian-pane px-2 py-0.5 rounded border border-obsidian-border">Simulated Dark Mode</span>
+                    </div>
+                    
+                    <div class="p-6 bg-black/20 rounded-lg border border-obsidian-border border-dashed flex items-center justify-center min-h-[200px]">
+                        <div id="previewContainer" class="w-full max-w-md">
+                            <div class="text-center text-gray-500 text-sm italic">
+                                Fill out the form to see the card...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col min-h-0 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xs font-mono uppercase text-gray-500">HTML Output</h2>
+                        <button onclick="copyCode()" id="copyBtn" class="group flex items-center gap-1.5 text-xs text-obsidian-accent hover:text-white transition-colors">
+                            <i class="fa-regular fa-copy"></i>
+                            <span id="copyText">Copy HTML</span>
+                        </button>
+                    </div>
+                    
+                    <div class="relative flex-1 group">
+                        <textarea id="codeOutput" readonly 
+                            class="w-full h-48 md:h-full bg-obsidian-pane border border-obsidian-border rounded p-4 font-mono text-xs text-gray-400 focus:outline-none resize-none custom-scrollbar whitespace-pre"></textarea>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // Constants
+        const CARD_TEMPLATE = `<article class="group bg-white dark:bg-obsidian-800 rounded-xl p-6 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md hover:ring-brand-500 dark:hover:ring-brand-500 transition-all duration-300">
+    <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+        <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{category}</span>
+        <span>•</span>
+        <time>{date}</time>
+    </div>
+    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-brand-600 dark:group-hover:text-brand-400">
+        <a href="{link}">{title}</a>
+    </h3>
+    <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4">
+        {excerpt}
+    </p>
+    <div class="flex items-center text-brand-600 dark:text-brand-400 text-sm font-medium">
+        Read more <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+    </div>
+</article>`;
+
+        // DOM Elements
+        const inputs = {
+            category: document.getElementById('inputCategory'),
+            date: document.getElementById('inputDate'),
+            title: document.getElementById('inputTitle'),
+            link: document.getElementById('inputLink'),
+            excerpt: document.getElementById('inputExcerpt')
+        };
+        const previewContainer = document.getElementById('previewContainer');
+        const codeOutput = document.getElementById('codeOutput');
+
+        // Helper: Format Date
+        function formatDate(dateString) {
+            if (!dateString) return '{date}';
+            const date = new Date(dateString);
+            return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+        }
+
+        // Generator Function
+        function updateOutput() {
+            // Get values
+            const data = {
+                category: inputs.category.value.trim() || 'Category',
+                date: formatDate(inputs.date.value),
+                title: inputs.title.value.trim() || 'Card Title',
+                link: inputs.link.value.trim() || '#',
+                excerpt: inputs.excerpt.value.trim() || 'This is where the excerpt text will appear describing the content of the link.'
+            };
+
+            // Replace placeholders
+            let html = CARD_TEMPLATE
+                .replace('{category}', data.category)
+                .replace('{date}', data.date)
+                .replace(/{link}/g, data.link) // Regex global for link as it might appear twice in some templates
+                .replace('{title}', data.title)
+                .replace('{excerpt}', data.excerpt);
+
+            // Update Preview
+            previewContainer.innerHTML = html;
+            
+            // Re-initialize Lucide icons for the new content in preview
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+
+            // Update Code Output
+            codeOutput.value = html;
+        }
+
+        // Reset
+        function resetForm() {
+            document.getElementById('cardForm').reset();
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            inputs.date.value = today;
+            updateOutput();
+        }
+
+        // Copy Function
+        function copyCode() {
+            codeOutput.select();
+            codeOutput.setSelectionRange(0, 99999); // For mobile devices
+            navigator.clipboard.writeText(codeOutput.value).then(() => {
+                const btnText = document.getElementById('copyText');
+                const originalText = btnText.innerText;
+                const icon = document.querySelector('#copyBtn i');
+                
+                btnText.innerText = "Copied!";
+                icon.classList.remove('fa-copy', 'fa-regular');
+                icon.classList.add('fa-check', 'fa-solid');
+                
+                setTimeout(() => {
+                    btnText.innerText = originalText;
+                    icon.classList.add('fa-copy', 'fa-regular');
+                    icon.classList.remove('fa-check', 'fa-solid');
+                }, 2000);
+            });
+        }
+
+        // Event Listeners
+        Object.values(inputs).forEach(input => {
+            input.addEventListener('input', updateOutput);
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            inputs.date.value = today;
+            updateOutput();
+        });
+
+    </script>
+</body>
+</html>
