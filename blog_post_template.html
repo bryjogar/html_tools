@@ -208,23 +208,36 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{TITLE}} | Bryan Garrison</title>
+    <meta name="description" content="{{TITLE}} - A post by Bryan Garrison">
+    
     <script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
+    
     <script src="https://unpkg.com/lucide@latest"><\/script>
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['Merriweather', 'serif'] },
-                    colors: {
-                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
-                        obsidian: { 800: '#202020', 900: '#161616' }
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
                     },
-                    typography: (theme) => ({
-                        DEFAULT: { css: { color: theme('colors.slate.700'), fontFamily: theme('fontFamily.serif'), a: { color: theme('colors.brand.600'), '&:hover': { color: theme('colors.brand.500') } }, code: { color: theme('colors.pink.600'), backgroundColor: theme('colors.slate.100'), padding: '2px 4px', borderRadius: '4px', fontWeight: '500' } } },
-                        dark: { css: { color: theme('colors.slate.300'), a: { color: theme('colors.brand.400') }, h1: { color: '#fff' }, h2: { color: '#fff' }, h3: { color: '#fff' }, strong: { color: '#fff' }, code: { color: theme('colors.pink.400'), backgroundColor: theme('colors.obsidian.800') } } }
-                    })
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        obsidian: {
+                            800: '#202020',
+                            900: '#161616',
+                        }
+                    }
                 }
             }
         }
@@ -232,11 +245,9 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-obsidian-900 dark:text-slate-200 transition-colors duration-300 flex flex-col min-h-screen font-sans">
     
-    <!-- Navigation -->
     <nav class="sticky top-0 z-50 bg-slate-50/80 dark:bg-obsidian-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <!-- Logo / Name -->
                 <div class="flex-shrink-0 flex items-center">
                     <a href="index.html" class="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                         <i data-lucide="terminal-square" class="w-6 h-6 text-brand-600 dark:text-brand-500"></i>
@@ -244,47 +255,34 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
                     </a>
                 </div>
 
-                <!-- Desktop Menu -->
                 <div class="hidden sm:flex sm:items-center sm:space-x-8">
                     <a href="notes.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Notes</a>
                     <a href="about.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">About</a>
                     <a href="projects.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Projects</a>
                     <a href="now.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Now</a>
-					
-                    <!-- Theme Toggle -->
+                    
                     <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle Dark Mode">
                         <i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
                         <i data-lucide="sun" class="w-5 h-5 block dark:hidden"></i>
                     </button>
                 </div>
-
-                <!-- Mobile Menu Button -->
+                
                 <div class="flex items-center sm:hidden gap-4">
                      <button id="theme-toggle-mobile" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
                         <i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
                         <i data-lucide="sun" class="w-5 h-5 block dark:hidden"></i>
                     </button>
-                    <button id="mobile-menu-btn" class="p-2 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white focus:outline-none">
-                        <i data-lucide="menu" class="w-6 h-6"></i>
-                    </button>
+                    <a href="index.html" class="p-2 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                        <i data-lucide="home" class="w-6 h-6"></i>
+                    </a>
                 </div>
-            </div>
-        </div>
-
-        <!-- Mobile Menu Panel -->
-        <div id="mobile-menu" class="hidden sm:hidden bg-white dark:bg-obsidian-800 border-b border-slate-200 dark:border-slate-700">
-            <div class="px-2 pt-2 pb-3 space-y-1">
-                <a href="notes.html" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-slate-100 dark:hover:bg-slate-700">Notes</a>
-                <a href="about.html" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-slate-100 dark:hover:bg-slate-700">About</a>
-                <a href="projects.html" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-slate-100 dark:hover:bg-slate-700">Projects</a>
-				<a href="now.html" class="block px-3 py-2 rounded-md text-base font-medium hover:bg-slate-100 dark:hover:bg-slate-700">Now</a>
             </div>
         </div>
     </nav>
 
     <main class="flex-grow max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
         <div class="mb-8">
-            <a href="index.html" class="inline-flex items-center text-sm text-slate-500 hover:text-brand-600 dark:hover:text-brand-400"><i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Garden</a>
+            <a href="index.html" class="inline-flex items-center text-sm text-slate-500 hover:text-brand-600 dark:hover:text-brand-400"><i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Home</a>
         </div>
 
         {{HERO_BLOCK}}
@@ -310,16 +308,53 @@ Coming from a Windows SysAdmin background, I love folders. But ideas, especially
         </div>
     </main>
 
+        <!-- Footer -->
     <footer class="bg-white dark:bg-obsidian-900 border-t border-slate-200 dark:border-slate-800 mt-auto">
-        <div class="max-w-4xl mx-auto px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">&copy; 2025 Bryan Garrison.</div>
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-slate-500 dark:text-slate-400 text-sm">
+                    &copy; 2025 Bryan Garrison.
+                </p>
+                <!-- <div class="flex space-x-6">
+                    <a href="#" class="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+                        <span class="sr-only">Twitter</span>
+                        <i data-lucide="twitter" class="w-5 h-5"></i>
+                    </a>
+                    <a href="#" class="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+                        <span class="sr-only">LinkedIn</span>
+                        <i data-lucide="linkedin" class="w-5 h-5"></i>
+                    </a>
+                    <a href="#" class="text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+                        <span class="sr-only">RSS</span>
+                        <i data-lucide="rss" class="w-5 h-5"></i>
+                    </a>
+                </div> -->
+            </div>
+        </div>
     </footer>
 
     <script>
         lucide.createIcons();
+        
         const btn = document.getElementById('theme-toggle');
+        const btnMobile = document.getElementById('theme-toggle-mobile');
         const html = document.documentElement;
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) html.classList.add('dark');
-        btn.addEventListener('click', () => { html.classList.toggle('dark'); localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light'; });
+        
+        // Check theme
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+        }
+
+        // Toggle function
+        function toggleTheme() {
+            html.classList.toggle('dark');
+            localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
+        }
+
+        if(btn) btn.addEventListener('click', toggleTheme);
+        if(btnMobile) btnMobile.addEventListener('click', toggleTheme);
     <\/script>
 </body>
 </html>`;
