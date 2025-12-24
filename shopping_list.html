@@ -64,7 +64,7 @@
             100% { opacity: 0; transform: translateY(10px); }
         }
         .toast {
-            animation: fade-in-out 2s forwards;
+            animation: fade-in-out 3s forwards;
         }
 
         /* Hide number input spinners */
@@ -76,10 +76,20 @@
         input[type=number] {
             -moz-appearance: textfield;
         }
+
+        /* Dropdown Animation */
+        .dropdown-enter {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+        }
+        .dropdown-active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
     </style>
 </head>
 
-<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans" onclick="closeDropdowns(event)">
 
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-4 md:px-6 flex-shrink-0 z-20 justify-between">
         <div class="flex items-center gap-3">
@@ -90,10 +100,31 @@
         </div>
         
         <div class="flex items-center gap-2">
-            <button onclick="resetRecurring()" title="Reset all checked recurring items" class="flex items-center gap-2 px-3 py-1.5 bg-obsidian-border hover:bg-obsidian-accent hover:text-white text-gray-300 text-xs font-medium rounded transition-colors border border-transparent hover:border-violet-400">
-                <i class="fa-solid fa-rotate-right"></i>
-                <span class="hidden sm:inline">Reset</span>
-            </button>
+            
+            <div class="relative">
+                <button onclick="toggleResetMenu(event)" title="Manage Resets" class="flex items-center gap-2 px-3 py-1.5 bg-obsidian-border hover:bg-obsidian-accent hover:text-white text-gray-300 text-xs font-medium rounded transition-colors border border-transparent hover:border-violet-400">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span class="hidden sm:inline">Resets</span>
+                    <i class="fa-solid fa-caret-down text-[10px] ml-1"></i>
+                </button>
+                
+                <div id="reset-menu" class="hidden absolute top-full right-0 mt-2 w-48 bg-obsidian-pane border border-obsidian-border rounded-lg shadow-xl z-50 overflow-hidden transition-all duration-100 dropdown-enter">
+                    <div class="px-3 py-2 text-[10px] uppercase text-gray-500 font-bold tracking-wider border-b border-obsidian-border bg-obsidian-bg/50">Manual Reset</div>
+                    <button onclick="manualReset('Weekly')" class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-obsidian-accent hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-week text-xs w-4"></i> Weekly
+                    </button>
+                    <button onclick="manualReset('Bi-Weekly')" class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-obsidian-accent hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-days text-xs w-4"></i> Bi-Weekly
+                    </button>
+                    <button onclick="manualReset('Monthly')" class="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-obsidian-accent hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-calendar text-xs w-4"></i> Monthly
+                    </button>
+                    <div class="border-t border-obsidian-border"></div>
+                    <button onclick="manualReset('All')" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-power-off text-xs w-4"></i> Reset All
+                    </button>
+                </div>
+            </div>
 
             <button onclick="copyToClipboard()" title="Copy text list of unbought items" class="flex items-center gap-2 px-3 py-1.5 bg-obsidian-border hover:bg-obsidian-accent hover:text-white text-gray-300 text-xs font-medium rounded transition-colors border border-transparent hover:border-violet-400">
                 <i class="fa-regular fa-copy"></i>
@@ -170,7 +201,7 @@
         </div>
     </main>
 
-    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-obsidian-accent text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium hidden z-50 flex items-center gap-2 transition-all">
+    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-obsidian-accent text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium hidden z-50 flex items-center gap-2 transition-all border border-violet-400/50">
         <i id="toast-icon" class="fa-solid fa-circle-check"></i>
         <span id="toast-msg">Notification</span>
     </div>
@@ -191,7 +222,11 @@
     <script>
         // --- State Management ---
         const STORE_KEY = 'homelab_shopping_list_v2'; 
+        const RESET_LOG_KEY = 'homelab_shopping_reset_log_v2'; // Changed key to ensure fresh start with new logic
+
         let items = JSON.parse(localStorage.getItem(STORE_KEY)) || [];
+        // Log structure: { weekly: 'YYYY-MM-DD', biweekly: 'YYYY-MM-DD', monthly: 'YYYY-MM-DD' }
+        let resetLog = JSON.parse(localStorage.getItem(RESET_LOG_KEY)) || { weekly: null, biweekly: null, monthly: null };
 
         // --- DOM Elements ---
         const form = document.getElementById('add-form');
@@ -200,6 +235,7 @@
         const statsDisplay = document.getElementById('stats-display');
         const toast = document.getElementById('toast');
         const toastMsg = document.getElementById('toast-msg');
+        const resetMenu = document.getElementById('reset-menu');
 
         // Order of display
         const GROUPS = ['Weekly', 'Bi-Weekly', 'Monthly', 'One-off'];
@@ -211,12 +247,15 @@
             render();
         }
 
+        function saveResetLog() {
+            localStorage.setItem(RESET_LOG_KEY, JSON.stringify(resetLog));
+        }
+
         function addItem(e) {
             e.preventDefault();
             const name = document.getElementById('input-name').value.trim();
             const link = document.getElementById('input-link').value.trim();
             const freq = document.getElementById('input-freq').value;
-            // Get quantity, ensure parsed as int, default to 1 if empty or invalid
             let qty = parseInt(document.getElementById('input-qty').value);
             if (!qty || qty < 1) qty = 1;
 
@@ -227,7 +266,7 @@
                 name,
                 link,
                 freq,
-                qty, // Save Qty
+                qty,
                 checked: false,
                 createdAt: new Date().toISOString()
             };
@@ -235,7 +274,6 @@
             items.push(newItem);
             saveItems();
             form.reset();
-            // Reset select to Weekly default & Qty to 1
             document.getElementById('input-freq').value = "Weekly";
             document.getElementById('input-qty').value = "1";
             document.getElementById('input-name').focus();
@@ -256,22 +294,129 @@
             }
         }
 
-        function resetRecurring() {
-            const toReset = items.filter(i => i.checked && i.freq !== 'One-off');
-            
-            if (toReset.length === 0) {
-                showToast("No recurring items to reset.");
-                return;
-            }
+        // --- Reset Logic ---
 
-            if (confirm(`Uncheck all ${toReset.length} recurring items for next trip?`)) {
+        function performReset(category, silent = false) {
+            const toReset = items.filter(i => i.checked && i.freq === category);
+            if (toReset.length > 0) {
                 items.forEach(item => {
-                    if (item.checked && item.freq !== 'One-off') {
+                    if (item.checked && item.freq === category) {
                         item.checked = false;
                     }
                 });
                 saveItems();
-                showToast("Recurring items reset!");
+                if(!silent) showToast(`${category} items reset!`);
+                return true; 
+            } else {
+                if(!silent) showToast(`No checked ${category} items.`);
+                return false; 
+            }
+        }
+
+        // Manual Reset
+        function manualReset(type) {
+            if (type === 'All') {
+                if (confirm("Reset ALL recurring categories?")) {
+                    let count = 0;
+                    items.forEach(item => {
+                        if (item.checked && item.freq !== 'One-off') {
+                            item.checked = false;
+                            count++;
+                        }
+                    });
+                    saveItems();
+                    showToast(`Reset ${count} recurring items.`);
+                }
+            } else {
+                performReset(type);
+            }
+            resetMenu.classList.add('hidden');
+            resetMenu.classList.remove('dropdown-active');
+        }
+
+        // Automation Check (Catch-up Logic)
+        function checkAutoResets() {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const todayStr = today.toISOString().split('T')[0];
+
+            // Helper: Parse stored string to Date object
+            const parseDate = (str) => {
+                if (!str) return new Date('1970-01-01'); // If never run, assume ancient past
+                const d = new Date(str);
+                d.setHours(0,0,0,0);
+                return d;
+            };
+
+            let messages = [];
+            let logUpdated = false;
+
+            // --- 1. Weekly Catch-up ---
+            // Find the most recent Saturday
+            // 0=Sun, 6=Sat. 
+            // If today is Mon(1), last sat was 2 days ago.
+            // If today is Sat(6), last sat is Today.
+            let recentSat = new Date(today);
+            while (recentSat.getDay() !== 6) {
+                recentSat.setDate(recentSat.getDate() - 1);
+            }
+            
+            // If last reset was STRICTLY BEFORE the most recent Saturday, trigger reset.
+            if (parseDate(resetLog.weekly) < recentSat) {
+                if(performReset('Weekly', true)) messages.push("Weekly");
+                resetLog.weekly = todayStr;
+                logUpdated = true;
+            }
+
+            // --- 2. Monthly Catch-up ---
+            // Trigger: The 1st of the current month
+            const thisMonth1st = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            // If last reset was STRICTLY BEFORE the 1st of this month, trigger reset
+            if (parseDate(resetLog.monthly) < thisMonth1st) {
+                if(performReset('Monthly', true)) messages.push("Monthly");
+                resetLog.monthly = todayStr;
+                logUpdated = true;
+            }
+
+            // --- 3. Bi-Weekly Catch-up ---
+            // Trigger: Either the 1st or the 15th, whichever was most recent
+            let biWeeklyTrigger;
+            if (today.getDate() >= 15) {
+                biWeeklyTrigger = new Date(today.getFullYear(), today.getMonth(), 15);
+            } else {
+                biWeeklyTrigger = new Date(today.getFullYear(), today.getMonth(), 1);
+            }
+
+            if (parseDate(resetLog.biweekly) < biWeeklyTrigger) {
+                if(performReset('Bi-Weekly', true)) messages.push("Bi-Weekly");
+                resetLog.biweekly = todayStr;
+                logUpdated = true;
+            }
+
+            if (logUpdated) saveResetLog();
+            if (messages.length > 0) showToast(`Caught up: ${messages.join(', ')}`);
+        }
+
+
+        // --- UI Utils ---
+
+        function toggleResetMenu(e) {
+            e.stopPropagation();
+            const isHidden = resetMenu.classList.contains('hidden');
+            if (isHidden) {
+                resetMenu.classList.remove('hidden');
+                setTimeout(() => resetMenu.classList.add('dropdown-active'), 10);
+            } else {
+                resetMenu.classList.remove('dropdown-active');
+                setTimeout(() => resetMenu.classList.add('hidden'), 100);
+            }
+        }
+
+        function closeDropdowns(e) {
+            if (!resetMenu.contains(e.target)) {
+                resetMenu.classList.remove('dropdown-active');
+                setTimeout(() => resetMenu.classList.add('hidden'), 100);
             }
         }
 
@@ -309,7 +454,7 @@
             setTimeout(() => {
                 toast.classList.remove('toast');
                 toast.classList.add('hidden');
-            }, 2000);
+            }, 3000); 
         }
 
         function getFrequencyHeaderColor(freq) {
@@ -379,7 +524,6 @@
                     let nameDisplay = `<span class="font-medium ${strikeClass}">${item.name}</span>`;
                     
                     // Quantity Badge
-                    // Backward compatibility: use 1 if qty undefined
                     const qtyVal = item.qty || 1;
                     const qtyBadge = `<span class="text-[10px] font-mono font-bold text-obsidian-accent bg-obsidian-accent/10 px-1.5 py-0.5 rounded border border-obsidian-accent/20 mr-2 select-none">x${qtyVal}</span>`;
 
@@ -425,6 +569,9 @@
         // --- Initialization ---
         form.addEventListener('submit', addItem);
         render(); // Initial load
+        
+        // Check for auto-resets immediately
+        checkAutoResets();
     </script>
 </body>
 </html>
