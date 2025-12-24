@@ -66,6 +66,16 @@
         .toast {
             animation: fade-in-out 2s forwards;
         }
+
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
 
@@ -97,12 +107,12 @@
     </header>
 
     <main class="flex-1 overflow-y-auto relative p-4 md:p-6">
-        <div class="max-w-3xl mx-auto space-y-8">
+        <div class="max-w-4xl mx-auto space-y-8">
             
             <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 md:p-5 shadow-xl">
                 <form id="add-form" class="grid grid-cols-1 md:grid-cols-12 gap-3">
                     
-                    <div class="md:col-span-5">
+                    <div class="md:col-span-4">
                         <label class="block text-xs font-semibold text-gray-500 uppercase mb-1 ml-1">Item Name</label>
                         <div class="relative">
                             <span class="absolute left-3 top-2.5 text-gray-500"><i class="fa-solid fa-tag text-xs"></i></span>
@@ -118,6 +128,12 @@
                             <input type="url" id="input-link" placeholder="https://..." 
                                 class="w-full bg-obsidian-bg border border-obsidian-border rounded px-3 py-2 pl-8 text-sm font-mono focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-colors placeholder-gray-600 text-white">
                         </div>
+                    </div>
+
+                    <div class="md:col-span-1">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1 ml-1">Qty</label>
+                        <input type="number" id="input-qty" value="1" min="1" required
+                            class="w-full bg-obsidian-bg border border-obsidian-border rounded px-2 py-2 text-center text-sm font-mono focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-colors placeholder-gray-600 text-white">
                     </div>
 
                     <div class="md:col-span-3 flex flex-col md:flex-row gap-3">
@@ -200,6 +216,9 @@
             const name = document.getElementById('input-name').value.trim();
             const link = document.getElementById('input-link').value.trim();
             const freq = document.getElementById('input-freq').value;
+            // Get quantity, ensure parsed as int, default to 1 if empty or invalid
+            let qty = parseInt(document.getElementById('input-qty').value);
+            if (!qty || qty < 1) qty = 1;
 
             if (!name) return;
 
@@ -208,6 +227,7 @@
                 name,
                 link,
                 freq,
+                qty, // Save Qty
                 checked: false,
                 createdAt: new Date().toISOString()
             };
@@ -215,8 +235,9 @@
             items.push(newItem);
             saveItems();
             form.reset();
-            // Reset select to Weekly default
+            // Reset select to Weekly default & Qty to 1
             document.getElementById('input-freq').value = "Weekly";
+            document.getElementById('input-qty').value = "1";
             document.getElementById('input-name').focus();
         }
 
@@ -236,7 +257,6 @@
         }
 
         function resetRecurring() {
-            // Find count of items to be reset
             const toReset = items.filter(i => i.checked && i.freq !== 'One-off');
             
             if (toReset.length === 0) {
@@ -264,7 +284,8 @@
             }
 
             const textLines = needed.map(item => {
-                let line = `• ${item.name}`;
+                const qtyStr = (item.qty && item.qty > 1) ? `${item.qty}x ` : '';
+                let line = `• ${qtyStr}${item.name}`;
                 if (item.link) {
                     line += ` - ${item.link}`;
                 }
@@ -356,6 +377,12 @@
                     
                     // Link Logic
                     let nameDisplay = `<span class="font-medium ${strikeClass}">${item.name}</span>`;
+                    
+                    // Quantity Badge
+                    // Backward compatibility: use 1 if qty undefined
+                    const qtyVal = item.qty || 1;
+                    const qtyBadge = `<span class="text-[10px] font-mono font-bold text-obsidian-accent bg-obsidian-accent/10 px-1.5 py-0.5 rounded border border-obsidian-accent/20 mr-2 select-none">x${qtyVal}</span>`;
+
                     let linkButton = '';
                     
                     if (item.link) {
@@ -373,8 +400,11 @@
                         </button>
 
                         <div class="flex-1 min-w-0 flex flex-col justify-center cursor-pointer select-none" onclick="toggleItem(${item.id})">
-                            ${nameDisplay}
-                            ${item.link ? `<span class="text-[10px] text-gray-600 truncate font-mono">${item.link}</span>` : ''}
+                            <div class="flex items-center">
+                                ${qtyBadge}
+                                ${nameDisplay}
+                            </div>
+                            ${item.link ? `<span class="text-[10px] text-gray-600 truncate font-mono mt-0.5">${item.link}</span>` : ''}
                         </div>
 
                         <div class="flex items-center gap-2">
