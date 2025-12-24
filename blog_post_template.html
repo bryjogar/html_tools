@@ -266,6 +266,15 @@
             }
         }
     <\/script>
+<!-- Dark Mode Prevention Script -->
+    <!-- Placing this in the head ensures the class is added BEFORE the body renders -->
+    <script>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    <\/script>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-obsidian-900 dark:text-slate-200 transition-colors duration-300 flex flex-col min-h-screen font-sans">
     

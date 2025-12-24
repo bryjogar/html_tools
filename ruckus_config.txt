@@ -59,7 +59,7 @@ interface ethernet {{ uplink_ports_range }}
 ! --------------------
 ! Virtual Interface
 interface ve {{ vlan_id }}
- ip address {{ ve_ip }} {{ subnet_mask }}
+ ip address {{ ve_ip }} {{ ve_subnet_mask }}
 
 ! Default Gateway (If L2 Switch)
 ip default-gateway {{ gateway_ip_address }}

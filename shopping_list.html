@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homelab Shopping Tracker</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400&display=swap');
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Checkbox animation */
+        .check-anim {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        /* Toast Animation */
+        @keyframes fade-in-out {
+            0% { opacity: 0; transform: translateY(10px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(10px); }
+        }
+        .toast {
+            animation: fade-in-out 2s forwards;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-4 md:px-6 flex-shrink-0 z-20 justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shrink-0">
+                <i class="fa-solid fa-cart-shopping text-sm"></i>
+            </div>
+            <h1 class="font-semibold text-lg tracking-tight text-white hidden sm:block">Shopping Tracker</h1>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <button onclick="resetRecurring()" title="Reset all checked recurring items" class="flex items-center gap-2 px-3 py-1.5 bg-obsidian-border hover:bg-obsidian-accent hover:text-white text-gray-300 text-xs font-medium rounded transition-colors border border-transparent hover:border-violet-400">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span class="hidden sm:inline">Reset</span>
+            </button>
+
+            <button onclick="copyToClipboard()" title="Copy text list of unbought items" class="flex items-center gap-2 px-3 py-1.5 bg-obsidian-border hover:bg-obsidian-accent hover:text-white text-gray-300 text-xs font-medium rounded transition-colors border border-transparent hover:border-violet-400">
+                <i class="fa-regular fa-copy"></i>
+                <span class="hidden sm:inline">Copy Needed</span>
+            </button>
+            
+            <div class="text-xs text-gray-500 font-mono hidden md:block border-l border-obsidian-border pl-3 ml-1" id="stats-display">
+                0 items
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto relative p-4 md:p-6">
+        <div class="max-w-3xl mx-auto space-y-8">
+            
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 md:p-5 shadow-xl">
+                <form id="add-form" class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    
+                    <div class="md:col-span-5">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1 ml-1">Item Name</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2.5 text-gray-500"><i class="fa-solid fa-tag text-xs"></i></span>
+                            <input type="text" id="input-name" required placeholder="e.g. 1TB SSD" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border rounded px-3 py-2 pl-8 text-sm font-mono focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-colors placeholder-gray-600 text-white">
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-4">
+                        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1 ml-1">Link (Optional)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2.5 text-gray-500"><i class="fa-solid fa-link text-xs"></i></span>
+                            <input type="url" id="input-link" placeholder="https://..." 
+                                class="w-full bg-obsidian-bg border border-obsidian-border rounded px-3 py-2 pl-8 text-sm font-mono focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent transition-colors placeholder-gray-600 text-white">
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-3 flex flex-col md:flex-row gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1 ml-1">Frequency</label>
+                            <select id="input-freq" 
+                                class="w-full bg-obsidian-bg border border-obsidian-border rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-obsidian-accent text-white appearance-none cursor-pointer">
+                                <option value="Weekly">Weekly</option>
+                                <option value="Bi-Weekly">Bi-Weekly</option>
+                                <option value="Monthly">Monthly</option>
+                                <option value="One-off">One-off</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-end">
+                            <button type="submit" 
+                                class="w-full md:w-auto h-[38px] px-4 bg-obsidian-accent hover:bg-violet-600 text-white rounded transition-colors flex items-center justify-center gap-2 font-medium text-sm shadow-lg shadow-violet-900/20">
+                                <i class="fa-solid fa-plus"></i>
+                                <span class="md:hidden">Add</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div id="list-container" class="space-y-6 pb-10">
+                </div>
+            
+            <div id="empty-state" class="hidden flex flex-col items-center justify-center py-12 text-gray-600 opacity-50">
+                <i class="fa-solid fa-layer-group text-4xl mb-3"></i>
+                <p class="font-mono text-sm">List is empty.</p>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-obsidian-accent text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium hidden z-50 flex items-center gap-2 transition-all">
+        <i id="toast-icon" class="fa-solid fa-circle-check"></i>
+        <span id="toast-msg">Notification</span>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // --- State Management ---
+        const STORE_KEY = 'homelab_shopping_list_v2'; 
+        let items = JSON.parse(localStorage.getItem(STORE_KEY)) || [];
+
+        // --- DOM Elements ---
+        const form = document.getElementById('add-form');
+        const listContainer = document.getElementById('list-container');
+        const emptyState = document.getElementById('empty-state');
+        const statsDisplay = document.getElementById('stats-display');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+
+        // Order of display
+        const GROUPS = ['Weekly', 'Bi-Weekly', 'Monthly', 'One-off'];
+
+        // --- Core Functions ---
+
+        function saveItems() {
+            localStorage.setItem(STORE_KEY, JSON.stringify(items));
+            render();
+        }
+
+        function addItem(e) {
+            e.preventDefault();
+            const name = document.getElementById('input-name').value.trim();
+            const link = document.getElementById('input-link').value.trim();
+            const freq = document.getElementById('input-freq').value;
+
+            if (!name) return;
+
+            const newItem = {
+                id: Date.now(),
+                name,
+                link,
+                freq,
+                checked: false,
+                createdAt: new Date().toISOString()
+            };
+
+            items.push(newItem);
+            saveItems();
+            form.reset();
+            // Reset select to Weekly default
+            document.getElementById('input-freq').value = "Weekly";
+            document.getElementById('input-name').focus();
+        }
+
+        function toggleItem(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.checked = !item.checked;
+                saveItems();
+            }
+        }
+
+        function deleteItem(id) {
+            if(confirm('Permanently remove this item?')) {
+                items = items.filter(i => i.id !== id);
+                saveItems();
+            }
+        }
+
+        function resetRecurring() {
+            // Find count of items to be reset
+            const toReset = items.filter(i => i.checked && i.freq !== 'One-off');
+            
+            if (toReset.length === 0) {
+                showToast("No recurring items to reset.");
+                return;
+            }
+
+            if (confirm(`Uncheck all ${toReset.length} recurring items for next trip?`)) {
+                items.forEach(item => {
+                    if (item.checked && item.freq !== 'One-off') {
+                        item.checked = false;
+                    }
+                });
+                saveItems();
+                showToast("Recurring items reset!");
+            }
+        }
+
+        function copyToClipboard() {
+            const needed = items.filter(i => !i.checked);
+            
+            if (needed.length === 0) {
+                alert("Everything is bought! Nothing to copy.");
+                return;
+            }
+
+            const textLines = needed.map(item => {
+                let line = `• ${item.name}`;
+                if (item.link) {
+                    line += ` - ${item.link}`;
+                }
+                return line;
+            });
+
+            const textBlock = "Shopping List:\n" + textLines.join('\n');
+
+            navigator.clipboard.writeText(textBlock).then(() => {
+                showToast("Copied to Clipboard!");
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard.');
+            });
+        }
+
+        function showToast(message) {
+            toastMsg.innerText = message;
+            toast.classList.remove('hidden');
+            toast.classList.add('toast');
+            setTimeout(() => {
+                toast.classList.remove('toast');
+                toast.classList.add('hidden');
+            }, 2000);
+        }
+
+        function getFrequencyHeaderColor(freq) {
+            switch(freq) {
+                case 'Weekly': return 'text-green-400';
+                case 'Bi-Weekly': return 'text-blue-400';
+                case 'Monthly': return 'text-orange-400';
+                default: return 'text-gray-400';
+            }
+        }
+
+        function render() {
+            listContainer.innerHTML = '';
+            
+            // Update Stats
+            const total = items.length;
+            const checked = items.filter(i => i.checked).length;
+            statsDisplay.textContent = `${checked}/${total} bought`;
+
+            if (total === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+
+            // Render by Group
+            GROUPS.forEach(groupName => {
+                // Filter items for this group
+                let groupItems = items.filter(i => i.freq === groupName);
+                
+                if (groupItems.length === 0) return;
+
+                // Sort: Unchecked first, then Checked
+                groupItems.sort((a, b) => {
+                    if (a.checked === b.checked) return 0;
+                    return a.checked ? 1 : -1;
+                });
+
+                // Create Group Wrapper
+                const groupWrapper = document.createElement('div');
+                groupWrapper.className = "mb-2";
+
+                // Create Header
+                const headerColor = getFrequencyHeaderColor(groupName);
+                const header = document.createElement('div');
+                header.className = `flex items-center gap-2 mb-3 pb-1 border-b border-obsidian-border`;
+                header.innerHTML = `
+                    <h3 class="text-xs font-bold uppercase tracking-wider ${headerColor}">${groupName}</h3>
+                    <span class="text-[10px] bg-obsidian-pane px-1.5 rounded text-gray-500 font-mono border border-obsidian-border">${groupItems.length}</span>
+                `;
+                groupWrapper.appendChild(header);
+
+                // Create List for this Group
+                const ul = document.createElement('div');
+                ul.className = "space-y-2";
+
+                groupItems.forEach(item => {
+                    const opacityClass = item.checked ? 'opacity-40' : 'opacity-100';
+                    const strikeClass = item.checked ? 'line-through text-gray-500' : 'text-gray-200';
+                    const bgClass = item.checked ? 'bg-transparent border-obsidian-border border-dashed' : 'bg-obsidian-pane border-obsidian-border';
+                    
+                    const li = document.createElement('div');
+                    li.className = `flex items-center gap-3 p-3 rounded border ${bgClass} ${opacityClass} check-anim group hover:border-obsidian-accent/50 transition-colors`;
+                    
+                    // Link Logic
+                    let nameDisplay = `<span class="font-medium ${strikeClass}">${item.name}</span>`;
+                    let linkButton = '';
+                    
+                    if (item.link) {
+                        let safeLink = item.link.startsWith('http') ? item.link : 'https://' + item.link;
+                        linkButton = `
+                            <a href="${safeLink}" target="_blank" class="w-8 h-8 flex items-center justify-center rounded-full bg-obsidian-bg border border-obsidian-border text-obsidian-accent hover:bg-obsidian-accent hover:text-white transition-colors" title="Visit Link">
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                            </a>
+                        `;
+                    }
+
+                    li.innerHTML = `
+                        <button onclick="toggleItem(${item.id})" class="flex-shrink-0 w-6 h-6 rounded border ${item.checked ? 'bg-obsidian-accent border-obsidian-accent' : 'border-gray-600 hover:border-obsidian-accent'} flex items-center justify-center transition-colors">
+                            ${item.checked ? '<i class="fa-solid fa-check text-white text-xs"></i>' : ''}
+                        </button>
+
+                        <div class="flex-1 min-w-0 flex flex-col justify-center cursor-pointer select-none" onclick="toggleItem(${item.id})">
+                            ${nameDisplay}
+                            ${item.link ? `<span class="text-[10px] text-gray-600 truncate font-mono">${item.link}</span>` : ''}
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            ${linkButton}
+                            <button onclick="deleteItem(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors" title="Delete">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                    `;
+                    ul.appendChild(li);
+                });
+
+                groupWrapper.appendChild(ul);
+                listContainer.appendChild(groupWrapper);
+            });
+        }
+
+        // --- Initialization ---
+        form.addEventListener('submit', addItem);
+        render(); // Initial load
+    </script>
+</body>
+</html>

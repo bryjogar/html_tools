@@ -6,15 +6,16 @@
 hostname {{ hostname }}
 
 ! Set Time Zone and SNTP (Critical for logs)
-clock timezone {{ timezone_region }} {{ timezone_offset }}
-sntp server {{ ntp_server_ip }}
+clock timezone us central
+
 sntp interval 60
 sntp unicast-client enable
 
-! Administration & Security
-! -------------------------
-! Create Admin User
-username {{ admin_username }} password {{ admin_password }} privilege 15
+sntp server time-a-g.nist.gov
+sntp server time-a-wwv.nist.gov
+
+! ---- IF Exists
+sntp server {{ custom_ntp_server }}
 
 ! Enable SSH and Disable Telnet
 ip ssh server enable
@@ -29,48 +30,27 @@ ip http secure-server enable
 ! Enable IGMP Snooping Globally to handle AV-over-IP streams
 ip igmp snooping
 
-! VLAN Database Configuration
+! VLAN Database Configuration (for each)
 ! ---------------------------
 vlan database
- vlan {{ management_vlan_id }} name {{ management_vlan_name }}
- vlan {{ audio_vlan_id }} name {{ audio_vlan_name }}
- vlan {{ video_vlan_id }} name {{ video_vlan_name }}
- vlan {{ control_vlan_id }} name {{ control_vlan_name }}
+ vlan {{ vlan_id }} name {{ vlan_name }}
  exit
 
 ! VLAN Interface Configuration (Layer 3 SVIs)
 ! -------------------------------------------
-! Management Interface
-interface vlan {{ management_vlan_id }}
- ip address {{ switch_management_ip }} {{ subnet_mask }}
+interface vlan {{ vlan_id }}
+ ip address {{ ve_ip }} {{ ve_subnet_mask }}
  no shutdown
+ {{ ip igmp snooping enable }}
+ {{ ip igmp snooping querier }}
+ {{ ip igmp snooping fast-leave }}
+ {{ ip igmp snooping report-suppression }}
  exit
 
-! AV VLAN IGMP Configuration (The "Secret Sauce" for AV)
-! ------------------------------------------------------
-! Configure Video VLAN for multicast (e.g., NDI, Crestron NVX)
-interface vlan {{ video_vlan_id }}
- ! Enable IGMP Snooping on this VLAN
- ip igmp snooping enable
- ! Enable Querier (Required if no core router is doing it)
- ip igmp snooping querier
- ! Fast Leave (Essential for fast video switching)
- ip igmp snooping fast-leave
- ! Suppression (Prevents multicast flooding to all ports)
- ip igmp snooping report-suppression
- exit
-
-! Configure Audio VLAN (e.g., Dante, AES67)
-interface vlan {{ audio_vlan_id }}
- ip igmp snooping enable
- ip igmp snooping querier
- exit
-
-! Interface Configuration (AV Endpoints)
+! Interface Configuration 
 ! --------------------------------------
-! Ports connecting to Cameras, Encoders, Decoders
-interface range {{ av_endpoint_ports_range }}
- description {{ av_endpoints_description }}
+interface range {{ port_range }}
+ description {{ port_description }}
  
  ! Set VLAN membership (Untagged/Access)
  vlan pvid {{ video_vlan_id }}
