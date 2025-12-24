@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Content Publisher v3.0</title>
+    <title>Content Publisher v3.2</title>
     
     <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -76,7 +76,7 @@
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-layer-group text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-wide text-gray-200">Content Publisher <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-600 rounded px-1">v3.0</span></h1>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200">Content Publisher <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-600 rounded px-1">v3.2</span></h1>
         </div>
         <div class="flex items-center gap-3">
             <button onclick="toggleHelp()" class="text-gray-400 hover:text-white transition-colors">
@@ -125,11 +125,9 @@
             </div>
 
             <div id="view-card" class="flex-1 hidden flex-col w-full h-full bg-obsidian-bg">
-                
                 <div class="p-8 flex items-center justify-center bg-[#111] border-b border-obsidian-border">
                     <div id="card-visual-container" class="w-full max-w-md"></div>
                 </div>
-
                 <div class="flex-1 flex flex-col min-h-0 bg-obsidian-pane p-4">
                     <label class="text-xs font-mono text-gray-500 mb-2 block uppercase">Card HTML Code</label>
                     <textarea id="card-code-output" readonly class="flex-1 w-full bg-obsidian-bg border border-obsidian-border rounded p-3 font-mono text-xs text-gray-400 focus:outline-none resize-none custom-scrollbar whitespace-pre"></textarea>
@@ -139,23 +137,50 @@
 
     </main>
 
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
     <div id="help-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-obsidian-pane border border-obsidian-border rounded-lg max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-4 border-b border-obsidian-border flex justify-between items-center shrink-0">
-                <h3 class="font-bold text-white">YAML Variables</h3>
+                <h3 class="font-bold text-white">YAML & WikiLinks</h3>
                 <button onclick="toggleHelp()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </div>
             <div class="p-4 text-sm text-gray-300 space-y-4 overflow-y-auto">
-                <p>Fill out the YAML at the top of your markdown to populate both the Page and the Index Card.</p>
+                <p>Fill out the YAML at the top of your markdown. You can also use Obsidian-style links in the body.</p>
+                
+                <h4 class="font-bold text-white text-xs uppercase mt-4 mb-2">Wiki Link Support</h4>
+                <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border font-mono text-xs space-y-2">
+                    <div>
+                        <span class="text-obsidian-accent">[[God's Grace]]</span> <br>
+                        <span class="text-gray-500">becomes &lt;a href="gods-grace.html"&gt;God's Grace&lt;/a&gt;</span>
+                    </div>
+                    <div>
+                        <span class="text-obsidian-accent">[[Folder/Note|Alias]]</span> <br>
+                        <span class="text-gray-500">becomes &lt;a href="folder/note.html"&gt;Alias&lt;/a&gt;</span>
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-white text-xs uppercase mt-4 mb-2">YAML Frontmatter</h4>
                 <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border font-mono text-xs">
 <span class="text-pink-400">---</span><br>
 <span class="text-blue-400">title:</span> "My Blog Post"<br>
 <span class="text-blue-400">date:</span> 2025-09-20<br>
-<span class="text-blue-400">category:</span> Networking <span class="text-gray-500">// Used for Card Pill</span><br>
-<span class="text-blue-400">tags:</span> [obsidian, pkm] <span class="text-gray-500">// Used for Post Footer</span><br>
-<span class="text-blue-400">hero_image:</span> https://... <span class="text-gray-500">// Optional</span><br>
-<span class="text-blue-400">excerpt:</span> "Short summary for the card..."<br>
-<span class="text-blue-400">permalink:</span> notes/my-post.html <span class="text-gray-500">// Where card links to</span><br>
+<span class="text-blue-400">category:</span> Networking<br>
+<span class="text-blue-400">tags:</span> [obsidian, pkm]<br>
+<span class="text-blue-400">hero_image:</span> https://...<br>
+<span class="text-blue-400">excerpt:</span> "Short summary..."<br>
+<span class="text-blue-400">permalink:</span> notes/my-post.html<br>
 <span class="text-pink-400">---</span>
                 </div>
             </div>
@@ -192,7 +217,6 @@
         let currentOutputMode = 'page'; // 'page' or 'card'
 
         // --- Templates ---
-        // 1. The Card Templates (From your Link Generator)
         const CARD_STANDARD = `<article class="group bg-white dark:bg-obsidian-800 rounded-xl p-6 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md hover:ring-brand-500 dark:hover:ring-brand-500 transition-all duration-300">
     <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
         <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{{CATEGORY}}</span>
@@ -232,8 +256,6 @@
     </div>
 </article>`;
 
-        // 2. The Full Page Template (From your Blog Injector)
-        // I have inserted your requested nav fixes here.
         const PAGE_TEMPLATE = `<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
@@ -241,27 +263,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{TITLE}} | Bryan Garrison</title>
     <meta name="description" content="{{EXCERPT}}">
-    
     <script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
-    
     <script src="https://unpkg.com/lucide@latest"><\/script>
-    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
-    
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['Merriweather', 'serif'] },
-                    colors: {
-                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
-                        obsidian: { 800: '#202020', 900: '#161616' }
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
                     },
-                    typography: (theme) => ({
-                        DEFAULT: { css: { color: theme('colors.slate.700'), fontFamily: theme('fontFamily.serif'), a: { color: theme('colors.brand.600'), '&:hover': { color: theme('colors.brand.500') } }, code: { color: theme('colors.pink.600'), backgroundColor: theme('colors.slate.100'), padding: '2px 4px', borderRadius: '4px', fontWeight: '500' } } },
-                        dark: { css: { color: theme('colors.slate.200'), a: { color: theme('colors.brand.400') }, h1: { color: '#ffffff' }, h2: { color: '#ffffff' }, h3: { color: '#ffffff' }, strong: { color: theme('colors.slate.100') }, code: { color: theme('colors.pink.400'), backgroundColor: theme('colors.obsidian.800') } } }
-                    })
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9', // Sky blue - feels airy like cloud/network
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        obsidian: {
+                            800: '#202020', // Dark theme background match
+                            900: '#161616',
+                        }
+                    }
                 }
             }
         }
@@ -374,6 +400,13 @@ For example, does a note on *"The concept of Time in St. Augustine"* belong in:
 1. \`/Theology/Patristics/Augustine\`
 2. \`/Philosophy/Metaphysics/Time\`
 
+### Wiki Links Example
+You can now link to other notes using Wiki syntax:
+
+* Standard Link: [[Philosophy/Metaphysics/Time]]
+* Aliased Link: [[Theology/Patristics/Augustine|St. Augustine's view on time]]
+* Special Chars: [[God's Infinite Goodness]]
+
 The answer is **all of them**.`;
 
         // --- Logic ---
@@ -393,6 +426,47 @@ The answer is **all of them**.`;
             const key = isMd ? STORAGE_KEYS.MD : STORAGE_KEYS.TPL;
             localStorage.setItem(key, e.target.value);
             updateOutputs();
+        }
+
+        /**
+         * Sluggifies text for URLs.
+         * 1. Lowercase
+         * 2. Remove apostrophes (so "God's" becomes "gods", not "god-s")
+         * 3. Replace non-alphanumeric chars (except /) with hyphens
+         * 4. Remove duplicate hyphens
+         */
+        function slugify(text) {
+            return text
+                .toLowerCase()
+                .trim()
+                .replace(/'/g, '')              // Remove apostrophes specially
+                .replace(/[^\w\s-\/]/g, '')     // Remove non-word chars (allow / for folders)
+                .replace(/[\s]+/g, '-')         // Replace spaces with hyphens
+                .replace(/-+/g, '-');           // Remove duplicate hyphens
+        }
+
+        /**
+         * Transforms WikiLinks [[target]] and [[target|alias]] into HTML <a> tags
+         * before parsing markdown.
+         */
+        function transformWikiLinks(text) {
+            // 1. Handle [[target|alias]]
+            // Regex breakdown: \[\[ matches opening, ([^\]|]+) captures target, \| matches pipe, ([^\]]+) captures alias, \]\] matches closing
+            let processed = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, (match, link, alias) => {
+                const url = slugify(link) + '.html'; 
+                return `<a href="${url}">${alias.trim()}</a>`;
+            });
+
+            // 2. Handle [[target]]
+            // Regex breakdown: \[\[ matches opening, ([^\]|]+) captures target, \]\] matches closing
+            processed = processed.replace(/\[\[([^\]|]+)\]\]/g, (match, link) => {
+                const cleanLink = link.trim();
+                const url = slugify(cleanLink) + '.html';
+                // Note: We use cleanLink for display (preserving Case/Space), but slugify for href
+                return `<a href="${url}">${cleanLink}</a>`;
+            });
+
+            return processed;
         }
 
         function parseInput() {
@@ -422,11 +496,16 @@ The answer is **all of them**.`;
                 } catch (e) { console.log("YAML Parse Error", e); }
             }
 
-            // Word count / read time
+            // Word count / read time calculation on raw text
             const cleanText = markdownBody.replace(/[#*`]/g, '').trim();
             const wordCount = cleanText ? cleanText.split(/\s+/).length : 0;
             const readTime = Math.ceil(wordCount / 200) + ' min read';
-            const bodyHtml = marked.parse(markdownBody);
+
+            // 1. Pre-process Wiki Links
+            const linkedBody = transformWikiLinks(markdownBody);
+
+            // 2. Parse Markdown to HTML
+            const bodyHtml = marked.parse(linkedBody);
 
             // Date Formatting
             let displayDate = metadata.date;
