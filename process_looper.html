@@ -91,26 +91,27 @@
         </div>
     </main>
 
-    <div id="createModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm">
-        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div class="px-5 py-4 border-b border-obsidian-border flex justify-between items-center bg-obsidian-bg">
-                <h3 class="font-semibold text-white">Create New Process Loop</h3>
+    <div id="processModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-5 py-4 border-b border-obsidian-border flex justify-between items-center bg-obsidian-bg shrink-0">
+                <h3 id="modalTitle" class="font-semibold text-white">Create New Process Loop</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-white">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div class="p-5">
+            <div class="p-5 overflow-y-auto">
                 <label class="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-2">Process Name</label>
-                <input type="text" id="newProcessTitle" placeholder="e.g. Obsidian Daily Review" 
+                <input type="text" id="processTitleInput" placeholder="e.g. Obsidian Daily Review" 
                     class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded focus:outline-none focus:border-obsidian-accent font-mono text-sm">
                 
-                <label class="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-2 mt-4">Initial Tasks (One per line)</label>
-                <textarea id="newProcessTasks" rows="5" placeholder="Read Inbox&#10;Create Slipnotes&#10;Link Notes..." 
+                <label class="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-2 mt-4">Tasks (One per line)</label>
+                <p class="text-xs text-gray-500 mb-2">Reorder lines to reorder tasks. Unchanged text keeps checked status.</p>
+                <textarea id="processTasksInput" rows="10" placeholder="Read Inbox&#10;Create Slipnotes&#10;Link Notes..." 
                     class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded focus:outline-none focus:border-obsidian-accent font-mono text-sm"></textarea>
             </div>
-            <div class="px-5 py-3 bg-obsidian-bg border-t border-obsidian-border flex justify-end gap-3">
+            <div class="px-5 py-3 bg-obsidian-bg border-t border-obsidian-border flex justify-end gap-3 shrink-0">
                 <button onclick="closeModal()" class="text-gray-400 hover:text-white text-sm px-3 py-1.5 transition-colors">Cancel</button>
-                <button onclick="createProcess()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">Create</button>
+                <button id="modalSaveBtn" onclick="saveProcess()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">Create</button>
             </div>
         </div>
     </div>
@@ -131,6 +132,7 @@
     <script>
         // State Management
         let processes = [];
+        let editingId = null; // Tracks if we are editing an existing loop
 
         // Constants
         const STORAGE_KEY = 'hlp_process_loops_v1';
@@ -160,31 +162,45 @@
         }
 
         // Logic Functions
-        function createProcess() {
-            const titleInput = document.getElementById('newProcessTitle');
-            const tasksInput = document.getElementById('newProcessTasks');
+        function saveProcess() {
+            const titleInput = document.getElementById('processTitleInput');
+            const tasksInput = document.getElementById('processTasksInput');
             
             const title = titleInput.value.trim();
             if (!title) return alert("Please enter a process title.");
 
             // Parse tasks from textarea (split by newline)
-            const tasksRaw = tasksInput.value.split('\n');
-            const tasks = tasksRaw
+            const lines = tasksInput.value.split('\n')
                 .map(t => t.trim())
-                .filter(t => t.length > 0)
-                .map(t => ({ text: t, done: false }));
+                .filter(t => t.length > 0);
 
-            const newProcess = {
-                id: Date.now().toString(),
-                title: title,
-                tasks: tasks
-            };
-
-            processes.push(newProcess);
+            if (editingId) {
+                // UPDATE EXISTING
+                const process = processes.find(p => p.id === editingId);
+                if (process) {
+                    process.title = title;
+                    
+                    // Smart Merge: Preserve 'done' state if text matches exactly
+                    const newTaskList = lines.map(lineText => {
+                        const existingTask = process.tasks.find(t => t.text === lineText);
+                        if (existingTask) {
+                            return existingTask; // Keep the object (and its done state)
+                        } else {
+                            return { text: lineText, done: false }; // New task
+                        }
+                    });
+                    process.tasks = newTaskList;
+                }
+            } else {
+                // CREATE NEW
+                const newProcess = {
+                    id: Date.now().toString(),
+                    title: title,
+                    tasks: lines.map(t => ({ text: t, done: false }))
+                };
+                processes.push(newProcess);
+            }
             
-            // Reset and Close
-            titleInput.value = '';
-            tasksInput.value = '';
             closeModal();
             saveData();
         }
@@ -196,7 +212,7 @@
             }
         }
 
-        function addTask(processId) {
+        function addTaskSingle(processId) {
             const input = document.getElementById(`input-${processId}`);
             const text = input.value.trim();
             if (!text) return;
@@ -233,15 +249,40 @@
         }
 
         // Modal Handling
-        function openModal() {
-            document.getElementById('createModal').classList.remove('hidden');
-            document.getElementById('createModal').classList.add('flex');
-            document.getElementById('newProcessTitle').focus();
+        function openModal(id = null) {
+            const modal = document.getElementById('processModal');
+            const titleInput = document.getElementById('processTitleInput');
+            const tasksInput = document.getElementById('processTasksInput');
+            const modalTitle = document.getElementById('modalTitle');
+            const saveBtn = document.getElementById('modalSaveBtn');
+
+            editingId = id;
+
+            if (id) {
+                // Edit Mode
+                const process = processes.find(p => p.id === id);
+                modalTitle.innerText = "Edit Process Loop";
+                saveBtn.innerText = "Save Changes";
+                titleInput.value = process.title;
+                // Join tasks with newlines for textarea
+                tasksInput.value = process.tasks.map(t => t.text).join('\n');
+            } else {
+                // Create Mode
+                modalTitle.innerText = "Create New Process Loop";
+                saveBtn.innerText = "Create";
+                titleInput.value = '';
+                tasksInput.value = '';
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            titleInput.focus();
         }
 
         function closeModal() {
-            document.getElementById('createModal').classList.add('hidden');
-            document.getElementById('createModal').classList.remove('flex');
+            document.getElementById('processModal').classList.add('hidden');
+            document.getElementById('processModal').classList.remove('flex');
+            editingId = null;
         }
 
         // Rendering
@@ -279,9 +320,14 @@
                                 <div class="h-full ${isComplete ? 'bg-green-500' : 'bg-obsidian-accent'} transition-all duration-500" style="width: ${percent}%"></div>
                             </div>
                         </div>
-                        <button onclick="deleteProcess('${proc.id}')" class="text-gray-500 hover:text-red-400 transition-colors px-2">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
+                        <div class="flex items-center">
+                            <button onclick="openModal('${proc.id}')" class="text-gray-500 hover:text-white transition-colors px-2" title="Edit Loop">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteProcess('${proc.id}')" class="text-gray-500 hover:text-red-400 transition-colors px-2" title="Delete Loop">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                     </div>
                 `;
 
@@ -289,7 +335,7 @@
                 html += `<div class="flex-1 overflow-y-auto max-h-96 p-2 space-y-1">`;
                 
                 if (proc.tasks.length === 0) {
-                    html += `<p class="text-xs text-center text-gray-600 italic py-4">No tasks yet.</p>`;
+                    html += `<p class="text-xs text-center text-gray-600 italic py-4">No tasks defined.</p>`;
                 }
 
                 proc.tasks.forEach((task, idx) => {
@@ -320,9 +366,9 @@
                             : `
                             <div class="flex gap-2">
                                 <input type="text" id="input-${proc.id}" placeholder="Add next step..." 
-                                    onkeypress="if(event.key === 'Enter') addTask('${proc.id}')"
+                                    onkeypress="if(event.key === 'Enter') addTaskSingle('${proc.id}')"
                                     class="flex-1 bg-obsidian-pane border border-obsidian-border text-xs px-2 py-1.5 rounded text-white focus:border-obsidian-accent focus:outline-none">
-                                <button onclick="addTask('${proc.id}')" class="bg-obsidian-pane hover:bg-obsidian-accent border border-obsidian-border hover:border-obsidian-accent text-white px-3 py-1 rounded transition-colors">
+                                <button onclick="addTaskSingle('${proc.id}')" class="bg-obsidian-pane hover:bg-obsidian-accent border border-obsidian-border hover:border-obsidian-accent text-white px-3 py-1 rounded transition-colors">
                                     <i class="fa-solid fa-plus text-xs"></i>
                                 </button>
                             </div>
