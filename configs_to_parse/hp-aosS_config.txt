@@ -1,0 +1,156 @@
+; J9772A Configuration Editor; Created on release #YA.16.09.0017
+; Ver #14:01.44.00.04.19.02.13.98.82.34.61.18.28.f3.84.9c.63.ff.37.27:45
+hostname "CATF-FIELDS-STAGE-SW01"
+console idle-timeout 1800
+console idle-timeout serial-usb 1800
+aruba-central disable
+no rest-interface
+trunk 47-48 trk1 lacp
+timesync sntp
+sntp unicast
+sntp server priority 1 129.6.15.29
+sntp server priority 2 129.6.15.30
+no telnet-server
+time daylight-time-rule continental-us-and-canada
+time timezone -360
+ip default-gateway 10.200.0.1
+interface 13
+   name "Production Room"
+   exit
+interface 14
+   name "Production Room"
+   exit
+interface 16
+   name "Production Room"
+   exit
+interface 17
+   name "Production Room"
+   exit
+interface 18
+   name "Production Room"
+   exit
+interface 41
+   name "Cam - ?"
+   exit
+interface 42
+   name "Cam - ?"
+   exit
+interface 44
+   name "FOH Booth"
+   exit
+interface 48
+   name "CATF-FIELDS-STAGE-IDF01"
+   exit
+interface 51
+   name "Uplink: Fields-IDF 2 (front)"
+   exit
+interface 52
+   name "Uplink: Fields-Child Education"
+   exit
+snmp-server community "public"
+snmp-server community "$0l3r@n+RW!&*9" operator unrestricted
+snmp-server community "NetInfoReader" operator
+snmp-server contact "Enable" location "SWITCH IN BACKSTAGE RACK"
+vlan 1
+   name "DEFAULT_VLAN"
+   no untagged 2-46,49-52
+   tagged 1,Trk1
+   no ip address
+   exit
+vlan 10
+   name "Staff"
+   untagged 1-11,21,23,40,49-52,Trk1
+   tagged 18
+   ip address 10.200.0.3 255.255.252.0
+   qos priority 7
+   exit
+vlan 20
+   name "Guest"
+   tagged 1,5-12,21,49,51-52,Trk1
+   no ip address
+   qos priority 0
+   exit
+vlan 21
+   name "Tvs"
+   tagged 1,5-12,21,49,51-52,Trk1
+   no ip address
+   exit
+vlan 30
+   name "Media"
+   untagged 13-18,20,22,24,44,46
+   tagged 1,5-12,21,49,51-52,Trk1
+   no ip address
+   qos priority 6
+   exit
+vlan 40
+   name "Security"
+   untagged 12,19,25-39,41-43,45
+   tagged 1,49,51-52,Trk1
+   no ip address
+   qos priority 0
+   exit
+vlan 50
+   name "HVAC & Access Control"
+   tagged 1,49,51-52,Trk1
+   no ip address
+   qos priority 0
+   exit
+spanning-tree
+spanning-tree 2 bpdu-protection
+spanning-tree 3 bpdu-protection
+spanning-tree 4 bpdu-protection
+spanning-tree 5 bpdu-protection
+spanning-tree 6 bpdu-protection
+spanning-tree 7 bpdu-protection
+spanning-tree 8 bpdu-protection
+spanning-tree 9 bpdu-protection
+spanning-tree 10 bpdu-protection
+spanning-tree 11 bpdu-protection
+spanning-tree 12 bpdu-protection
+spanning-tree 13 bpdu-filter
+spanning-tree 14 bpdu-protection
+spanning-tree 15 bpdu-protection
+spanning-tree 16 bpdu-protection
+spanning-tree 17 bpdu-protection
+spanning-tree 18 bpdu-protection
+spanning-tree 19 bpdu-protection
+spanning-tree 20 bpdu-protection
+spanning-tree 21 bpdu-protection
+spanning-tree 22 bpdu-protection
+spanning-tree 23 bpdu-protection
+spanning-tree 24 bpdu-protection
+spanning-tree 25 bpdu-protection
+spanning-tree 26 bpdu-protection
+spanning-tree 27 bpdu-protection
+spanning-tree 28 bpdu-protection
+spanning-tree 29 bpdu-protection
+spanning-tree 30 bpdu-protection
+spanning-tree 31 bpdu-protection
+spanning-tree 32 bpdu-protection
+spanning-tree 33 bpdu-protection
+spanning-tree 34 bpdu-protection
+spanning-tree 35 bpdu-protection
+spanning-tree 36 bpdu-protection
+spanning-tree 37 bpdu-protection
+spanning-tree 38 bpdu-protection
+spanning-tree 39 bpdu-protection
+spanning-tree 40 bpdu-protection
+spanning-tree 41 bpdu-protection
+spanning-tree 42 bpdu-protection
+spanning-tree 43 bpdu-protection
+spanning-tree 44 bpdu-protection
+spanning-tree 45 bpdu-protection
+spanning-tree 46 bpdu-protection
+spanning-tree Trk1 priority 4
+spanning-tree trap errant-bpdu
+spanning-tree bpdu-protection-timeout 600 force-version rstp-operation
+no tftp server
+loop-protect 1-46
+loop-protect trap loop-detected
+loop-protect disable-timer 600
+no dhcp config-file-update
+no dhcp image-file-update
+no dhcp tr69-acs-url
+activate provision disable
+password manager
+password operator
