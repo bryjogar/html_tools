@@ -124,28 +124,41 @@
             </div>
         </div>
 
-        <!-- Stats Bar -->
-        <div id="statsBar" class="hidden bg-obsidian-pane border-b border-obsidian-border px-6 py-2 shrink-0">
-            <div class="flex items-center justify-between text-xs">
-                <div class="flex gap-6">
-                    <div>
-                        <span class="text-gray-500">Packets:</span>
-                        <span id="packetCount" class="text-white font-mono ml-2">0</span>
+            <!-- Stats Bar -->
+            <div id="statsBar" class="hidden bg-obsidian-pane border-b border-obsidian-border px-6 py-3 shrink-0">
+                <div class="flex items-center justify-between">
+                    <div class="flex gap-6 text-xs">
+                        <div>
+                            <span class="text-gray-500">Packets:</span>
+                            <span id="packetCount" class="text-white font-mono ml-2">0</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Conversations:</span>
+                            <span id="conversationCount" class="text-white font-mono ml-2">0</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Protocols:</span>
+                            <span id="protocols" class="text-white font-mono ml-2">-</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Multicast:</span>
+                            <span id="multicastCount" class="text-white font-mono ml-2">0</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Total Bytes:</span>
+                            <span id="totalBytes" class="text-white font-mono ml-2">0</span>
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-gray-500">Conversations:</span>
-                        <span id="conversationCount" class="text-white font-mono ml-2">0</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">Protocols:</span>
-                        <span id="protocols" class="text-white font-mono ml-2">-</span>
+                    <div class="flex gap-2">
+                        <button onclick="showSummary()" class="text-xs text-obsidian-accent hover:text-white px-3 py-1 border border-obsidian-border rounded hover:border-obsidian-accent transition-colors">
+                            <i class="fa-solid fa-chart-bar mr-1"></i> Summary
+                        </button>
+                        <button onclick="clearPCAP()" class="text-xs text-red-400 hover:text-red-300 px-3 py-1 border border-obsidian-border rounded hover:border-red-500 transition-colors">
+                            <i class="fa-solid fa-trash mr-1"></i> Clear
+                        </button>
                     </div>
                 </div>
-                <button onclick="clearPCAP()" class="text-red-400 hover:text-red-300">
-                    <i class="fa-solid fa-trash mr-1"></i> Clear
-                </button>
             </div>
-        </div>
 
         <!-- Main Content -->
         <div class="flex-1 overflow-hidden flex">
@@ -166,6 +179,10 @@
                         <p class="text-lg">Upload a PCAP file to begin</p>
                         <p class="text-sm mt-2">Drag and drop or click to select</p>
                     </div>
+                </div>
+
+                <div id="summaryView" class="hidden p-6">
+                    <div id="summaryContent" class="space-y-6"></div>
                 </div>
 
                 <div id="conversationView" class="hidden p-6">
@@ -408,6 +425,10 @@
                 const checksum = reader.readUInt16(false);
                 const srcIP = this.readIP(reader);
                 const dstIP = this.readIP(reader);
+                
+                // Check for multicast/broadcast
+                const isMulticast = this.isMulticastIP(dstIP);
+                const isBroadcast = dstIP === '255.255.255.255';
 
                 // Skip options if IHL > 20
                 if (ihl > 20) {
@@ -421,14 +442,54 @@
                     transport = this.parseUDP(reader);
                 } else if (protocol === 1) { // ICMP
                     transport = this.parseICMP(reader);
+                } else if (protocol === 2) { // IGMP
+                    transport = this.parseIGMP(reader);
                 }
 
                 return {
                     version,
                     srcIP,
                     dstIP,
-                    protocol: protocol === 6 ? 'TCP' : protocol === 17 ? 'UDP' : protocol === 1 ? 'ICMP' : `IP Protocol ${protocol}`,
+                    ttl,
+                    isMulticast,
+                    isBroadcast,
+                    protocol: protocol === 6 ? 'TCP' : protocol === 17 ? 'UDP' : protocol === 1 ? 'ICMP' : protocol === 2 ? 'IGMP' : `IP Protocol ${protocol}`,
                     transport
+                };
+            }
+
+            isMulticastIP(ip) {
+                const parts = ip.split('.');
+                if (parts.length === 4) {
+                    const firstOctet = parseInt(parts[0]);
+                    return firstOctet >= 224 && firstOctet <= 239;
+                }
+                return false;
+            }
+
+            parseIGMP(reader) {
+                if (reader.remaining() < 8) return null;
+
+                const type = reader.readUInt8();
+                const maxRespTime = reader.readUInt8();
+                const checksum = reader.readUInt16(false);
+                const groupAddress = this.readIP(reader);
+
+                const igmpTypes = {
+                    0x11: 'Membership Query',
+                    0x12: 'Version 1 Membership Report',
+                    0x16: 'Version 2 Membership Report',
+                    0x17: 'Leave Group',
+                    0x22: 'Version 3 Membership Report'
+                };
+
+                return {
+                    type: 'IGMP',
+                    igmpType: type,
+                    messageType: igmpTypes[type] || `IGMP Type 0x${type.toString(16)}`,
+                    groupAddress: groupAddress,
+                    isQuery: type === 0x11,
+                    isReport: type === 0x12 || type === 0x16 || type === 0x22
                 };
             }
 
@@ -478,6 +539,7 @@
                     seqNum,
                     ackNum,
                     flags: flagNames.join(', '),
+                    hasRST: (flags & 0x004) !== 0,
                     window,
                     payload,
                     application
@@ -563,6 +625,21 @@
             }
 
             parseApplicationLayer(srcPort, dstPort, payload) {
+                // DHCP (UDP 67/68)
+                if ((srcPort === 67 || srcPort === 68) && (dstPort === 67 || dstPort === 68)) {
+                    return this.parseDHCP(payload);
+                }
+
+                // DNS
+                if (srcPort === 53 || dstPort === 53) {
+                    return this.parseDNS(payload);
+                }
+
+                // mDNS (UDP 5353)
+                if (srcPort === 5353 || dstPort === 5353) {
+                    return { type: 'mDNS', port: srcPort === 5353 ? 'source' : 'destination' };
+                }
+
                 // HTTP
                 if (srcPort === 80 || dstPort === 80 || srcPort === 8080 || dstPort === 8080) {
                     return this.parseHTTP(payload);
@@ -573,12 +650,147 @@
                     return this.parseTLS(payload);
                 }
 
-                // DNS
-                if (srcPort === 53 || dstPort === 53) {
-                    return { type: 'DNS', raw: payload };
-                }
-
                 return null;
+            }
+
+            parseDHCP(payload) {
+                if (payload.length < 240) return null; // DHCP minimum size
+
+                try {
+                    const reader = new BinaryReader(payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.length));
+                    const op = reader.readUInt8(); // Message type
+                    const htype = reader.readUInt8();
+                    const hlen = reader.readUInt8();
+                    const hops = reader.readUInt8();
+                    const xid = reader.readUInt32(false);
+                    const secs = reader.readUInt16(false);
+                    const flags = reader.readUInt16(false);
+                    reader.skip(4); // ciaddr
+                    reader.skip(4); // yiaddr
+                    reader.skip(4); // siaddr
+                    reader.skip(4); // giaddr
+                    reader.skip(16); // chaddr
+                    reader.skip(192); // sname, file
+                    const magicCookie = reader.readUInt32(false);
+                    
+                    if (magicCookie !== 0x63825363) {
+                        return null; // Not DHCP
+                    }
+
+                    const dhcpTypes = {
+                        1: 'Discover',
+                        2: 'Offer',
+                        3: 'Request',
+                        5: 'ACK',
+                        6: 'NAK',
+                        7: 'Release',
+                        8: 'Inform'
+                    };
+
+                    let messageType = null;
+                    let option55 = null;
+                    let option82 = null;
+                    let serverId = null;
+
+                    // Parse options
+                    while (reader.remaining() > 0) {
+                        const optionCode = reader.readUInt8();
+                        if (optionCode === 0) continue; // Padding
+                        if (optionCode === 255) break; // End
+                        
+                        if (optionCode === 53) { // Message Type
+                            const len = reader.readUInt8();
+                            if (len > 0) {
+                                messageType = reader.readUInt8();
+                            }
+                        } else if (optionCode === 55) { // Parameter Request List
+                            const len = reader.readUInt8();
+                            option55 = Array.from(reader.readBytes(len));
+                        } else if (optionCode === 82) { // Relay Agent Info
+                            const len = reader.readUInt8();
+                            option82 = reader.readBytes(len);
+                        } else if (optionCode === 54) { // Server Identifier
+                            const len = reader.readUInt8();
+                            const bytes = reader.readBytes(len);
+                            serverId = `${bytes[0]}.${bytes[1]}.${bytes[2]}.${bytes[3]}`;
+                        } else {
+                            const len = reader.readUInt8();
+                            if (len > 0 && len <= reader.remaining()) {
+                                reader.skip(len);
+                            }
+                        }
+                    }
+
+                    return {
+                        type: 'DHCP',
+                        messageType: dhcpTypes[messageType] || `Type ${messageType}`,
+                        op: op === 1 ? 'Request' : 'Reply',
+                        xid: xid,
+                        option55: option55,
+                        option82: option82 ? 'Present' : null,
+                        serverId: serverId,
+                        isNAK: messageType === 6
+                    };
+                } catch (e) {
+                    return { type: 'DHCP', messageType: 'Parse Error' };
+                }
+            }
+
+            parseDNS(payload) {
+                if (payload.length < 12) return null;
+
+                try {
+                    const reader = new BinaryReader(payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.length));
+                    const transactionId = reader.readUInt16(false);
+                    const flags = reader.readUInt16(false);
+                    const questions = reader.readUInt16(false);
+                    const answerRRs = reader.readUInt16(false);
+                    const authorityRRs = reader.readUInt16(false);
+                    const additionalRRs = reader.readUInt16(false);
+
+                    const qr = (flags >> 15) & 1; // Query (0) or Response (1)
+                    const opcode = (flags >> 11) & 0x0F;
+                    const rcode = flags & 0x0F;
+
+                    const rcodeNames = {
+                        0: 'NOERROR',
+                        1: 'FORMERR',
+                        2: 'SERVFAIL',
+                        3: 'NXDOMAIN',
+                        4: 'NOTIMP',
+                        5: 'REFUSED'
+                    };
+
+                    // Try to read question name
+                    let questionName = '';
+                    try {
+                        let nameLen = reader.readUInt8();
+                        while (nameLen > 0 && nameLen < 64 && reader.remaining() > nameLen) {
+                            const label = reader.readBytes(nameLen);
+                            questionName += new TextDecoder('utf-8', { fatal: false }).decode(label) + '.';
+                            nameLen = reader.readUInt8();
+                        }
+                        if (nameLen === 0) questionName = questionName.slice(0, -1);
+                        reader.skip(4); // QTYPE and QCLASS
+                    } catch (e) {
+                        // Skip if can't parse
+                    }
+
+                    return {
+                        type: 'DNS',
+                        isQuery: qr === 0,
+                        isResponse: qr === 1,
+                        transactionId: transactionId,
+                        questions: questions,
+                        answers: answerRRs,
+                        rcode: rcodeNames[rcode] || `RCODE${rcode}`,
+                        questionName: questionName || 'Unknown',
+                        isSERVFAIL: rcode === 2,
+                        isNXDOMAIN: rcode === 3
+                    };
+                } catch (e) {
+                    return { type: 'DNS', isQuery: true };
+                }
             }
 
             parseHTTP(payload) {
@@ -995,10 +1207,32 @@
         }
 
         function displayResults(packets, grouped) {
+            // Calculate statistics
+            let totalBytes = 0;
+            let multicastPackets = 0;
+            packets.forEach(p => {
+                totalBytes += p.length;
+                if (p.ethernet && p.ethernet.ip) {
+                    const ip = p.ethernet.ip.dstIP;
+                    // Check if multicast (224.0.0.0/4)
+                    if (ip) {
+                        const parts = ip.split('.');
+                        if (parts.length === 4) {
+                            const firstOctet = parseInt(parts[0]);
+                            if (firstOctet >= 224 && firstOctet <= 239) {
+                                multicastPackets++;
+                            }
+                        }
+                    }
+                }
+            });
+            
             // Update stats
-            document.getElementById('packetCount').textContent = packets.length;
+            document.getElementById('packetCount').textContent = packets.length.toLocaleString();
             document.getElementById('conversationCount').textContent = grouped.conversations.length;
             document.getElementById('protocols').textContent = grouped.protocols.join(', ');
+            document.getElementById('multicastCount').textContent = multicastPackets.toLocaleString();
+            document.getElementById('totalBytes').textContent = formatBytes(totalBytes);
             
             // Show UI
             document.getElementById('emptyState').classList.add('hidden');
@@ -1008,10 +1242,15 @@
             // Display conversations
             displayConversationList(grouped.conversations);
             
-            // Show first conversation
-            if (grouped.conversations.length > 0) {
-                showConversation(grouped.conversations[0]);
-            }
+            // Show summary by default
+            showSummary(packets, grouped);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
         }
 
         function displayConversationList(convs) {
@@ -1057,6 +1296,9 @@
         function showConversation(conv) {
             currentConversation = conv;
             
+            document.getElementById('summaryView').classList.add('hidden');
+            document.getElementById('conversationView').classList.remove('hidden');
+            
             const title = conv.srcPort 
                 ? `${conv.srcIP}:${conv.srcPort} ↔ ${conv.dstIP}:${conv.dstPort}`
                 : `${conv.srcIP} ↔ ${conv.dstIP} (${conv.protocol})`;
@@ -1080,8 +1322,31 @@
             const analysis = analyzeConversation(conv);
             const issueCount = analysis.issues.length;
             
+            // Calculate TCP-specific metrics
+            let tcpMetrics = '';
+            if (conv.protocol === 'TCP') {
+                const rtt = calculateRTT(conv);
+                const throughput = totalBytes / (conv.endTime - conv.startTime) || 0;
+                const packetRate = conv.packets.length / (conv.endTime - conv.startTime) || 0;
+                
+                tcpMetrics = `
+                    <div>
+                        <span class="text-gray-500">RTT:</span>
+                        <strong class="ml-1">${rtt > 0 ? rtt.toFixed(1) + 'ms' : 'N/A'}</strong>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Throughput:</span>
+                        <strong class="ml-1">${formatBytes(throughput)}/s</strong>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Packet Rate:</span>
+                        <strong class="ml-1">${packetRate.toFixed(1)} pps</strong>
+                    </div>
+                `;
+            }
+            
             document.getElementById('conversationInfo').innerHTML = `
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-sm">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-3 text-sm">
                     <div>
                         <span class="text-gray-500">Protocol:</span>
                         <strong class="ml-1">${conv.protocol}</strong>
@@ -1096,20 +1361,21 @@
                     </div>
                     <div>
                         <span class="text-gray-500">Total Bytes:</span>
-                        <strong class="ml-1">${totalBytes.toLocaleString()}</strong>
+                        <strong class="ml-1">${formatBytes(totalBytes)}</strong>
                     </div>
                     <div>
                         <span class="text-gray-500">Outbound:</span>
-                        <strong class="ml-1">${outboundBytes.toLocaleString()}</strong>
+                        <strong class="ml-1">${formatBytes(outboundBytes)}</strong>
                     </div>
                     <div>
                         <span class="text-gray-500">Inbound:</span>
-                        <strong class="ml-1">${inboundBytes.toLocaleString()}</strong>
+                        <strong class="ml-1">${formatBytes(inboundBytes)}</strong>
                     </div>
                     <div>
                         <span class="text-gray-500">Issues:</span>
                         <strong class="ml-1 ${issueCount > 0 ? 'text-red-400' : 'text-green-400'}">${issueCount}</strong>
                     </div>
+                    ${tcpMetrics}
                 </div>
             `;
             
@@ -1224,6 +1490,24 @@
                 }
             });
 
+            // Calculate additional TCP metrics
+            if (conv.packets.length > 0) {
+                // Calculate jitter (inter-packet timing variance)
+                const intervals = [];
+                for (let i = 1; i < conv.packets.length; i++) {
+                    intervals.push((conv.packets[i].timestamp - conv.packets[i-1].timestamp) * 1000);
+                }
+                if (intervals.length > 1) {
+                    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                    const variance = intervals.reduce((sum, val) => sum + Math.pow(val - avgInterval, 2), 0) / intervals.length;
+                    analysis.jitter = Math.sqrt(variance);
+                }
+                
+                // Calculate packet loss rate
+                const totalExpected = conv.packets.length + analysis.retransmissions.length;
+                analysis.packetLossRate = totalExpected > 0 ? (analysis.retransmissions.length / totalExpected * 100) : 0;
+            }
+            
             // Generate summary issues
             if (analysis.retransmissions.length > 0) {
                 analysis.issues.push(`⚠️ ${analysis.retransmissions.length} retransmission(s) detected`);
@@ -1449,6 +1733,918 @@
             container.scrollTop = container.scrollHeight;
         }
 
+        function showSummary(packets, grouped) {
+            if (!packets || !grouped) {
+                if (!pcapData) return;
+                packets = pcapData.packets;
+                const tempGrouped = groupConversations(packets);
+                grouped = tempGrouped;
+            }
+            
+            document.getElementById('summaryView').classList.remove('hidden');
+            document.getElementById('conversationView').classList.add('hidden');
+            
+            const container = document.getElementById('summaryContent');
+            container.innerHTML = '';
+            
+            // Overall Statistics
+            const statsCard = document.createElement('div');
+            statsCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+            statsCard.innerHTML = `
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-obsidian-accent"></i>
+                    Overall Statistics
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-[#111827] rounded p-3">
+                        <div class="text-xs text-gray-500 mb-1">Total Packets</div>
+                        <div class="text-2xl font-bold text-white">${packets.length.toLocaleString()}</div>
+                    </div>
+                    <div class="bg-[#111827] rounded p-3">
+                        <div class="text-xs text-gray-500 mb-1">Conversations</div>
+                        <div class="text-2xl font-bold text-white">${grouped.conversations.length}</div>
+                    </div>
+                    <div class="bg-[#111827] rounded p-3">
+                        <div class="text-xs text-gray-500 mb-1">Duration</div>
+                        <div class="text-2xl font-bold text-obsidian-accent">${packets.length > 0 ? ((packets[packets.length - 1].timestamp - packets[0].timestamp).toFixed(3)) : '0'}s</div>
+                    </div>
+                    <div class="bg-[#111827] rounded p-3">
+                        <div class="text-xs text-gray-500 mb-1">Packet Rate</div>
+                        <div class="text-2xl font-bold text-green-400">${packets.length > 0 && (packets[packets.length - 1].timestamp - packets[0].timestamp) > 0 ? (packets.length / (packets[packets.length - 1].timestamp - packets[0].timestamp)).toFixed(1) : '0'} pps</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(statsCard);
+            
+            // Top Talkers
+            const topTalkers = calculateTopTalkers(packets);
+            if (topTalkers.length > 0) {
+                const talkersCard = document.createElement('div');
+                talkersCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+                talkersCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-obsidian-accent"></i>
+                        Top Talkers (by Bytes)
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-obsidian-border">
+                                    <th class="text-left py-2 text-gray-400 font-semibold">IP Address</th>
+                                    <th class="text-right py-2 text-gray-400 font-semibold">Packets</th>
+                                    <th class="text-right py-2 text-gray-400 font-semibold">Bytes Sent</th>
+                                    <th class="text-right py-2 text-gray-400 font-semibold">Bytes Received</th>
+                                    <th class="text-right py-2 text-gray-400 font-semibold">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${topTalkers.slice(0, 10).map(t => `
+                                    <tr class="border-b border-obsidian-border/50 hover:bg-white/5">
+                                        <td class="py-2 font-mono text-white">${t.ip}</td>
+                                        <td class="py-2 text-right font-mono text-gray-300">${t.packets}</td>
+                                        <td class="py-2 text-right font-mono text-blue-400">${formatBytes(t.sent)}</td>
+                                        <td class="py-2 text-right font-mono text-green-400">${formatBytes(t.received)}</td>
+                                        <td class="py-2 text-right font-mono font-bold text-white">${formatBytes(t.total)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                container.appendChild(talkersCard);
+            }
+            
+            // Protocol Distribution
+            const protocolDist = calculateProtocolDistribution(packets);
+            if (Object.keys(protocolDist).length > 0) {
+                const protoCard = document.createElement('div');
+                protoCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+                protoCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-obsidian-accent"></i>
+                        Protocol Distribution
+                    </h3>
+                    <div class="space-y-2">
+                        ${Object.entries(protocolDist).sort((a, b) => b[1].packets - a[1].packets).map(([proto, data]) => `
+                            <div class="flex items-center justify-between bg-[#111827] rounded p-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="font-semibold text-white w-20">${proto}</span>
+                                    <div class="flex-1 bg-obsidian-border rounded-full h-2 overflow-hidden">
+                                        <div class="bg-obsidian-accent h-full" style="width: ${(data.packets / packets.length * 100)}%"></div>
+                                    </div>
+                                </div>
+                                <div class="text-right ml-4">
+                                    <div class="text-sm font-mono text-white">${data.packets} (${(data.packets / packets.length * 100).toFixed(1)}%)</div>
+                                    <div class="text-xs text-gray-400">${formatBytes(data.bytes)}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(protoCard);
+            }
+            
+            // DHCP DORA Health Check
+            const dhcpAnalysis = analyzeDHCP(packets);
+            if (dhcpAnalysis.totalTransactions > 0) {
+                const dhcpCard = document.createElement('div');
+                dhcpCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+                dhcpCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-obsidian-accent"></i>
+                        DHCP DORA Health Check
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Transactions</div>
+                            <div class="text-2xl font-bold text-white">${dhcpAnalysis.totalTransactions}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">NAKs</div>
+                            <div class="text-2xl font-bold ${dhcpAnalysis.naks > 0 ? 'text-red-400' : 'text-green-400'}">${dhcpAnalysis.naks}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Avg D→O Time</div>
+                            <div class="text-2xl font-bold text-obsidian-accent">${dhcpAnalysis.avgDiscoverOfferTime > 0 ? dhcpAnalysis.avgDiscoverOfferTime.toFixed(1) : 'N/A'}ms</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Option 82</div>
+                            <div class="text-2xl font-bold ${dhcpAnalysis.option82Present ? 'text-green-400' : 'text-yellow-400'}">${dhcpAnalysis.option82Present ? 'Yes' : 'No'}</div>
+                        </div>
+                    </div>
+                    ${dhcpAnalysis.naks > 0 ? `
+                        <div class="bg-red-900/30 border border-red-600 rounded p-3 mb-4">
+                            <div class="text-red-400 font-semibold mb-2">⚠️ DHCP NAKs Detected</div>
+                            <div class="text-sm text-red-200">${dhcpAnalysis.naks} NAK packet(s) found. This indicates server rejection (IP conflicts or scope exhaustion).</div>
+                        </div>
+                    ` : ''}
+                    ${dhcpAnalysis.slowTransactions.length > 0 ? `
+                        <div class="bg-yellow-900/30 border border-yellow-600 rounded p-3">
+                            <div class="text-yellow-400 font-semibold mb-2">⏱️ Slow DHCP Responses</div>
+                            <div class="text-sm text-yellow-200">${dhcpAnalysis.slowTransactions.length} transaction(s) with Discover→Offer time > 200ms</div>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(dhcpCard);
+            }
+
+            // Multicast & Broadcast Analysis
+            const multicastAnalysis = analyzeMulticastBroadcast(packets);
+            if (multicastAnalysis.totalMulticast > 0 || multicastAnalysis.totalBroadcast > 0) {
+                const mcastCard = document.createElement('div');
+                mcastCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+                mcastCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-broadcast-tower text-obsidian-accent"></i>
+                        Multicast & Broadcast Analysis
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Multicast Packets</div>
+                            <div class="text-2xl font-bold text-white">${multicastAnalysis.totalMulticast}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Broadcast Packets</div>
+                            <div class="text-2xl font-bold text-white">${multicastAnalysis.totalBroadcast}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">IGMP Queries</div>
+                            <div class="text-2xl font-bold text-obsidian-accent">${multicastAnalysis.igmpQueries}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">IGMP Reports</div>
+                            <div class="text-2xl font-bold text-green-400">${multicastAnalysis.igmpReports}</div>
+                        </div>
+                    </div>
+                    ${multicastAnalysis.ttl1Multicast > 0 ? `
+                        <div class="bg-yellow-900/30 border border-yellow-600 rounded p-3 mb-4">
+                            <div class="text-yellow-400 font-semibold mb-2">⚠️ TTL=1 Multicast Detected</div>
+                            <div class="text-sm text-yellow-200">${multicastAnalysis.ttl1Multicast} multicast packet(s) with TTL=1. These will not route across VLANs.</div>
+                        </div>
+                    ` : ''}
+                    ${multicastAnalysis.mdnsPackets > 0 ? `
+                        <div class="bg-blue-900/30 border border-blue-600 rounded p-3 mb-4">
+                            <div class="text-blue-400 font-semibold mb-2">📡 mDNS Traffic</div>
+                            <div class="text-sm text-blue-200">${multicastAnalysis.mdnsPackets} mDNS packet(s) detected (UDP 5353). High volume can impact WiFi APs.</div>
+                        </div>
+                    ` : ''}
+                    ${multicastAnalysis.igmpQueries === 0 && multicastAnalysis.igmpReports > 0 ? `
+                        <div class="bg-red-900/30 border border-red-600 rounded p-3 mb-4">
+                            <div class="text-red-400 font-semibold mb-2">⚠️ IGMP Issue Detected</div>
+                            <div class="text-sm text-red-200">Reports found but no Queries. Multicast groups may timeout without a Querier.</div>
+                        </div>
+                    ` : ''}
+                    ${multicastAnalysis.topMulticastDestinations.length > 0 ? `
+                        <div class="mt-4">
+                            <div class="text-sm font-semibold text-white mb-2">Top Multicast Destinations</div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b border-obsidian-border">
+                                            <th class="text-left py-2 text-gray-400 font-semibold">Multicast Group</th>
+                                            <th class="text-right py-2 text-gray-400 font-semibold">Packets</th>
+                                            <th class="text-right py-2 text-gray-400 font-semibold">Bytes</th>
+                                            <th class="text-right py-2 text-gray-400 font-semibold">Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${multicastAnalysis.topMulticastDestinations.slice(0, 10).map(d => `
+                                            <tr class="border-b border-obsidian-border/50 hover:bg-white/5">
+                                                <td class="py-2 font-mono text-white">${d.group}</td>
+                                                <td class="py-2 text-right font-mono text-gray-300">${d.packets}</td>
+                                                <td class="py-2 text-right font-mono text-gray-300">${formatBytes(d.bytes)}</td>
+                                                <td class="py-2 text-right font-mono text-obsidian-accent">${d.rate.toFixed(1)} pps</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(mcastCard);
+            }
+
+            // DNS Latency Analysis
+            const dnsAnalysis = analyzeDNS(packets);
+            if (dnsAnalysis.totalQueries > 0) {
+                const dnsCard = document.createElement('div');
+                dnsCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+                dnsCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-globe text-obsidian-accent"></i>
+                        DNS Latency Analysis
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Total Queries</div>
+                            <div class="text-2xl font-bold text-white">${dnsAnalysis.totalQueries}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Avg Response</div>
+                            <div class="text-2xl font-bold text-obsidian-accent">${dnsAnalysis.avgResponseTime > 0 ? dnsAnalysis.avgResponseTime.toFixed(1) : 'N/A'}ms</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Slow (>200ms)</div>
+                            <div class="text-2xl font-bold ${dnsAnalysis.slowQueries > 0 ? 'text-red-400' : 'text-green-400'}">${dnsAnalysis.slowQueries}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">SERVFAIL</div>
+                            <div class="text-2xl font-bold ${dnsAnalysis.servfailCount > 0 ? 'text-red-400' : 'text-green-400'}">${dnsAnalysis.servfailCount}</div>
+                        </div>
+                    </div>
+                    ${dnsAnalysis.slowQueries > 0 ? `
+                        <div class="bg-yellow-900/30 border border-yellow-600 rounded p-3 mb-4">
+                            <div class="text-yellow-400 font-semibold mb-2">⏱️ Slow DNS Responses</div>
+                            <div class="text-sm text-yellow-200">${dnsAnalysis.slowQueries} query/queries with response time > 200ms</div>
+                        </div>
+                    ` : ''}
+                    ${dnsAnalysis.servfailCount > 0 ? `
+                        <div class="bg-red-900/30 border border-red-600 rounded p-3">
+                            <div class="text-red-400 font-semibold mb-2">⚠️ DNS SERVFAIL Detected</div>
+                            <div class="text-sm text-red-200">${dnsAnalysis.servfailCount} SERVFAIL response(s). This indicates upstream DNS issues (not user typos).</div>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(dnsCard);
+            }
+
+            // TCP RST Analysis
+            const tcpRstAnalysis = analyzeTCPRST(grouped.conversations);
+            if (tcpRstAnalysis.totalRSTs > 0 || tcpRstAnalysis.zeroWindows > 0 || tcpRstAnalysis.retransRate > 0) {
+                const rstCard = document.createElement('div');
+                rstCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+                rstCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-exclamation-triangle text-obsidian-accent"></i>
+                        TCP Connection Analysis
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">TCP RSTs</div>
+                            <div class="text-2xl font-bold ${tcpRstAnalysis.totalRSTs > 0 ? 'text-red-400' : 'text-green-400'}">${tcpRstAnalysis.totalRSTs}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Zero Windows</div>
+                            <div class="text-2xl font-bold ${tcpRstAnalysis.zeroWindows > 0 ? 'text-red-400' : 'text-green-400'}">${tcpRstAnalysis.zeroWindows}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Retrans Rate</div>
+                            <div class="text-2xl font-bold ${tcpRstAnalysis.retransRate > 2 ? 'text-red-400' : tcpRstAnalysis.retransRate > 1 ? 'text-yellow-400' : 'text-green-400'}">${tcpRstAnalysis.retransRate.toFixed(2)}%</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Dup ACKs</div>
+                            <div class="text-2xl font-bold ${tcpRstAnalysis.dupAcks > 0 ? 'text-yellow-400' : 'text-green-400'}">${tcpRstAnalysis.dupAcks}</div>
+                        </div>
+                    </div>
+                    ${tcpRstAnalysis.totalRSTs > 0 ? `
+                        <div class="bg-red-900/30 border border-red-600 rounded p-3 mb-4">
+                            <div class="text-red-400 font-semibold mb-2">⚠️ TCP RST Packets Detected</div>
+                            <div class="text-sm text-red-200">${tcpRstAnalysis.totalRSTs} RST packet(s) found. Check which side sent RST to identify if firewall killed connection or server crashed.</div>
+                        </div>
+                    ` : ''}
+                    ${tcpRstAnalysis.zeroWindows > 0 ? `
+                        <div class="bg-red-900/30 border border-red-600 rounded p-3 mb-4">
+                            <div class="text-red-400 font-semibold mb-2">🚫 TCP Zero Window Detected</div>
+                            <div class="text-sm text-red-200">${tcpRstAnalysis.zeroWindows} zero window condition(s). Receiver is overwhelmed - not a network issue.</div>
+                        </div>
+                    ` : ''}
+                    ${tcpRstAnalysis.retransRate > 2 ? `
+                        <div class="bg-red-900/30 border border-red-600 rounded p-3">
+                            <div class="text-red-400 font-semibold mb-2">⚠️ High Retransmission Rate</div>
+                            <div class="text-sm text-red-200">Retransmission rate: ${tcpRstAnalysis.retransRate.toFixed(2)}%. Anything over 1-2% on LAN indicates packet loss.</div>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(rstCard);
+            }
+
+            // EAPOL Analysis
+            const eapolAnalysis = analyzeEAPOL(packets);
+            if (eapolAnalysis.totalEAPOL > 0) {
+                const eapolCard = document.createElement('div');
+                eapolCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+                eapolCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-wifi text-obsidian-accent"></i>
+                        Wireless EAPOL Analysis (802.1X/WPA)
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">EAPOL Packets</div>
+                            <div class="text-2xl font-bold text-white">${eapolAnalysis.totalEAPOL}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">4-Way Handshakes</div>
+                            <div class="text-2xl font-bold text-obsidian-accent">${eapolAnalysis.completeHandshakes}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Failed Handshakes</div>
+                            <div class="text-2xl font-bold ${eapolAnalysis.failedHandshakes > 0 ? 'text-red-400' : 'text-green-400'}">${eapolAnalysis.failedHandshakes}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Message 1 Retries</div>
+                            <div class="text-2xl font-bold ${eapolAnalysis.message1Retries > 0 ? 'text-yellow-400' : 'text-green-400'}">${eapolAnalysis.message1Retries}</div>
+                        </div>
+                    </div>
+                    ${eapolAnalysis.failedHandshakes > 0 ? `
+                        <div class="bg-red-900/30 border border-red-600 rounded p-3 mb-4">
+                            <div class="text-red-400 font-semibold mb-2">⚠️ EAPOL Handshake Failures</div>
+                            <div class="text-sm text-red-200">${eapolAnalysis.failedHandshakes} incomplete 4-way handshake(s) detected.</div>
+                        </div>
+                    ` : ''}
+                    ${eapolAnalysis.message1Retries > 0 ? `
+                        <div class="bg-yellow-900/30 border border-yellow-600 rounded p-3">
+                            <div class="text-yellow-400 font-semibold mb-2">⚠️ Message 1 Retries</div>
+                            <div class="text-sm text-yellow-200">${eapolAnalysis.message1Retries} retry(ies) of Message 1. Usually indicates PSK error or signal interference.</div>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(eapolCard);
+            }
+
+            // TCP Analysis Summary
+            const tcpAnalysis = analyzeAllTCP(grouped.conversations);
+            if (tcpAnalysis.totalConnections > 0) {
+                const tcpCard = document.createElement('div');
+                tcpCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+                tcpCard.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-obsidian-accent"></i>
+                        TCP Analysis Summary
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">TCP Connections</div>
+                            <div class="text-2xl font-bold text-white">${tcpAnalysis.totalConnections}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Avg RTT</div>
+                            <div class="text-2xl font-bold text-obsidian-accent">${tcpAnalysis.avgRTT > 0 ? tcpAnalysis.avgRTT.toFixed(1) : 'N/A'}ms</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Total Retrans</div>
+                            <div class="text-2xl font-bold ${tcpAnalysis.totalRetrans > 0 ? 'text-red-400' : 'text-green-400'}">${tcpAnalysis.totalRetrans}</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Avg Throughput</div>
+                            <div class="text-2xl font-bold text-green-400">${tcpAnalysis.avgThroughput < 1024 ? tcpAnalysis.avgThroughput.toFixed(2) + ' B' : formatBytes(tcpAnalysis.avgThroughput)}/s</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Avg Jitter</div>
+                            <div class="text-2xl font-bold text-blue-400">${tcpAnalysis.avgJitter > 0 ? tcpAnalysis.avgJitter.toFixed(1) : 'N/A'}ms</div>
+                        </div>
+                        <div class="bg-[#111827] rounded p-3">
+                            <div class="text-xs text-gray-500 mb-1">Loss Rate</div>
+                            <div class="text-2xl font-bold ${tcpAnalysis.avgLossRate > 1 ? 'text-red-400' : 'text-green-400'}">${tcpAnalysis.avgLossRate.toFixed(2)}%</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(tcpCard);
+            }
+
+            // Conversations List
+            const convsCard = document.createElement('div');
+            convsCard.className = 'bg-obsidian-pane border border-obsidian-border rounded-lg p-6';
+            convsCard.innerHTML = `
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-comments text-obsidian-accent"></i>
+                    Conversations
+                </h3>
+                <div class="space-y-2">
+                    ${grouped.conversations.slice(0, 20).map((conv, idx) => {
+                        const analysis = analyzeConversation(conv);
+                        const hasIssues = analysis.issues.length > 0;
+                        const title = conv.srcPort 
+                            ? `${conv.srcIP}:${conv.srcPort} ↔ ${conv.dstIP}:${conv.dstPort}`
+                            : `${conv.srcIP} ↔ ${conv.dstIP}`;
+                        return `
+                            <div class="bg-[#111827] border ${hasIssues ? 'border-red-500/50' : 'border-obsidian-border'} rounded p-3 cursor-pointer hover:bg-white/5 transition-colors" onclick="showConversationByIndex(${idx})">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1">
+                                        <div class="font-mono text-sm text-white">${title}</div>
+                                        <div class="text-xs text-gray-400 mt-1">
+                                            ${conv.protocol} • ${conv.packets.length} packets • ${((conv.endTime - conv.startTime) * 1000).toFixed(0)}ms
+                                        </div>
+                                    </div>
+                                    ${hasIssues ? `<span class="text-xs bg-red-500 text-white px-2 py-1 rounded ml-2">${analysis.issues.length} issue${analysis.issues.length !== 1 ? 's' : ''}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            container.appendChild(convsCard);
+        }
+
+        function calculateTopTalkers(packets) {
+            const talkers = {};
+            
+            packets.forEach(p => {
+                if (!p.ethernet || !p.ethernet.ip) return;
+                
+                const srcIP = p.ethernet.ip.srcIP;
+                const dstIP = p.ethernet.ip.dstIP;
+                
+                if (!talkers[srcIP]) {
+                    talkers[srcIP] = { ip: srcIP, packets: 0, sent: 0, received: 0, total: 0 };
+                }
+                if (!talkers[dstIP]) {
+                    talkers[dstIP] = { ip: dstIP, packets: 0, sent: 0, received: 0, total: 0 };
+                }
+                
+                talkers[srcIP].packets++;
+                talkers[srcIP].sent += p.length;
+                talkers[srcIP].total += p.length;
+                
+                talkers[dstIP].packets++;
+                talkers[dstIP].received += p.length;
+                talkers[dstIP].total += p.length;
+            });
+            
+            return Object.values(talkers).sort((a, b) => b.total - a.total);
+        }
+
+        function calculateProtocolDistribution(packets) {
+            const dist = {};
+            
+            packets.forEach(p => {
+                if (!p.ethernet || !p.ethernet.ip) {
+                    const proto = 'Other';
+                    if (!dist[proto]) dist[proto] = { packets: 0, bytes: 0 };
+                    dist[proto].packets++;
+                    dist[proto].bytes += p.length;
+                    return;
+                }
+                
+                const proto = p.ethernet.ip.protocol || 'Unknown';
+                if (!dist[proto]) dist[proto] = { packets: 0, bytes: 0 };
+                dist[proto].packets++;
+                dist[proto].bytes += p.length;
+            });
+            
+            return dist;
+        }
+
+        function analyzeMulticast(packets) {
+            const groups = {};
+            let totalPackets = 0;
+            let totalBytes = 0;
+            
+            packets.forEach(p => {
+                if (!p.ethernet || !p.ethernet.ip) return;
+                
+                const dstIP = p.ethernet.ip.dstIP;
+                if (!dstIP) return;
+                
+                const parts = dstIP.split('.');
+                if (parts.length === 4) {
+                    const firstOctet = parseInt(parts[0]);
+                    if (firstOctet >= 224 && firstOctet <= 239) {
+                        // Multicast address
+                        if (!groups[dstIP]) {
+                            groups[dstIP] = {
+                                group: dstIP,
+                                sources: new Set(),
+                                packets: 0,
+                                bytes: 0,
+                                startTime: p.timestamp,
+                                endTime: p.timestamp
+                            };
+                        }
+                        
+                        groups[dstIP].sources.add(p.ethernet.ip.srcIP);
+                        groups[dstIP].packets++;
+                        groups[dstIP].bytes += p.length;
+                        groups[dstIP].endTime = Math.max(groups[dstIP].endTime, p.timestamp);
+                        
+                        totalPackets++;
+                        totalBytes += p.length;
+                    }
+                }
+            });
+            
+            // Convert to array and calculate rates
+            const groupArray = Object.values(groups).map(g => ({
+                ...g,
+                sources: Array.from(g.sources),
+                rate: g.packets / (g.endTime - g.startTime) || 0
+            })).sort((a, b) => b.packets - a.packets);
+            
+            return {
+                groups: groupArray,
+                totalPackets,
+                totalBytes
+            };
+        }
+
+        function analyzeDHCP(packets) {
+            const transactions = new Map(); // xid -> transaction
+            let naks = 0;
+            let option82Present = false;
+            const slowTransactions = [];
+            const discoverOfferTimes = [];
+
+            packets.forEach(p => {
+                if (!p.ethernet || !p.ethernet.ip || !p.ethernet.ip.transport) return;
+                const transport = p.ethernet.ip.transport;
+                const app = transport.application;
+                
+                if (!app || app.type !== 'DHCP') return;
+
+                const xid = app.xid;
+                if (!transactions.has(xid)) {
+                    transactions.set(xid, {
+                        xid: xid,
+                        discover: null,
+                        offer: null,
+                        request: null,
+                        ack: null,
+                        nak: null
+                    });
+                }
+
+                const trans = transactions.get(xid);
+                if (app.messageType === 'Discover') {
+                    trans.discover = p;
+                } else if (app.messageType === 'Offer') {
+                    trans.offer = p;
+                    if (trans.discover) {
+                        const time = (p.timestamp - trans.discover.timestamp) * 1000;
+                        discoverOfferTimes.push(time);
+                        if (time > 200) {
+                            slowTransactions.push({ xid, time });
+                        }
+                    }
+                } else if (app.messageType === 'Request') {
+                    trans.request = p;
+                } else if (app.messageType === 'ACK') {
+                    trans.ack = p;
+                } else if (app.messageType === 'NAK') {
+                    trans.nak = p;
+                    naks++;
+                }
+
+                if (app.option82) {
+                    option82Present = true;
+                }
+            });
+
+            return {
+                totalTransactions: transactions.size,
+                naks: naks,
+                avgDiscoverOfferTime: discoverOfferTimes.length > 0 
+                    ? discoverOfferTimes.reduce((a, b) => a + b, 0) / discoverOfferTimes.length 
+                    : 0,
+                slowTransactions: slowTransactions,
+                option82Present: option82Present
+            };
+        }
+
+        function analyzeMulticastBroadcast(packets) {
+            const multicastGroups = {};
+            let totalMulticast = 0;
+            let totalBroadcast = 0;
+            let igmpQueries = 0;
+            let igmpReports = 0;
+            let ttl1Multicast = 0;
+            let mdnsPackets = 0;
+
+            packets.forEach(p => {
+                if (!p.ethernet || !p.ethernet.ip) return;
+                const ip = p.ethernet.ip;
+
+                if (ip.isMulticast) {
+                    totalMulticast++;
+                    if (ip.ttl === 1) {
+                        ttl1Multicast++;
+                    }
+
+                    if (!multicastGroups[ip.dstIP]) {
+                        multicastGroups[ip.dstIP] = {
+                            group: ip.dstIP,
+                            packets: 0,
+                            bytes: 0,
+                            startTime: p.timestamp,
+                            endTime: p.timestamp
+                        };
+                    }
+                    multicastGroups[ip.dstIP].packets++;
+                    multicastGroups[ip.dstIP].bytes += p.length;
+                    multicastGroups[ip.dstIP].endTime = Math.max(multicastGroups[ip.dstIP].endTime, p.timestamp);
+                }
+
+                if (ip.isBroadcast) {
+                    totalBroadcast++;
+                }
+
+                if (ip.protocol === 'IGMP' && ip.transport) {
+                    if (ip.transport.isQuery) {
+                        igmpQueries++;
+                    } else if (ip.transport.isReport) {
+                        igmpReports++;
+                    }
+                }
+
+                // Check for mDNS
+                if (ip.transport && ip.transport.application && ip.transport.application.type === 'mDNS') {
+                    mdnsPackets++;
+                }
+            });
+
+            const topMulticastDestinations = Object.values(multicastGroups)
+                .map(g => ({
+                    ...g,
+                    rate: g.packets / (g.endTime - g.startTime) || 0
+                }))
+                .sort((a, b) => b.packets - a.packets);
+
+            return {
+                totalMulticast,
+                totalBroadcast,
+                igmpQueries,
+                igmpReports,
+                ttl1Multicast,
+                mdnsPackets,
+                topMulticastDestinations
+            };
+        }
+
+        function analyzeDNS(packets) {
+            const dnsTransactions = new Map(); // transactionId -> {query, response}
+            let totalQueries = 0;
+            let totalResponses = 0;
+            const responseTimes = [];
+            let slowQueries = 0;
+            let servfailCount = 0;
+
+            packets.forEach(p => {
+                if (!p.ethernet || !p.ethernet.ip || !p.ethernet.ip.transport) return;
+                const transport = p.ethernet.ip.transport;
+                const app = transport.application;
+
+                if (!app || app.type !== 'DNS') return;
+
+                const transId = app.transactionId;
+
+                if (app.isQuery) {
+                    totalQueries++;
+                    if (!dnsTransactions.has(transId)) {
+                        dnsTransactions.set(transId, { query: p, response: null });
+                    }
+                } else if (app.isResponse) {
+                    totalResponses++;
+                    if (dnsTransactions.has(transId)) {
+                        const trans = dnsTransactions.get(transId);
+                        trans.response = p;
+                        const responseTime = (p.timestamp - trans.query.timestamp) * 1000;
+                        responseTimes.push(responseTime);
+                        if (responseTime > 200) {
+                            slowQueries++;
+                        }
+                    } else {
+                        dnsTransactions.set(transId, { query: null, response: p });
+                    }
+                }
+
+                if (app.isSERVFAIL) {
+                    servfailCount++;
+                }
+            });
+
+            return {
+                totalQueries,
+                totalResponses,
+                avgResponseTime: responseTimes.length > 0 
+                    ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length 
+                    : 0,
+                slowQueries,
+                servfailCount
+            };
+        }
+
+        function analyzeTCPRST(conversations) {
+            let totalRSTs = 0;
+            let zeroWindows = 0;
+            let totalRetrans = 0;
+            let totalPackets = 0;
+            let dupAcks = 0;
+
+            conversations.forEach(conv => {
+                if (conv.protocol !== 'TCP') return;
+
+                const analysis = analyzeConversation(conv);
+                totalRetrans += analysis.retransmissions.length;
+                dupAcks += analysis.duplicateAcks.length;
+                zeroWindows += analysis.zeroWindow.length;
+
+                conv.packets.forEach(p => {
+                    totalPackets++;
+                    const transport = p.ethernet?.ip?.transport;
+                    if (transport && transport.hasRST) {
+                        totalRSTs++;
+                    }
+                });
+            });
+
+            return {
+                totalRSTs,
+                zeroWindows,
+                retransRate: totalPackets > 0 ? (totalRetrans / totalPackets * 100) : 0,
+                dupAcks
+            };
+        }
+
+        function analyzeEAPOL(packets) {
+            const handshakes = new Map(); // client MAC -> handshake state
+            let totalEAPOL = 0;
+            let completeHandshakes = 0;
+            let failedHandshakes = 0;
+            let message1Retries = 0;
+            const message1Seen = new Map(); // MAC -> [packets]
+
+            packets.forEach(p => {
+                if (!p.ethernet) return;
+                
+                // EAPOL uses EtherType 0x888E
+                const etherType = p.ethernet.etherType;
+                const isEAPOL = etherType === '0x888e' || etherType === 0x888E || 
+                               (typeof etherType === 'number' && etherType === 0x888E) ||
+                               (typeof etherType === 'string' && etherType.toLowerCase() === '0x888e');
+                
+                if (isEAPOL) {
+                    totalEAPOL++;
+                    const srcMac = p.ethernet.srcMac;
+                    
+                    // Try to parse EAPOL packet type (simplified)
+                    // EAPOL frame structure: Version (1) + Type (1) + Length (2) + Body
+                    // For EAPOL-Key, body starts with: Descriptor Type (1) + Key Info (2) + ...
+                    if (p.raw && p.raw.length > 20) {
+                        try {
+                            // Skip Ethernet header (14 bytes) to get to EAPOL frame
+                            const eapolStart = 14;
+                            if (p.raw.length > eapolStart + 4) {
+                                const eapolReader = new BinaryReader(p.raw.buffer.slice(p.raw.byteOffset + eapolStart, p.raw.byteOffset + p.raw.length));
+                                const version = eapolReader.readUInt8();
+                                const packetType = eapolReader.readUInt8();
+                                const length = eapolReader.readUInt16(false);
+                                
+                                // EAPOL packet types: 0=EAP-Packet, 1=EAPOL-Start, 2=EAPOL-Logoff, 3=EAPOL-Key
+                                // For 4-way handshake, we look for EAPOL-Key (type 3)
+                                if (packetType === 3 && length > 0 && eapolReader.remaining() >= length) {
+                                    const keyType = eapolReader.readUInt8();
+                                    // Key descriptor type: 1 = RSN/WPA2, 2 = WPA
+                                    // Key info bits indicate message number (bits 3-5)
+                                    if (eapolReader.remaining() >= 2) {
+                                        const keyInfo = eapolReader.readUInt16(false);
+                                        const messageNum = (keyInfo >> 3) & 0x07; // Bits 3-5
+                                        
+                                        if (messageNum >= 1 && messageNum <= 4) {
+                                            if (messageNum === 1) {
+                                                if (!message1Seen.has(srcMac)) {
+                                                    message1Seen.set(srcMac, []);
+                                                }
+                                                message1Seen.get(srcMac).push(p);
+                                                if (message1Seen.get(srcMac).length > 1) {
+                                                    message1Retries++;
+                                                }
+                                            }
+
+                                            if (!handshakes.has(srcMac)) {
+                                                handshakes.set(srcMac, { messages: new Set() });
+                                            }
+                                            handshakes.get(srcMac).messages.add(messageNum);
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            // EAPOL parsing error, skip - still count as EAPOL packet
+                        }
+                    }
+                }
+            });
+
+            // Check for complete 4-way handshakes (messages 1, 2, 3, 4)
+            handshakes.forEach((handshake, mac) => {
+                if (handshake.messages.has(1) && handshake.messages.has(2) && 
+                    handshake.messages.has(3) && handshake.messages.has(4)) {
+                    completeHandshakes++;
+                } else if (handshake.messages.size > 0) {
+                    failedHandshakes++;
+                }
+            });
+
+            return {
+                totalEAPOL,
+                completeHandshakes,
+                failedHandshakes,
+                message1Retries
+            };
+        }
+
+        function analyzeAllTCP(conversations) {
+            let totalConnections = 0;
+            let totalRetrans = 0;
+            let totalRTT = 0;
+            let rttCount = 0;
+            let totalBytes = 0;
+            let totalDuration = 0;
+            let totalJitter = 0;
+            let jitterCount = 0;
+            let totalLossRate = 0;
+            let lossRateCount = 0;
+            
+            conversations.forEach(conv => {
+                if (conv.protocol !== 'TCP') return;
+                
+                totalConnections++;
+                const analysis = analyzeConversation(conv);
+                totalRetrans += analysis.retransmissions.length;
+                
+                if (analysis.jitter !== undefined) {
+                    totalJitter += analysis.jitter;
+                    jitterCount++;
+                }
+                
+                if (analysis.packetLossRate !== undefined) {
+                    totalLossRate += analysis.packetLossRate;
+                    lossRateCount++;
+                }
+                
+                // Calculate RTT from SYN-ACK
+                if (conv.packets.length >= 2) {
+                    const synPacket = conv.packets.find(p => {
+                        const t = p.ethernet?.ip?.transport;
+                        return t && t.flags && t.flags.includes('SYN') && !t.flags.includes('ACK');
+                    });
+                    const synAckPacket = conv.packets.find(p => {
+                        const t = p.ethernet?.ip?.transport;
+                        return t && t.flags && t.flags.includes('SYN') && t.flags.includes('ACK');
+                    });
+                    
+                    if (synPacket && synAckPacket && synAckPacket.timestamp > synPacket.timestamp) {
+                        const rtt = (synAckPacket.timestamp - synPacket.timestamp) * 1000;
+                        totalRTT += rtt;
+                        rttCount++;
+                    }
+                }
+                
+                // Calculate throughput
+                conv.packets.forEach(p => totalBytes += p.length);
+                totalDuration += (conv.endTime - conv.startTime);
+            });
+            
+            return {
+                totalConnections,
+                totalRetrans,
+                avgRTT: rttCount > 0 ? totalRTT / rttCount : 0,
+                avgThroughput: totalDuration > 0 ? totalBytes / totalDuration : 0,
+                avgJitter: jitterCount > 0 ? totalJitter / jitterCount : 0,
+                avgLossRate: lossRateCount > 0 ? totalLossRate / lossRateCount : 0
+            };
+        }
+
         function clearPCAP() {
             pcapData = null;
             conversations = [];
@@ -1458,7 +2654,28 @@
             document.getElementById('statsBar').classList.add('hidden');
             document.getElementById('sidebar').classList.add('hidden');
             document.getElementById('conversationView').classList.add('hidden');
+            document.getElementById('summaryView').classList.add('hidden');
             document.getElementById('fileInput').value = '';
+        }
+
+        function calculateRTT(conv) {
+            if (conv.protocol !== 'TCP' || conv.packets.length < 2) return 0;
+            
+            // Find SYN and SYN-ACK
+            const synPacket = conv.packets.find(p => {
+                const t = p.ethernet?.ip?.transport;
+                return t && t.flags && t.flags.includes('SYN') && !t.flags.includes('ACK');
+            });
+            const synAckPacket = conv.packets.find(p => {
+                const t = p.ethernet?.ip?.transport;
+                return t && t.flags && t.flags.includes('SYN') && t.flags.includes('ACK');
+            });
+            
+            if (synPacket && synAckPacket && synAckPacket.timestamp > synPacket.timestamp) {
+                return (synAckPacket.timestamp - synPacket.timestamp) * 1000;
+            }
+            
+            return 0;
         }
 
         function escapeHtml(text) {
