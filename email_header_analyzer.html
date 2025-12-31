@@ -129,7 +129,7 @@
             <div id="resultsSection" class="hidden space-y-6">
                 
                 <!-- Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4">
                         <div class="text-xs text-gray-500 uppercase mb-1">Total Hops</div>
                         <div id="totalHops" class="text-2xl font-bold text-white">0</div>
@@ -146,6 +146,19 @@
                         <div class="text-xs text-gray-500 uppercase mb-1">DKIM Status</div>
                         <div id="dkimStatus" class="text-2xl font-bold">-</div>
                     </div>
+                    <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4">
+                        <div class="text-xs text-gray-500 uppercase mb-1">DMARC Status</div>
+                        <div id="dmarcStatus" class="text-2xl font-bold">-</div>
+                    </div>
+                </div>
+
+                <!-- Email Information -->
+                <div id="emailInfoSection" class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 hidden">
+                    <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-envelope text-obsidian-accent"></i>
+                        Email Information
+                    </h2>
+                    <div id="emailInfo" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
 
                 <!-- Timeline Visualization -->
@@ -172,7 +185,16 @@
                         <i class="fa-solid fa-shield-halved text-obsidian-accent"></i>
                         Authentication Results
                     </h2>
-                    <div id="authDetails" class="space-y-2 font-mono text-sm"></div>
+                    <div id="authDetails" class="space-y-4"></div>
+                </div>
+
+                <!-- All Headers Found -->
+                <div id="allHeadersSection" class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 hidden">
+                    <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-list-ul text-obsidian-accent"></i>
+                        All Headers Found
+                    </h2>
+                    <div id="allHeaders" class="space-y-2 font-mono text-xs"></div>
                 </div>
 
             </div>
@@ -306,6 +328,73 @@
             return match ? match[1] : null;
         }
 
+        function parseHeaderValue(headerName, headers) {
+            const regex = new RegExp(`^${headerName}:\\s*(.+)$`, 'i');
+            const lines = headers.split('\n');
+            let value = null;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmedLine = line.trim();
+                const match = trimmedLine.match(regex);
+                
+                if (match) {
+                    value = match[1].trim();
+                    // Continue reading multi-line
+                    for (let j = i + 1; j < lines.length; j++) {
+                        const nextLine = lines[j];
+                        if (nextLine.trim() && !nextLine.match(/^\s/)) break;
+                        value += ' ' + nextLine.trim();
+                    }
+                    break;
+                }
+            }
+            
+            return value;
+        }
+
+        function extractAllHeaders(headers) {
+            const allHeaders = {};
+            const lines = headers.split('\n');
+            let currentHeader = null;
+            let currentValue = '';
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmedLine = line.trim();
+                
+                // Check if this is a new header (starts with header name followed by colon)
+                const headerMatch = trimmedLine.match(/^([^:]+):\s*(.+)$/);
+                
+                if (headerMatch) {
+                    // Save previous header if exists
+                    if (currentHeader) {
+                        allHeaders[currentHeader] = currentValue.trim();
+                    }
+                    // Start new header
+                    currentHeader = headerMatch[1].trim();
+                    currentValue = headerMatch[2].trim();
+                } else if (currentHeader && (line.startsWith(' ') || line.startsWith('\t'))) {
+                    // Continuation line
+                    currentValue += ' ' + trimmedLine;
+                } else if (trimmedLine === '' && currentHeader) {
+                    // Empty line might indicate end of headers
+                    if (currentHeader) {
+                        allHeaders[currentHeader] = currentValue.trim();
+                        currentHeader = null;
+                        currentValue = '';
+                    }
+                }
+            }
+            
+            // Save last header
+            if (currentHeader) {
+                allHeaders[currentHeader] = currentValue.trim();
+            }
+            
+            return allHeaders;
+        }
+
         function analyzeHeaders(headers) {
             const lines = headers.split('\n');
             const receivedHeaders = [];
@@ -313,6 +402,13 @@
             let authResults = null;
             let spfResult = null;
             let dkimResult = null;
+            let dmarcResult = null;
+            let spfAlignment = null;
+            let dkimAlignment = null;
+            let dmarcAlignment = null;
+
+            // Extract all headers
+            const allHeaders = extractAllHeaders(headers);
 
             // Parse headers
             for (let i = 0; i < lines.length; i++) {
@@ -347,11 +443,23 @@
                         authResults += ' ' + nextLine.trim();
                     }
                     
-                    // Extract SPF and DKIM results (handle various formats)
+                    // Extract SPF, DKIM, and DMARC results with alignment
                     const spfMatch = authResults.match(/spf=(\w+)/i) || authResults.match(/spf\s+(\w+)/i);
                     const dkimMatch = authResults.match(/dkim=(\w+)/i) || authResults.match(/dkim\s+(\w+)/i);
+                    const dmarcMatch = authResults.match(/dmarc=(\w+)/i) || authResults.match(/dmarc\s+(\w+)/i);
+                    
                     spfResult = spfMatch ? spfMatch[1].toLowerCase() : null;
                     dkimResult = dkimMatch ? dkimMatch[1].toLowerCase() : null;
+                    dmarcResult = dmarcMatch ? dmarcMatch[1].toLowerCase() : null;
+                    
+                    // Extract alignment information
+                    const spfAlignMatch = authResults.match(/spf-align=(\w+)/i);
+                    const dkimAlignMatch = authResults.match(/dkim-align=(\w+)/i);
+                    const dmarcAlignMatch = authResults.match(/dmarc-align=(\w+)/i);
+                    
+                    spfAlignment = spfAlignMatch ? spfAlignMatch[1].toLowerCase() : null;
+                    dkimAlignment = dkimAlignMatch ? dkimAlignMatch[1].toLowerCase() : null;
+                    dmarcAlignment = dmarcAlignMatch ? dmarcAlignMatch[1].toLowerCase() : null;
                 }
             }
 
@@ -401,7 +509,7 @@
             }
 
             // Display results
-            displayResults(hops, totalTime, spfResult, dkimResult, authResults);
+            displayResults(hops, totalTime, spfResult, dkimResult, dmarcResult, spfAlignment, dkimAlignment, dmarcAlignment, authResults, allHeaders);
         }
 
         function formatTime(seconds) {
@@ -421,7 +529,7 @@
             return date.toLocaleString();
         }
 
-        function displayResults(hops, totalTime, spfResult, dkimResult, authResults) {
+        function displayResults(hops, totalTime, spfResult, dkimResult, dmarcResult, spfAlignment, dkimAlignment, dmarcAlignment, authResults, allHeaders) {
             resultsSection.classList.remove('hidden');
 
             // Update summary
@@ -448,6 +556,75 @@
             } else {
                 dkimStatusEl.textContent = 'N/A';
                 dkimStatusEl.className = 'text-2xl font-bold text-gray-500';
+            }
+
+            // DMARC Status
+            const dmarcStatusEl = document.getElementById('dmarcStatus');
+            if (dmarcResult) {
+                const isPass = dmarcResult === 'pass';
+                dmarcStatusEl.textContent = dmarcResult.toUpperCase();
+                dmarcStatusEl.className = `text-2xl font-bold ${isPass ? 'text-green-400' : 'text-red-400 failure-badge'}`;
+            } else {
+                dmarcStatusEl.textContent = 'N/A';
+                dmarcStatusEl.className = 'text-2xl font-bold text-gray-500';
+            }
+
+            // Email Information
+            const emailInfoSection = document.getElementById('emailInfoSection');
+            const emailInfo = document.getElementById('emailInfo');
+            emailInfo.innerHTML = '';
+            
+            const importantHeaders = ['From', 'To', 'Subject', 'Date', 'Message-ID', 'Return-Path', 'Reply-To', 'CC', 'BCC', 'X-Mailer', 'User-Agent'];
+            let hasEmailInfo = false;
+            
+            importantHeaders.forEach(headerName => {
+                const value = allHeaders[headerName] || allHeaders[headerName.toLowerCase()];
+                if (value) {
+                    hasEmailInfo = true;
+                    const infoCard = document.createElement('div');
+                    infoCard.className = 'bg-[#111827] border border-obsidian-border rounded p-3';
+                    infoCard.innerHTML = `
+                        <div class="text-xs text-gray-500 uppercase mb-1 font-semibold">${headerName}</div>
+                        <div class="text-sm text-gray-300 break-all">${escapeHtml(value)}</div>
+                    `;
+                    emailInfo.appendChild(infoCard);
+                }
+            });
+            
+            // Add DKIM-Signature if present
+            const dkimSig = allHeaders['DKIM-Signature'] || allHeaders['dkim-signature'];
+            if (dkimSig) {
+                hasEmailInfo = true;
+                const dkimCard = document.createElement('div');
+                dkimCard.className = 'bg-[#111827] border border-obsidian-border rounded p-3';
+                
+                // Parse DKIM signature components
+                const dkimParts = {};
+                dkimSig.split(';').forEach(part => {
+                    const match = part.trim().match(/^([^=]+)=(.+)$/);
+                    if (match) {
+                        dkimParts[match[1].trim()] = match[2].trim();
+                    }
+                });
+                
+                let dkimDetails = '';
+                if (dkimParts.v) dkimDetails += `<div class="text-xs text-gray-400 mt-1">Version: ${dkimParts.v}</div>`;
+                if (dkimParts.a) dkimDetails += `<div class="text-xs text-gray-400 mt-1">Algorithm: ${dkimParts.a}</div>`;
+                if (dkimParts.d) dkimDetails += `<div class="text-xs text-gray-400 mt-1">Domain: ${dkimParts.d}</div>`;
+                if (dkimParts.s) dkimDetails += `<div class="text-xs text-gray-400 mt-1">Selector: ${dkimParts.s}</div>`;
+                
+                dkimCard.innerHTML = `
+                    <div class="text-xs text-gray-500 uppercase mb-1 font-semibold">DKIM-Signature</div>
+                    ${dkimDetails}
+                    <div class="text-xs text-gray-500 mt-2 break-all font-mono">${escapeHtml(dkimSig.substring(0, 200))}${dkimSig.length > 200 ? '...' : ''}</div>
+                `;
+                emailInfo.appendChild(dkimCard);
+            }
+            
+            if (hasEmailInfo) {
+                emailInfoSection.classList.remove('hidden');
+            } else {
+                emailInfoSection.classList.add('hidden');
             }
 
             // Timeline
@@ -525,14 +702,120 @@
             });
 
             // Authentication Results
+            const authSection = document.getElementById('authSection');
+            const authDetails = document.getElementById('authDetails');
+            authDetails.innerHTML = '';
+            
             if (authResults) {
-                const authSection = document.getElementById('authSection');
-                const authDetails = document.getElementById('authDetails');
                 authSection.classList.remove('hidden');
-                authDetails.innerHTML = `<div class="text-gray-300 whitespace-pre-wrap break-all">${authResults}</div>`;
+                
+                // SPF Details
+                if (spfResult) {
+                    const spfCard = document.createElement('div');
+                    spfCard.className = 'bg-[#111827] border border-obsidian-border rounded p-4';
+                    const isPass = spfResult === 'pass';
+                    const iconColor = isPass ? 'text-green-400' : 'text-red-400';
+                    const badgeClass = isPass ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400';
+                    spfCard.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-shield ${iconColor}"></i>
+                                <span class="font-semibold text-white">SPF</span>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded ${badgeClass}">
+                                ${spfResult.toUpperCase()}
+                            </span>
+                        </div>
+                        ${spfAlignment ? `<div class="text-xs text-gray-400 mt-1">Alignment: ${spfAlignment}</div>` : ''}
+                    `;
+                    authDetails.appendChild(spfCard);
+                }
+                
+                // DKIM Details
+                if (dkimResult) {
+                    const dkimCard = document.createElement('div');
+                    dkimCard.className = 'bg-[#111827] border border-obsidian-border rounded p-4';
+                    const isPass = dkimResult === 'pass';
+                    const iconColor = isPass ? 'text-green-400' : 'text-red-400';
+                    const badgeClass = isPass ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400';
+                    dkimCard.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-key ${iconColor}"></i>
+                                <span class="font-semibold text-white">DKIM</span>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded ${badgeClass}">
+                                ${dkimResult.toUpperCase()}
+                            </span>
+                        </div>
+                        ${dkimAlignment ? `<div class="text-xs text-gray-400 mt-1">Alignment: ${dkimAlignment}</div>` : ''}
+                    `;
+                    authDetails.appendChild(dkimCard);
+                }
+                
+                // DMARC Details
+                if (dmarcResult) {
+                    const dmarcCard = document.createElement('div');
+                    dmarcCard.className = 'bg-[#111827] border border-obsidian-border rounded p-4';
+                    const isPass = dmarcResult === 'pass';
+                    const iconColor = isPass ? 'text-green-400' : 'text-red-400';
+                    const badgeClass = isPass ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400';
+                    dmarcCard.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved ${iconColor}"></i>
+                                <span class="font-semibold text-white">DMARC</span>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded ${badgeClass}">
+                                ${dmarcResult.toUpperCase()}
+                            </span>
+                        </div>
+                        ${dmarcAlignment ? `<div class="text-xs text-gray-400 mt-1">Alignment: ${dmarcAlignment}</div>` : ''}
+                    `;
+                    authDetails.appendChild(dmarcCard);
+                }
+                
+                // Raw Authentication-Results
+                const rawCard = document.createElement('div');
+                rawCard.className = 'bg-[#111827] border border-obsidian-border rounded p-4 mt-4';
+                rawCard.innerHTML = `
+                    <div class="text-xs text-gray-500 uppercase mb-2 font-semibold">Raw Authentication-Results</div>
+                    <div class="text-xs text-gray-300 whitespace-pre-wrap break-all font-mono">${escapeHtml(authResults)}</div>
+                `;
+                authDetails.appendChild(rawCard);
             } else {
-                document.getElementById('authSection').classList.add('hidden');
+                authSection.classList.add('hidden');
             }
+
+            // All Headers Found
+            const allHeadersSection = document.getElementById('allHeadersSection');
+            const allHeadersDiv = document.getElementById('allHeaders');
+            allHeadersDiv.innerHTML = '';
+            
+            if (Object.keys(allHeaders).length > 0) {
+                allHeadersSection.classList.remove('hidden');
+                
+                // Sort headers alphabetically
+                const sortedHeaders = Object.keys(allHeaders).sort();
+                
+                sortedHeaders.forEach(headerName => {
+                    const headerDiv = document.createElement('div');
+                    headerDiv.className = 'bg-[#111827] border border-obsidian-border rounded p-3 mb-2';
+                    headerDiv.innerHTML = `
+                        <div class="text-xs text-obsidian-accent font-semibold mb-1">${escapeHtml(headerName)}</div>
+                        <div class="text-xs text-gray-300 break-all whitespace-pre-wrap">${escapeHtml(allHeaders[headerName])}</div>
+                    `;
+                    allHeadersDiv.appendChild(headerDiv);
+                });
+            } else {
+                allHeadersSection.classList.add('hidden');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
     </script>
 </body>
