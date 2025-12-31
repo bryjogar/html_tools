@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCAP Viewer - Homelab Playground</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',
+                            pane: '#252526',
+                            border: '#3c3c3c',
+                            accent: '#7c3aed',
+                            text: '#cccccc'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap');
+
+        body {
+            background-color: #1e1e1e;
+            color: #cccccc;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050;
+        }
+
+        .upload-area {
+            transition: all 0.3s ease;
+        }
+
+        .upload-area.dragover {
+            border-color: #7c3aed;
+            background-color: rgba(124, 58, 237, 0.1);
+        }
+
+        .chat-bubble {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .packet-flow {
+            border-left: 2px solid #7c3aed;
+            padding-left: 1rem;
+            margin-left: 1rem;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-6 shrink-0 justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-network-wired text-obsidian-accent"></i>
+            <h1 class="font-semibold text-lg tracking-wide">PCAP Viewer</h1>
+        </div>
+        <div class="text-xs text-gray-500 flex items-center gap-2">
+            <i class="fa-solid fa-lock"></i>
+            <span>Client-side only processing</span>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex flex-col">
+        
+        <!-- Upload Section -->
+        <div class="bg-obsidian-pane border-b border-obsidian-border p-4 shrink-0">
+            <div 
+                id="uploadArea" 
+                class="upload-area border-2 border-dashed border-obsidian-border rounded-lg p-6 text-center cursor-pointer hover:border-obsidian-accent transition-colors"
+                ondrop="handleDrop(event)"
+                ondragover="handleDragOver(event)"
+                ondragleave="handleDragLeave(event)"
+                onclick="document.getElementById('fileInput').click()"
+            >
+                <input 
+                    type="file" 
+                    id="fileInput" 
+                    accept=".pcap,.cap" 
+                    class="hidden" 
+                    onchange="handleFileSelect(event)"
+                >
+                <i class="fa-solid fa-file-arrow-up text-3xl text-gray-500 mb-2"></i>
+                <p class="text-gray-400 mb-1">Click to upload or drag and drop PCAP file</p>
+                <p class="text-xs text-gray-500">Supports .pcap and .cap files</p>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div id="statsBar" class="hidden bg-obsidian-pane border-b border-obsidian-border px-6 py-2 shrink-0">
+            <div class="flex items-center justify-between text-xs">
+                <div class="flex gap-6">
+                    <div>
+                        <span class="text-gray-500">Packets:</span>
+                        <span id="packetCount" class="text-white font-mono ml-2">0</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Conversations:</span>
+                        <span id="conversationCount" class="text-white font-mono ml-2">0</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Protocols:</span>
+                        <span id="protocols" class="text-white font-mono ml-2">-</span>
+                    </div>
+                </div>
+                <button onclick="clearPCAP()" class="text-red-400 hover:text-red-300">
+                    <i class="fa-solid fa-trash mr-1"></i> Clear
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-hidden flex">
+            
+            <!-- Sidebar - Conversations List -->
+            <div id="sidebar" class="hidden w-64 bg-obsidian-pane border-r border-obsidian-border overflow-y-auto shrink-0">
+                <div class="p-4">
+                    <h3 class="text-sm font-semibold text-white mb-3">Conversations</h3>
+                    <div id="conversationList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- Main Viewer -->
+            <div class="flex-1 overflow-y-auto bg-obsidian-bg">
+                <div id="emptyState" class="flex items-center justify-center h-full">
+                    <div class="text-center text-gray-500">
+                        <i class="fa-solid fa-file-arrow-up text-5xl mb-4"></i>
+                        <p class="text-lg">Upload a PCAP file to begin</p>
+                        <p class="text-sm mt-2">Drag and drop or click to select</p>
+                    </div>
+                </div>
+
+                <div id="conversationView" class="hidden p-6">
+                    <div id="conversationHeader" class="mb-6">
+                        <h2 id="conversationTitle" class="text-xl font-semibold text-white mb-2"></h2>
+                        <div id="conversationInfo" class="text-sm text-gray-400"></div>
+                    </div>
+                    <div id="chatContainer" class="space-y-4"></div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        let pcapData = null;
+        let conversations = [];
+        let currentConversation = null;
+
+        // Binary reading utilities
+        class BinaryReader {
+            constructor(buffer) {
+                this.buffer = buffer;
+                this.offset = 0;
+                this.view = new DataView(buffer);
+            }
+
+            readUInt8() {
+                const value = this.view.getUint8(this.offset);
+                this.offset += 1;
+                return value;
+            }
+
+            readUInt16(littleEndian = false) {
+                const value = this.view.getUint16(this.offset, littleEndian);
+                this.offset += 2;
+                return value;
+            }
+
+            readUInt32(littleEndian = false) {
+                const value = this.view.getUint32(this.offset, littleEndian);
+                this.offset += 4;
+                return value;
+            }
+
+            readBytes(length) {
+                const bytes = new Uint8Array(this.buffer, this.offset, length);
+                this.offset += length;
+                return bytes;
+            }
+
+            skip(length) {
+                this.offset += length;
+            }
+
+            remaining() {
+                return this.buffer.byteLength - this.offset;
+            }
+        }
+
+        // PCAP Parser
+        class PCAPParser {
+            constructor(buffer) {
+                this.reader = new BinaryReader(buffer);
+                this.packets = [];
+                this.magicNumber = null;
+                this.isLittleEndian = false;
+            }
+
+            parse() {
+                if (this.reader.remaining() < 24) {
+                    throw new Error('File too small to be a valid PCAP file');
+                }
+
+                // Read magic number to determine endianness
+                this.magicNumber = this.reader.readUInt32(false);
+                console.log('Magic number:', '0x' + this.magicNumber.toString(16));
+                
+                // Check for different PCAP formats
+                if (this.magicNumber === 0xa1b2c3d4) {
+                    this.isLittleEndian = false;
+                    console.log('Detected: libpcap (big-endian)');
+                } else if (this.magicNumber === 0xd4c3b2a1) {
+                    this.isLittleEndian = true;
+                    console.log('Detected: libpcap (little-endian)');
+                } else if (this.magicNumber === 0xa1b23c4d || this.magicNumber === 0x4d3cb2a1) {
+                    // pcapng format (not fully supported)
+                    throw new Error('PCAP-NG format detected. This tool currently supports libpcap format only. Try converting with: tcpdump -r input.pcapng -w output.pcap');
+                } else {
+                    throw new Error(`Invalid PCAP file format. Magic number: 0x${this.magicNumber.toString(16)}. Expected libpcap format.`);
+                }
+
+                // Read global header
+                const versionMajor = this.reader.readUInt16(this.isLittleEndian);
+                const versionMinor = this.reader.readUInt16(this.isLittleEndian);
+                const thiszone = this.reader.readUInt32(this.isLittleEndian);
+                const sigfigs = this.reader.readUInt32(this.isLittleEndian);
+                const snaplen = this.reader.readUInt32(this.isLittleEndian);
+                const network = this.reader.readUInt32(this.isLittleEndian);
+
+                // Parse packets
+                let packetCount = 0;
+                let errorCount = 0;
+                const maxErrors = 10;
+                
+                while (this.reader.remaining() >= 16) {
+                    try {
+                        const packet = this.parsePacket();
+                        if (packet) {
+                            this.packets.push(packet);
+                            packetCount++;
+                        } else {
+                            // Packet header read but packet data invalid
+                            break;
+                        }
+                    } catch (e) {
+                        errorCount++;
+                        console.warn(`Error parsing packet ${packetCount + 1}:`, e);
+                        if (errorCount >= maxErrors) {
+                            console.warn(`Stopping after ${maxErrors} consecutive errors`);
+                            break;
+                        }
+                        // Try to skip to next packet by reading packet header length
+                        if (this.reader.remaining() >= 16) {
+                            // Skip timestamp (8 bytes) and read inclLen
+                            this.reader.skip(8);
+                            const inclLen = this.reader.readUInt32(this.isLittleEndian);
+                            if (inclLen > 0 && inclLen < 65536 && inclLen <= this.reader.remaining()) {
+                                this.reader.skip(4); // Skip origLen
+                                this.reader.skip(inclLen); // Skip packet data
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                console.log(`Parsed ${packetCount} packets successfully`);
+                if (errorCount > 0) {
+                    console.warn(`Encountered ${errorCount} errors during parsing`);
+                }
+
+                return this.packets;
+            }
+
+            parsePacket() {
+                if (this.reader.remaining() < 16) {
+                    return null;
+                }
+
+                // Packet header
+                const tsSec = this.reader.readUInt32(this.isLittleEndian);
+                const tsUsec = this.reader.readUInt32(this.isLittleEndian);
+                const inclLen = this.reader.readUInt32(this.isLittleEndian);
+                const origLen = this.reader.readUInt32(this.isLittleEndian);
+
+                // Validate packet header
+                if (inclLen === 0) {
+                    return null; // Empty packet
+                }
+                
+                if (inclLen > this.reader.remaining()) {
+                    console.warn(`Packet length (${inclLen}) exceeds remaining data (${this.reader.remaining()})`);
+                    return null;
+                }
+                
+                if (inclLen > 65536) {
+                    console.warn(`Packet length (${inclLen}) seems too large, skipping`);
+                    return null;
+                }
+
+                const packetData = this.reader.readBytes(inclLen);
+                const timestamp = tsSec + (tsUsec / 1000000);
+
+                // Parse Ethernet frame
+                const ethernet = this.parseEthernet(packetData);
+                
+                return {
+                    timestamp,
+                    length: inclLen,
+                    originalLength: origLen,
+                    ethernet,
+                    raw: packetData
+                };
+            }
+
+            parseEthernet(data) {
+                if (data.length < 14) return null;
+
+                // Create a new ArrayBuffer view to ensure proper offset handling
+                const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.length);
+                const reader = new BinaryReader(buffer);
+                const dstMac = Array.from(reader.readBytes(6)).map(b => b.toString(16).padStart(2, '0')).join(':');
+                const srcMac = Array.from(reader.readBytes(6)).map(b => b.toString(16).padStart(2, '0')).join(':');
+                const etherType = reader.readUInt16(false);
+
+                let ip = null;
+                if (etherType === 0x0800) { // IPv4
+                    ip = this.parseIPv4(reader);
+                } else if (etherType === 0x86DD) { // IPv6
+                    // IPv6 not fully implemented
+                    return { dstMac, srcMac, etherType: 'IPv6' };
+                }
+
+                return {
+                    dstMac,
+                    srcMac,
+                    etherType: etherType === 0x0800 ? 'IPv4' : `0x${etherType.toString(16)}`,
+                    ip
+                };
+            }
+
+            parseIPv4(reader) {
+                if (reader.remaining() < 20) return null;
+
+                const versionAndIHL = reader.readUInt8();
+                const version = (versionAndIHL >> 4) & 0x0F;
+                const ihl = (versionAndIHL & 0x0F) * 4;
+
+                const tos = reader.readUInt8();
+                const totalLength = reader.readUInt16(false);
+                const identification = reader.readUInt16(false);
+                const flagsAndOffset = reader.readUInt16(false);
+                const ttl = reader.readUInt8();
+                const protocol = reader.readUInt8();
+                const checksum = reader.readUInt16(false);
+                const srcIP = this.readIP(reader);
+                const dstIP = this.readIP(reader);
+
+                // Skip options if IHL > 20
+                if (ihl > 20) {
+                    reader.skip(ihl - 20);
+                }
+
+                let transport = null;
+                if (protocol === 6) { // TCP
+                    transport = this.parseTCP(reader);
+                } else if (protocol === 17) { // UDP
+                    transport = this.parseUDP(reader);
+                } else if (protocol === 1) { // ICMP
+                    transport = this.parseICMP(reader);
+                }
+
+                return {
+                    version,
+                    srcIP,
+                    dstIP,
+                    protocol: protocol === 6 ? 'TCP' : protocol === 17 ? 'UDP' : protocol === 1 ? 'ICMP' : `IP Protocol ${protocol}`,
+                    transport
+                };
+            }
+
+            readIP(reader) {
+                const bytes = reader.readBytes(4);
+                return `${bytes[0]}.${bytes[1]}.${bytes[2]}.${bytes[3]}`;
+            }
+
+            parseTCP(reader) {
+                if (reader.remaining() < 20) return null;
+
+                const srcPort = reader.readUInt16(false);
+                const dstPort = reader.readUInt16(false);
+                const seqNum = reader.readUInt32(false);
+                const ackNum = reader.readUInt32(false);
+                const dataOffsetAndFlags = reader.readUInt16(false);
+                const dataOffset = ((dataOffsetAndFlags >> 12) & 0x0F) * 4;
+                const flags = dataOffsetAndFlags & 0x1FF;
+                const window = reader.readUInt16(false);
+                const checksum = reader.readUInt16(false);
+                const urgent = reader.readUInt16(false);
+
+                // Skip options
+                if (dataOffset > 20) {
+                    reader.skip(dataOffset - 20);
+                }
+
+                const payload = reader.remaining() > 0 ? reader.readBytes(reader.remaining()) : null;
+
+                // Parse application layer
+                let application = null;
+                if (payload && payload.length > 0) {
+                    application = this.parseApplicationLayer(srcPort, dstPort, payload);
+                }
+
+                const flagNames = [];
+                if (flags & 0x001) flagNames.push('FIN');
+                if (flags & 0x002) flagNames.push('SYN');
+                if (flags & 0x004) flagNames.push('RST');
+                if (flags & 0x008) flagNames.push('PSH');
+                if (flags & 0x010) flagNames.push('ACK');
+                if (flags & 0x020) flagNames.push('URG');
+
+                return {
+                    srcPort,
+                    dstPort,
+                    seqNum,
+                    ackNum,
+                    flags: flagNames.join(', '),
+                    window,
+                    payload,
+                    application
+                };
+            }
+
+            parseUDP(reader) {
+                if (reader.remaining() < 8) return null;
+
+                const srcPort = reader.readUInt16(false);
+                const dstPort = reader.readUInt16(false);
+                const length = reader.readUInt16(false);
+                const checksum = reader.readUInt16(false);
+
+                const payload = reader.remaining() > 0 ? reader.readBytes(reader.remaining()) : null;
+
+                let application = null;
+                if (payload && payload.length > 0) {
+                    application = this.parseApplicationLayer(srcPort, dstPort, payload);
+                }
+
+                return {
+                    srcPort,
+                    dstPort,
+                    length,
+                    payload,
+                    application
+                };
+            }
+
+            parseICMP(reader) {
+                if (reader.remaining() < 8) return null;
+
+                const type = reader.readUInt8();
+                const code = reader.readUInt8();
+                const checksum = reader.readUInt16(false);
+
+                const icmpTypes = {
+                    0: 'Echo Reply',
+                    3: 'Destination Unreachable',
+                    4: 'Source Quench',
+                    5: 'Redirect',
+                    8: 'Echo Request',
+                    11: 'Time Exceeded',
+                    12: 'Parameter Problem',
+                    13: 'Timestamp Request',
+                    14: 'Timestamp Reply',
+                    15: 'Information Request',
+                    16: 'Information Reply',
+                    17: 'Address Mask Request',
+                    18: 'Address Mask Reply'
+                };
+
+                let messageType = icmpTypes[type] || `ICMP Type ${type}`;
+                let details = {};
+
+                // Parse ICMP-specific fields based on type
+                if (type === 0 || type === 8) {
+                    // Echo Request/Reply
+                    if (reader.remaining() >= 4) {
+                        details.identifier = reader.readUInt16(false);
+                        details.sequence = reader.readUInt16(false);
+                    }
+                } else if (type === 3) {
+                    // Destination Unreachable
+                    if (reader.remaining() >= 4) {
+                        reader.skip(4); // Unused
+                    }
+                } else if (type === 11) {
+                    // Time Exceeded
+                    if (reader.remaining() >= 4) {
+                        reader.skip(4); // Unused
+                    }
+                }
+
+                return {
+                    type: 'ICMP',
+                    icmpType: type,
+                    code,
+                    messageType,
+                    details
+                };
+            }
+
+            parseApplicationLayer(srcPort, dstPort, payload) {
+                // HTTP
+                if (srcPort === 80 || dstPort === 80 || srcPort === 8080 || dstPort === 8080) {
+                    return this.parseHTTP(payload);
+                }
+
+                // HTTPS/TLS
+                if (srcPort === 443 || dstPort === 443) {
+                    return this.parseTLS(payload);
+                }
+
+                // DNS
+                if (srcPort === 53 || dstPort === 53) {
+                    return { type: 'DNS', raw: payload };
+                }
+
+                return null;
+            }
+
+            parseHTTP(payload) {
+                try {
+                    const text = new TextDecoder('utf-8', { fatal: false }).decode(payload);
+                    if (text.startsWith('HTTP/')) {
+                        return { type: 'HTTP Response', content: text.substring(0, 200) };
+                    } else if (text.match(/^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s/)) {
+                        return { type: 'HTTP Request', content: text.substring(0, 200) };
+                    }
+                } catch (e) {
+                    // Not valid UTF-8
+                }
+                return { type: 'HTTP', raw: payload };
+            }
+
+            parseTLS(payload) {
+                if (payload.length < 5) return null;
+
+                try {
+                    // Create a new ArrayBuffer view to ensure proper offset handling
+                    const buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.length);
+                    const reader = new BinaryReader(buffer);
+                    const contentType = reader.readUInt8();
+                    const version = reader.readUInt16(false);
+                    const length = reader.readUInt16(false);
+
+                    let messageType = 'Unknown';
+                    let details = '';
+                    
+                    if (contentType === 22) { // Handshake
+                        if (reader.remaining() >= 4) {
+                            const handshakeType = reader.readUInt8();
+                            // Read 3-byte length
+                            const byte1 = reader.readUInt8();
+                            const byte2 = reader.readUInt8();
+                            const byte3 = reader.readUInt8();
+                            const handshakeLength = (byte1 << 16) | (byte2 << 8) | byte3;
+                            
+                            const handshakeTypes = {
+                                1: 'Client Hello',
+                                2: 'Server Hello',
+                                11: 'Certificate',
+                                12: 'Server Key Exchange',
+                                13: 'Certificate Request',
+                                14: 'Server Hello Done',
+                                15: 'Certificate Verify',
+                                16: 'Client Key Exchange',
+                                20: 'Finished'
+                            };
+                            messageType = handshakeTypes[handshakeType] || `Handshake ${handshakeType}`;
+                            
+                            // Try to extract more info from Client/Server Hello
+                            if (handshakeType === 1 || handshakeType === 2) {
+                                if (reader.remaining() >= 2) {
+                                    const tlsVersion = reader.readUInt16(false);
+                                    details = `TLS ${(tlsVersion >> 8)}.${tlsVersion & 0xFF}`;
+                                }
+                            }
+                        }
+                    } else if (contentType === 20) {
+                        messageType = 'Change Cipher Spec';
+                    } else if (contentType === 21) {
+                        messageType = 'Alert';
+                        if (reader.remaining() >= 2) {
+                            const level = reader.readUInt8();
+                            const description = reader.readUInt8();
+                            details = `Level: ${level}, Description: ${description}`;
+                        }
+                    } else if (contentType === 23) {
+                        messageType = 'Application Data';
+                    }
+
+                    return {
+                        type: 'TLS',
+                        messageType,
+                        version: `TLS ${(version >> 8)}.${version & 0xFF}`,
+                        details
+                    };
+                } catch (e) {
+                    return {
+                        type: 'TLS',
+                        messageType: 'TLS Packet',
+                        version: 'Unknown'
+                    };
+                }
+            }
+            
+        }
+
+        // Conversation grouping
+        function groupConversations(packets) {
+            const convMap = new Map();
+            const protocols = new Set();
+            let skippedPackets = 0;
+
+            packets.forEach((packet, index) => {
+                if (!packet.ethernet) {
+                    skippedPackets++;
+                    return;
+                }
+                
+                if (!packet.ethernet.ip) {
+                    skippedPackets++;
+                    return;
+                }
+                
+                const ip = packet.ethernet.ip;
+                const transport = ip.transport;
+
+                // Handle ICMP (no ports, but can still create conversations)
+                if (ip.protocol === 'ICMP' && transport) {
+                    // Create conversation key based on IP addresses
+                    const key1 = `${ip.srcIP} -> ${ip.dstIP} (ICMP)`;
+                    const key2 = `${ip.dstIP} -> ${ip.srcIP} (ICMP)`;
+                    
+                    let convKey = convMap.has(key1) ? key1 : (convMap.has(key2) ? key2 : key1);
+                    
+                    if (!convMap.has(convKey)) {
+                        convMap.set(convKey, {
+                            id: convKey,
+                            srcIP: ip.srcIP,
+                            dstIP: ip.dstIP,
+                            srcPort: null,
+                            dstPort: null,
+                            protocol: 'ICMP',
+                            packets: [],
+                            startTime: packet.timestamp,
+                            endTime: packet.timestamp
+                        });
+                    }
+
+                    const conv = convMap.get(convKey);
+                    conv.packets.push({
+                        ...packet,
+                        index,
+                        direction: (ip.srcIP === conv.srcIP) ? 'outbound' : 'inbound'
+                    });
+
+                    conv.endTime = Math.max(conv.endTime, packet.timestamp);
+                    protocols.add('ICMP');
+                    return;
+                }
+
+                // Handle TCP/UDP (require transport layer with ports)
+                if (!transport) {
+                    skippedPackets++;
+                    return;
+                }
+
+                if (!transport.srcPort || !transport.dstPort) {
+                    skippedPackets++;
+                    return;
+                }
+
+                // Create conversation key (sorted by IP and port)
+                const key1 = `${ip.srcIP}:${transport.srcPort} -> ${ip.dstIP}:${transport.dstPort}`;
+                const key2 = `${ip.dstIP}:${transport.dstPort} -> ${ip.srcIP}:${transport.srcPort}`;
+
+                let convKey = convMap.has(key1) ? key1 : (convMap.has(key2) ? key2 : key1);
+                
+                if (!convMap.has(convKey)) {
+                    convMap.set(convKey, {
+                        id: convKey,
+                        srcIP: ip.srcIP,
+                        dstIP: ip.dstIP,
+                        srcPort: transport.srcPort,
+                        dstPort: transport.dstPort,
+                        protocol: ip.protocol,
+                        packets: [],
+                        startTime: packet.timestamp,
+                        endTime: packet.timestamp
+                    });
+                }
+
+                const conv = convMap.get(convKey);
+                conv.packets.push({
+                    ...packet,
+                    index,
+                    direction: (ip.srcIP === conv.srcIP && transport.srcPort === conv.srcPort) ? 'outbound' : 'inbound'
+                });
+
+                conv.endTime = Math.max(conv.endTime, packet.timestamp);
+                protocols.add(ip.protocol);
+            });
+
+            if (skippedPackets > 0) {
+                console.log(`Skipped ${skippedPackets} packets (no IP/transport layer)`);
+            }
+
+            return {
+                conversations: Array.from(convMap.values()),
+                protocols: Array.from(protocols),
+                skippedPackets
+            };
+        }
+
+        // File handling
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                // Validate file is accessible
+                if (!file || file.size === undefined) {
+                    alert('File could not be accessed. Please try using the file picker instead.');
+                    return;
+                }
+                // Small delay to ensure file is fully available
+                setTimeout(() => {
+                    processFile(file);
+                }, 10);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            // Validate file
+            if (!file) {
+                alert('No file selected');
+                return;
+            }
+
+            // Check if file is still accessible
+            try {
+                if (file.size === undefined || file.size === null) {
+                    alert('File size could not be determined. The file may no longer be accessible. Please try selecting it again.');
+                    return;
+                }
+            } catch (err) {
+                alert('File is not accessible: ' + err.message + '\n\nPlease try using the file picker button instead of drag-and-drop.');
+                return;
+            }
+
+            if (!file.name || !file.name.match(/\.(pcap|cap)$/i)) {
+                alert('Please select a .pcap or .cap file');
+                return;
+            }
+
+            // Check file size (warn if very large)
+            const maxSize = 100 * 1024 * 1024; // 100MB
+            if (file.size > maxSize) {
+                if (!confirm(`File is large (${(file.size / 1024 / 1024).toFixed(2)} MB). Processing may take a while. Continue?`)) {
+                    return;
+                }
+            }
+
+            if (file.size === 0) {
+                alert('File is empty');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('emptyState').innerHTML = `
+                <div class="text-center text-gray-500">
+                    <i class="fa-solid fa-spinner fa-spin text-5xl mb-4"></i>
+                    <p class="text-lg">Parsing PCAP file...</p>
+                    <p class="text-sm mt-2">File: ${file.name}</p>
+                    <p class="text-sm">Size: ${(file.size / 1024).toFixed(2)} KB</p>
+                </div>
+            `;
+
+            const reader = new FileReader();
+            
+            reader.onloadstart = function() {
+                console.log('File reading started');
+            };
+            
+            reader.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    console.log(`File reading progress: ${percent.toFixed(1)}%`);
+                }
+            };
+            
+            reader.onload = function(e) {
+                try {
+                    const buffer = e.target.result;
+                    console.log('File loaded:', file.name, 'Size:', buffer.byteLength, 'bytes');
+                    
+                    const parser = new PCAPParser(buffer);
+                    const packets = parser.parse();
+                    
+                    console.log('Parsed packets:', packets.length);
+                    
+                    if (packets.length === 0) {
+                        alert('No packets found in PCAP file. The file might be empty, corrupted, or in an unsupported format.');
+                        document.getElementById('emptyState').innerHTML = `
+                            <div class="text-center text-gray-500">
+                                <i class="fa-solid fa-exclamation-triangle text-5xl mb-4 text-yellow-500"></i>
+                                <p class="text-lg">No packets found</p>
+                                <p class="text-sm mt-2">The file might be empty or in an unsupported format</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    pcapData = { packets, file: file.name };
+                    const grouped = groupConversations(packets);
+                    conversations = grouped.conversations;
+                    
+                    console.log('Conversations:', conversations.length);
+                    console.log('Grouped data:', grouped);
+                    
+                    if (conversations.length === 0) {
+                        // Show debug info
+                        const packetTypes = {};
+                        packets.forEach(p => {
+                            if (p.ethernet) {
+                                const type = p.ethernet.etherType || 'Unknown';
+                                packetTypes[type] = (packetTypes[type] || 0) + 1;
+                            } else {
+                                packetTypes['No Ethernet'] = (packetTypes['No Ethernet'] || 0) + 1;
+                            }
+                        });
+                        
+                        const debugInfo = Object.entries(packetTypes).map(([type, count]) => 
+                            `${type}: ${count}`
+                        ).join(', ');
+                        
+                        console.log('Packet types found:', packetTypes);
+                        console.log('Sample packets:', packets.slice(0, 5));
+                        
+                        alert(`No conversations found. Packets parsed: ${packets.length}\n\nPacket types: ${debugInfo}\n\nThe file may not contain IP/TCP/UDP traffic, or packets may be in an unsupported format.\n\nCheck browser console for details.`);
+                        document.getElementById('emptyState').innerHTML = `
+                            <div class="text-center text-gray-500 max-w-2xl mx-auto">
+                                <i class="fa-solid fa-info-circle text-5xl mb-4 text-blue-500"></i>
+                                <p class="text-lg">No conversations found</p>
+                                <p class="text-sm mt-2">Packets parsed: ${packets.length}</p>
+                                <p class="text-sm mt-2">Packet types: ${debugInfo}</p>
+                                <p class="text-sm mt-4">The file may not contain IP/TCP/UDP traffic</p>
+                                <p class="text-xs mt-4 text-gray-600">Check browser console (F12) for detailed packet information</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    displayResults(packets, grouped);
+                } catch (error) {
+                    console.error('PCAP parsing error:', error);
+                    console.error('Stack trace:', error.stack);
+                    alert('Error parsing PCAP file: ' + error.message + '\n\nCheck the browser console (F12) for detailed error information.');
+                    document.getElementById('emptyState').innerHTML = `
+                        <div class="text-center text-gray-500">
+                            <i class="fa-solid fa-exclamation-triangle text-5xl mb-4 text-red-500"></i>
+                            <p class="text-lg">Error parsing file</p>
+                            <p class="text-sm mt-2">${error.message}</p>
+                            <p class="text-xs mt-4 text-gray-600">Open browser console (F12) for details</p>
+                        </div>
+                    `;
+                }
+            };
+            reader.onerror = function(e) {
+                const error = reader.error;
+                console.error('FileReader error:', error);
+                console.error('Error event:', e);
+                
+                let errorMessage = 'Error reading file';
+                if (error) {
+                    if (error.name === 'NotFoundError') {
+                        errorMessage = 'File not found or could not be accessed. Try selecting the file again.';
+                    } else if (error.name === 'SecurityError') {
+                        errorMessage = 'Security error: Browser blocked file access. Try a different browser or file.';
+                    } else if (error.name === 'NotReadableError') {
+                        errorMessage = 'File could not be read. The file may be locked or corrupted.';
+                    } else {
+                        errorMessage = `Error: ${error.name} - ${error.message || 'Unknown error'}`;
+                    }
+                }
+                
+                alert(errorMessage);
+                document.getElementById('emptyState').innerHTML = `
+                    <div class="text-center text-gray-500">
+                        <i class="fa-solid fa-exclamation-triangle text-5xl mb-4 text-red-500"></i>
+                        <p class="text-lg">File Read Error</p>
+                        <p class="text-sm mt-2">${errorMessage}</p>
+                        <p class="text-xs mt-4 text-gray-600">Try selecting the file again or use a different file</p>
+                    </div>
+                `;
+            };
+            
+            reader.onabort = function() {
+                console.warn('File reading aborted');
+                alert('File reading was cancelled');
+            };
+            
+            try {
+                reader.readAsArrayBuffer(file);
+            } catch (err) {
+                console.error('Error starting file read:', err);
+                alert('Error starting file read: ' + err.message);
+            }
+        }
+
+        function displayResults(packets, grouped) {
+            // Update stats
+            document.getElementById('packetCount').textContent = packets.length;
+            document.getElementById('conversationCount').textContent = grouped.conversations.length;
+            document.getElementById('protocols').textContent = grouped.protocols.join(', ');
+            
+            // Show UI
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('statsBar').classList.remove('hidden');
+            document.getElementById('sidebar').classList.remove('hidden');
+            
+            // Display conversations
+            displayConversationList(grouped.conversations);
+            
+            // Show first conversation
+            if (grouped.conversations.length > 0) {
+                showConversation(grouped.conversations[0]);
+            }
+        }
+
+        function displayConversationList(convs) {
+            const list = document.getElementById('conversationList');
+            list.innerHTML = '';
+            
+            convs.forEach(conv => {
+                const analysis = analyzeConversation(conv);
+                const issueCount = analysis.issues.length;
+                
+                const item = document.createElement('div');
+                const hasIssues = issueCount > 0;
+                item.className = `p-3 bg-[#111827] border ${hasIssues ? 'border-red-500/50' : 'border-obsidian-border'} rounded cursor-pointer hover:border-obsidian-accent transition-colors`;
+                item.onclick = () => showConversation(conv);
+                
+                let protocolIcon = 'fa-network-wired';
+                if (conv.protocol === 'UDP') {
+                    protocolIcon = 'fa-broadcast-tower';
+                } else if (conv.protocol === 'ICMP') {
+                    protocolIcon = 'fa-exchange-alt';
+                }
+                
+                const packetCount = conv.packets.length;
+                const portInfo = conv.srcPort ? `${conv.srcIP}:${conv.srcPort}` : conv.srcIP;
+                const dstPortInfo = conv.dstPort ? `${conv.dstIP}:${conv.dstPort}` : conv.dstIP;
+                
+                item.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid ${protocolIcon} text-obsidian-accent text-xs"></i>
+                            ${hasIssues ? `<span class="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">${issueCount} issue${issueCount !== 1 ? 's' : ''}</span>` : ''}
+                        </div>
+                        <span class="text-xs text-gray-500">${packetCount} pkts</span>
+                    </div>
+                    <div class="text-xs text-white font-mono truncate">${portInfo}</div>
+                    <div class="text-xs text-gray-400 font-mono truncate">→ ${dstPortInfo}</div>
+                `;
+                
+                list.appendChild(item);
+            });
+        }
+
+        function showConversation(conv) {
+            currentConversation = conv;
+            
+            const title = conv.srcPort 
+                ? `${conv.srcIP}:${conv.srcPort} ↔ ${conv.dstIP}:${conv.dstPort}`
+                : `${conv.srcIP} ↔ ${conv.dstIP} (${conv.protocol})`;
+            
+            document.getElementById('conversationTitle').textContent = title;
+            
+            // Calculate statistics
+            let totalBytes = 0;
+            let outboundBytes = 0;
+            let inboundBytes = 0;
+            conv.packets.forEach(p => {
+                totalBytes += p.length;
+                if (p.direction === 'outbound') {
+                    outboundBytes += p.length;
+                } else {
+                    inboundBytes += p.length;
+                }
+            });
+            
+            // Analyze for quick stats
+            const analysis = analyzeConversation(conv);
+            const issueCount = analysis.issues.length;
+            
+            document.getElementById('conversationInfo').innerHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-sm">
+                    <div>
+                        <span class="text-gray-500">Protocol:</span>
+                        <strong class="ml-1">${conv.protocol}</strong>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Packets:</span>
+                        <strong class="ml-1">${conv.packets.length}</strong>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Duration:</span>
+                        <strong class="ml-1">${(conv.endTime - conv.startTime).toFixed(3)}s</strong>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Total Bytes:</span>
+                        <strong class="ml-1">${totalBytes.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Outbound:</span>
+                        <strong class="ml-1">${outboundBytes.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Inbound:</span>
+                        <strong class="ml-1">${inboundBytes.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Issues:</span>
+                        <strong class="ml-1 ${issueCount > 0 ? 'text-red-400' : 'text-green-400'}">${issueCount}</strong>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('conversationView').classList.remove('hidden');
+            
+            displayChatBubbles(conv);
+        }
+
+        function analyzeConversation(conv) {
+            const analysis = {
+                retransmissions: [],
+                timeouts: [],
+                duplicateAcks: [],
+                outOfOrder: [],
+                zeroWindow: [],
+                fastRetransmit: [],
+                issues: []
+            };
+
+            if (conv.protocol !== 'TCP') {
+                return analysis;
+            }
+
+            const seenSeqs = new Map(); // seq -> [packet indices]
+            const seenAcks = new Map(); // ack -> [packet indices]
+            const lastPacketTime = {};
+            const expectedSeq = {};
+
+            conv.packets.forEach((packet, idx) => {
+                const transport = packet.ethernet?.ip?.transport;
+                if (!transport || !transport.seqNum) return;
+
+                const isOutbound = packet.direction === 'outbound';
+                const key = isOutbound ? 'outbound' : 'inbound';
+                const seq = transport.seqNum;
+                const ack = transport.ackNum;
+
+                // Track retransmissions (same sequence number seen before)
+                if (seenSeqs.has(seq)) {
+                    const prevIndices = seenSeqs.get(seq);
+                    const prevPacket = conv.packets[prevIndices[0]];
+                    const timeSince = (packet.timestamp - prevPacket.timestamp) * 1000;
+                    
+                    analysis.retransmissions.push({
+                        packetIndex: idx,
+                        prevIndex: prevIndices[0],
+                        seq: seq,
+                        timeSince: timeSince,
+                        isFastRetransmit: timeSince < 100 // Fast retransmit if < 100ms
+                    });
+                    
+                    if (timeSince < 100) {
+                        analysis.fastRetransmit.push(idx);
+                    }
+                } else {
+                    seenSeqs.set(seq, [idx]);
+                }
+                seenSeqs.get(seq).push(idx);
+
+                // Track duplicate ACKs
+                if (ack && seenAcks.has(ack)) {
+                    const prevIndices = seenAcks.get(ack);
+                    if (prevIndices.length >= 2) {
+                        analysis.duplicateAcks.push({
+                            packetIndex: idx,
+                            ack: ack,
+                            count: prevIndices.length + 1
+                        });
+                    }
+                    seenAcks.get(ack).push(idx);
+                } else if (ack) {
+                    seenAcks.set(ack, [idx]);
+                }
+
+                // Detect timeouts (large gaps between packets)
+                if (idx > 0) {
+                    const timeSinceLast = (packet.timestamp - conv.packets[idx - 1].timestamp) * 1000;
+                    if (timeSinceLast > 1000) { // More than 1 second
+                        analysis.timeouts.push({
+                            packetIndex: idx,
+                            timeSince: timeSinceLast,
+                            gap: timeSinceLast
+                        });
+                    }
+                }
+
+                // Detect zero window
+                if (transport.window === 0) {
+                    analysis.zeroWindow.push({
+                        packetIndex: idx,
+                        direction: isOutbound ? 'outbound' : 'inbound'
+                    });
+                }
+
+                // Track expected sequence numbers for out-of-order detection
+                if (isOutbound && expectedSeq.outbound !== undefined) {
+                    if (seq < expectedSeq.outbound && !transport.flags.includes('SYN')) {
+                        analysis.outOfOrder.push({
+                            packetIndex: idx,
+                            expected: expectedSeq.outbound,
+                            actual: seq
+                        });
+                    }
+                }
+
+                // Update expected sequence
+                if (transport.payload && transport.payload.length > 0) {
+                    expectedSeq[key] = seq + transport.payload.length;
+                } else if (!transport.flags.includes('SYN') && !transport.flags.includes('FIN')) {
+                    expectedSeq[key] = seq + 1;
+                }
+            });
+
+            // Generate summary issues
+            if (analysis.retransmissions.length > 0) {
+                analysis.issues.push(`⚠️ ${analysis.retransmissions.length} retransmission(s) detected`);
+            }
+            if (analysis.timeouts.length > 0) {
+                analysis.issues.push(`⏱️ ${analysis.timeouts.length} timeout(s) detected (>1s gaps)`);
+            }
+            if (analysis.duplicateAcks.length > 0) {
+                analysis.issues.push(`🔄 ${analysis.duplicateAcks.length} duplicate ACK(s)`);
+            }
+            if (analysis.zeroWindow.length > 0) {
+                analysis.issues.push(`🚫 ${analysis.zeroWindow.length} zero window condition(s)`);
+            }
+            if (analysis.outOfOrder.length > 0) {
+                analysis.issues.push(`📦 ${analysis.outOfOrder.length} out-of-order packet(s)`);
+            }
+
+            return analysis;
+        }
+
+        function displayChatBubbles(conv) {
+            const container = document.getElementById('chatContainer');
+            container.innerHTML = '';
+
+            // Analyze conversation for issues
+            const analysis = analyzeConversation(conv);
+            
+            // Show issues banner if any
+            if (analysis.issues.length > 0) {
+                const issuesBanner = document.createElement('div');
+                issuesBanner.className = 'bg-yellow-900/30 border border-yellow-600 rounded-lg p-4 mb-4';
+                
+                const retransCount = analysis.retransmissions.length;
+                const timeoutCount = analysis.timeouts.length;
+                const dupAckCount = analysis.duplicateAcks.length;
+                const zeroWinCount = analysis.zeroWindow.length;
+                const oooCount = analysis.outOfOrder.length;
+                
+                issuesBanner.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <i class="fa-solid fa-exclamation-triangle text-yellow-400 text-xl mt-0.5"></i>
+                        <div class="flex-1">
+                            <div class="font-semibold text-yellow-400 mb-3">Network Issues Detected:</div>
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                                ${retransCount > 0 ? `
+                                    <div class="bg-red-900/30 border border-red-600 rounded p-2">
+                                        <div class="text-red-400 font-bold">${retransCount}</div>
+                                        <div class="text-red-300 text-xs">Retransmission${retransCount !== 1 ? 's' : ''}</div>
+                                    </div>
+                                ` : ''}
+                                ${timeoutCount > 0 ? `
+                                    <div class="bg-yellow-900/30 border border-yellow-600 rounded p-2">
+                                        <div class="text-yellow-400 font-bold">${timeoutCount}</div>
+                                        <div class="text-yellow-300 text-xs">Timeout${timeoutCount !== 1 ? 's' : ''}</div>
+                                    </div>
+                                ` : ''}
+                                ${dupAckCount > 0 ? `
+                                    <div class="bg-purple-900/30 border border-purple-600 rounded p-2">
+                                        <div class="text-purple-400 font-bold">${dupAckCount}</div>
+                                        <div class="text-purple-300 text-xs">Duplicate ACK${dupAckCount !== 1 ? 's' : ''}</div>
+                                    </div>
+                                ` : ''}
+                                ${zeroWinCount > 0 ? `
+                                    <div class="bg-red-900/30 border border-red-600 rounded p-2">
+                                        <div class="text-red-400 font-bold">${zeroWinCount}</div>
+                                        <div class="text-red-300 text-xs">Zero Window</div>
+                                    </div>
+                                ` : ''}
+                                ${oooCount > 0 ? `
+                                    <div class="bg-blue-900/30 border border-blue-600 rounded p-2">
+                                        <div class="text-blue-400 font-bold">${oooCount}</div>
+                                        <div class="text-blue-300 text-xs">Out-of-Order</div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(issuesBanner);
+            }
+            
+            conv.packets.forEach((packet, idx) => {
+                const isOutbound = packet.direction === 'outbound';
+                const transport = packet.ethernet?.ip?.transport;
+                const app = transport?.application;
+                const ip = packet.ethernet?.ip;
+                
+                let message = '';
+                let icon = 'fa-circle';
+                let color = 'obsidian-accent';
+                let payloadSize = 0;
+                
+                if (app) {
+                    if (app.type === 'TLS') {
+                        message = app.messageType || 'TLS Message';
+                        icon = 'fa-lock';
+                        color = app.messageType?.includes('Hello') ? 'green-400' : 
+                               app.messageType?.includes('Finished') ? 'blue-400' : 'obsidian-accent';
+                        if (app.details) {
+                            message += ` (${app.details})`;
+                        }
+                    } else if (app.type === 'HTTP Request') {
+                        const firstLine = app.content.split('\n')[0];
+                        message = firstLine || 'HTTP Request';
+                        icon = 'fa-arrow-right';
+                        color = 'blue-400';
+                    } else if (app.type === 'HTTP Response') {
+                        const firstLine = app.content.split('\n')[0];
+                        message = firstLine || 'HTTP Response';
+                        icon = 'fa-arrow-left';
+                        color = 'green-400';
+                    }
+                } else if (transport) {
+                    if (transport.type === 'ICMP') {
+                        message = transport.messageType || 'ICMP Packet';
+                        icon = transport.icmpType === 8 ? 'fa-arrow-right' : transport.icmpType === 0 ? 'fa-arrow-left' : 'fa-exchange-alt';
+                        color = transport.icmpType === 8 ? 'blue-400' : transport.icmpType === 0 ? 'green-400' : 'obsidian-accent';
+                        if (transport.details && transport.details.sequence !== undefined) {
+                            message += ` (Seq: ${transport.details.sequence})`;
+                        }
+                    } else if (transport.flags) {
+                        // Check if packet has payload for size display
+                        if (transport.payload && transport.payload.length > 0) {
+                            payloadSize = transport.payload.length;
+                        }
+                        
+                        message = `TCP ${transport.flags}`;
+                        if (payloadSize > 0) {
+                            message += ` [${payloadSize} bytes]`;
+                        }
+                        icon = 'fa-exchange-alt';
+                    } else {
+                        message = `${conv.protocol} Packet`;
+                    }
+                } else {
+                    message = 'Packet';
+                }
+                
+                const bubble = document.createElement('div');
+                bubble.className = `chat-bubble flex ${isOutbound ? 'justify-end' : 'justify-start'}`;
+                
+                const time = new Date(packet.timestamp * 1000);
+                const timeStr = time.toLocaleTimeString() + '.' + Math.floor((packet.timestamp % 1) * 1000).toString().padStart(3, '0');
+                const relativeTime = idx > 0 ? ((packet.timestamp - conv.packets[0].timestamp) * 1000).toFixed(3) + 'ms' : '0ms';
+                
+                const bubbleColor = isOutbound ? '#7c3aed' : '#252526';
+                const textColor = isOutbound ? '#ffffff' : '#ffffff';
+                const iconColorClass = color === 'green-400' ? 'text-green-400' : 
+                                      color === 'blue-400' ? 'text-blue-400' : 'text-obsidian-accent';
+                
+                const packetId = `packet-${conv.id}-${idx}`;
+                
+                // Check for issues with this packet
+                const isRetransmission = analysis.retransmissions.some(r => r.packetIndex === idx);
+                const isTimeout = analysis.timeouts.some(t => t.packetIndex === idx);
+                const isDuplicateAck = analysis.duplicateAcks.some(d => d.packetIndex === idx);
+                const isZeroWindow = analysis.zeroWindow.some(z => z.packetIndex === idx);
+                const isOutOfOrder = analysis.outOfOrder.some(o => o.packetIndex === idx);
+                const isFastRetransmit = analysis.fastRetransmit.includes(idx);
+                
+                let issueBadges = '';
+                if (isRetransmission) {
+                    const retransInfo = analysis.retransmissions.find(r => r.packetIndex === idx);
+                    issueBadges += `<span class="inline-block bg-red-500 text-white text-xs px-2 py-0.5 rounded mr-1" title="Retransmission after ${retransInfo.timeSince.toFixed(0)}ms">RETRANS</span>`;
+                }
+                if (isFastRetransmit) {
+                    issueBadges += `<span class="inline-block bg-orange-500 text-white text-xs px-2 py-0.5 rounded mr-1">FAST-RETRANS</span>`;
+                }
+                if (isTimeout) {
+                    const timeoutInfo = analysis.timeouts.find(t => t.packetIndex === idx);
+                    issueBadges += `<span class="inline-block bg-yellow-500 text-white text-xs px-2 py-0.5 rounded mr-1" title="Timeout: ${timeoutInfo.gap.toFixed(0)}ms gap">TIMEOUT</span>`;
+                }
+                if (isDuplicateAck) {
+                    const dupInfo = analysis.duplicateAcks.find(d => d.packetIndex === idx);
+                    issueBadges += `<span class="inline-block bg-purple-500 text-white text-xs px-2 py-0.5 rounded mr-1" title="Duplicate ACK #${dupInfo.count}">DUP-ACK</span>`;
+                }
+                if (isZeroWindow) {
+                    issueBadges += `<span class="inline-block bg-red-600 text-white text-xs px-2 py-0.5 rounded mr-1">ZERO-WIN</span>`;
+                }
+                if (isOutOfOrder) {
+                    issueBadges += `<span class="inline-block bg-blue-500 text-white text-xs px-2 py-0.5 rounded mr-1">OUT-OF-ORDER</span>`;
+                }
+                
+                bubble.innerHTML = `
+                    <div class="max-w-3xl ${isOutbound ? 'order-2' : ''}">
+                        <div class="flex items-center gap-2 mb-1 ${isOutbound ? 'justify-end' : ''}">
+                            <span class="text-xs text-gray-500">#${idx + 1}</span>
+                            <span class="text-xs text-gray-500">${timeStr}</span>
+                            <span class="text-xs text-gray-600">+${relativeTime}</span>
+                            <i class="fa-solid ${icon} ${iconColorClass} text-xs"></i>
+                        </div>
+                        <div class="rounded-lg px-4 py-3 shadow-lg ${isRetransmission || isTimeout || isZeroWindow ? 'ring-2 ring-red-500' : ''}" style="background-color: ${bubbleColor}; color: ${textColor};">
+                            <div class="flex items-start justify-between mb-2">
+                                <div class="font-semibold">${message}</div>
+                                ${issueBadges ? `<div class="ml-2">${issueBadges}</div>` : ''}
+                            </div>
+                            ${transport ? `
+                                <div class="text-xs opacity-80 mt-2 space-y-1 border-t ${isOutbound ? 'border-white/20' : 'border-white/10'} pt-2">
+                                    ${transport.type === 'ICMP' ? `
+                                        ${transport.details && transport.details.identifier !== undefined ? `<div><strong>ID:</strong> ${transport.details.identifier}</div>` : ''}
+                                        ${transport.details && transport.details.sequence !== undefined ? `<div><strong>Sequence:</strong> ${transport.details.sequence}</div>` : ''}
+                                        <div><strong>Code:</strong> ${transport.code}</div>
+                                    ` : transport.flags ? `
+                                        <div class="grid grid-cols-2 gap-x-4">
+                                            <div><strong>Seq:</strong> ${transport.seqNum || 'N/A'}</div>
+                                            ${transport.ackNum ? `<div><strong>Ack:</strong> ${transport.ackNum}</div>` : ''}
+                                            <div><strong>Flags:</strong> ${transport.flags}</div>
+                                            <div><strong>Win:</strong> ${transport.window || 'N/A'}</div>
+                                            ${payloadSize > 0 ? `<div><strong>Len:</strong> ${payloadSize}</div>` : ''}
+                                            <div><strong>Size:</strong> ${packet.length}</div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(bubble);
+            });
+            
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearPCAP() {
+            pcapData = null;
+            conversations = [];
+            currentConversation = null;
+            
+            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('statsBar').classList.add('hidden');
+            document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('conversationView').classList.add('hidden');
+            document.getElementById('fileInput').value = '';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
