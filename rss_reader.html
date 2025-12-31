@@ -385,8 +385,8 @@
                     filtered = filtered.filter(a => a.feedId === this.currentFilter);
                 }
 
-                // 2. Filter by Read Status
-                if (!this.showRead) {
+                // 2. Filter by Read Status (skip for favorites - always show all favorites)
+                if (this.currentFilter !== 'favorites' && !this.showRead) {
                     filtered = filtered.filter(a => !this.readItems.has(a.id));
                 }
 
