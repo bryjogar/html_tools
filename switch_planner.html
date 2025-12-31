@@ -2253,7 +2253,18 @@
                     port.stp.portfast = true;
                 }
                 
-                // PVID (Native VLAN)
+                // Access VLAN (switchport access vlan X) - sets native VLAN for access ports
+                const accessVlanMatch = portConfig.match(/switchport\s+access\s+vlan\s+(\d+)/i);
+                if (accessVlanMatch) {
+                    const vid = parseInt(accessVlanMatch[1]);
+                    const vlan = state.vlans.find(v => v.vid === vid);
+                    if (vlan) {
+                        port.nativeVlanId = vlan.id;
+                        port.portMode = 'access'; // Mark as access port
+                    }
+                }
+                
+                // PVID (Native VLAN) - for general/trunk ports
                 const pvidMatch = portConfig.match(/switchport\s+general\s+pvid\s+(\d+)/i);
                 if (pvidMatch) {
                     const vid = parseInt(pvidMatch[1]);
