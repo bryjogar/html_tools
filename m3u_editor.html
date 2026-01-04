@@ -35,24 +35,21 @@
 
     <style>
         /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #1e1e1e; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #3c3c3c; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555; 
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
 
         /* Glass effect for drag overlay */
-        #drag-overlay {
-            backdrop-filter: blur(4px);
+        #drag-overlay { backdrop-filter: blur(4px); }
+
+        /* Custom Checkbox Toggle */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #7c3aed;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #7c3aed;
         }
     </style>
 </head>
@@ -66,8 +63,8 @@
 
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
         <div class="flex items-center gap-3">
-            <i class="fa-solid fa-radio text-obsidian-accent text-xl"></i>
-            <h1 class="font-bold text-lg tracking-tight text-white">M3U Builder</h1>
+            <i class="fa-solid fa-tower-broadcast text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-tight text-white">M3U Radio Builder</h1>
         </div>
         <div class="flex gap-2">
             <button onclick="clearAll()" class="px-3 py-1.5 text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded border border-red-500/20 transition-colors">
@@ -117,6 +114,14 @@
                         </div>
                     </div>
 
+                    <div class="flex items-center justify-between bg-obsidian-bg p-2 rounded border border-obsidian-border">
+                        <span class="text-xs text-gray-400">Is this a Radio Station?</span>
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="isRadio" id="inputIsRadio" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-600 checked:right-0 transition-all duration-300"/>
+                            <label for="inputIsRadio" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-600 cursor-pointer transition-colors duration-300"></label>
+                        </div>
+                    </div>
+
                     <div class="pt-2 flex gap-2">
                         <button type="submit" id="submitBtn" class="flex-1 bg-obsidian-accent hover:bg-violet-600 text-white font-medium py-2 px-4 rounded transition-all text-sm">
                             <i class="fa-solid fa-plus mr-2"></i>Add Station
@@ -131,7 +136,7 @@
             <div class="p-4 bg-obsidian-pane/50 flex-1">
                 <div class="bg-blue-500/5 border border-blue-500/20 rounded p-3 text-xs text-blue-200/80 leading-relaxed">
                     <i class="fa-solid fa-circle-info mr-1"></i> 
-                    <strong>Tip:</strong> You can create groups like "News", "Music", or "Local". Drag and drop an existing .m3u file to edit it.
+                    <strong>Tip:</strong> Marking a stream as "Radio" adds the <code>radio="true"</code> tag to the file, which helps players like VLC or TiviMate identify it as audio-only.
                 </div>
             </div>
         </aside>
@@ -139,7 +144,7 @@
         <section class="flex-1 flex flex-col h-full bg-obsidian-bg overflow-hidden">
             <div class="h-10 border-b border-obsidian-border bg-obsidian-bg/90 backdrop-blur flex items-center px-4 text-xs font-mono text-gray-500 uppercase tracking-wide shrink-0">
                 <div class="w-12 text-center">#</div>
-                <div class="w-12 text-center">Logo</div>
+                <div class="w-12 text-center">Type</div>
                 <div class="flex-1 px-4">Name & URL</div>
                 <div class="w-24 hidden md:block">Group</div>
                 <div class="w-32 text-right">Actions</div>
@@ -188,6 +193,8 @@
         const iUrl = document.getElementById('inputUrl');
         const iGroup = document.getElementById('inputGroup');
         const iLogo = document.getElementById('inputLogo');
+        const iIsRadio = document.getElementById('inputIsRadio');
+        
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.getElementById('cancelBtn');
         const editIndexInput = document.getElementById('editIndex');
@@ -204,7 +211,8 @@
                 name: iName.value.trim(),
                 url: iUrl.value.trim(),
                 group: iGroup.value.trim() || 'Uncategorized',
-                logo: iLogo.value.trim()
+                logo: iLogo.value.trim(),
+                isRadio: iIsRadio.checked
             };
 
             const idx = parseInt(editIndexInput.value);
@@ -220,9 +228,10 @@
 
             renderList();
             if(idx === -1) {
-                // Only clear form if we added new, otherwise resetForm() handles it
                 form.reset();
-                iGroup.value = entry.group; // Convenience: keep last group
+                // Persist group for convenience, but reset checkbox
+                iGroup.value = entry.group; 
+                iIsRadio.checked = entry.isRadio; 
             }
         }
 
@@ -239,7 +248,12 @@
                 const el = document.createElement('div');
                 el.className = 'group flex items-center px-4 py-3 border-b border-obsidian-border hover:bg-obsidian-pane/50 transition-colors';
                 
-                // Logo Handling
+                // Type Icon
+                const typeIcon = item.isRadio 
+                    ? `<i class="fa-solid fa-tower-broadcast text-green-400" title="Radio Station"></i>` 
+                    : `<i class="fa-solid fa-tv text-gray-600" title="Standard Stream"></i>`;
+
+                // Logo or Default
                 let logoHtml = `<div class="w-8 h-8 rounded bg-obsidian-border flex items-center justify-center text-gray-600"><i class="fa-solid fa-music"></i></div>`;
                 if (item.logo) {
                     logoHtml = `<img src="${item.logo}" class="w-8 h-8 object-contain rounded bg-white/5" onerror="this.src='';this.parentElement.innerHTML='<i class=\'fa-solid fa-triangle-exclamation text-yellow-500/50\'></i>'">`;
@@ -247,9 +261,12 @@
 
                 el.innerHTML = `
                     <div class="w-12 text-center text-gray-600 font-mono text-xs">${index + 1}</div>
-                    <div class="w-12 flex justify-center">${logoHtml}</div>
+                    <div class="w-12 text-center text-lg">${typeIcon}</div>
                     <div class="flex-1 px-4 overflow-hidden">
-                        <div class="font-medium text-white truncate">${escapeHtml(item.name)}</div>
+                        <div class="font-medium text-white truncate flex items-center gap-2">
+                            ${escapeHtml(item.name)}
+                            ${item.isRadio ? '<span class="text-[10px] uppercase bg-green-500/10 text-green-400 border border-green-500/20 px-1 rounded">Radio</span>' : ''}
+                        </div>
                         <div class="text-xs text-gray-500 truncate font-mono">${escapeHtml(item.url)}</div>
                     </div>
                     <div class="w-24 hidden md:block text-xs text-obsidian-accent truncate">${escapeHtml(item.group)}</div>
@@ -280,6 +297,7 @@
             iUrl.value = item.url;
             iGroup.value = item.group;
             iLogo.value = item.logo || '';
+            iIsRadio.checked = item.isRadio || false;
             
             editIndexInput.value = index;
             submitBtn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Update';
@@ -295,6 +313,7 @@
             submitBtn.classList.replace('bg-emerald-600', 'bg-obsidian-accent');
             submitBtn.classList.replace('hover:bg-emerald-500', 'hover:bg-violet-600');
             cancelBtn.classList.add('hidden');
+            iIsRadio.checked = false;
         }
 
         function deleteEntry(index) {
@@ -331,6 +350,7 @@
             let content = '#EXTM3U\n';
             playlist.forEach(item => {
                 let attr = '';
+                if(item.isRadio) attr += ` radio="true"`;
                 if(item.logo) attr += ` tvg-logo="${item.logo}"`;
                 if(item.group) attr += ` group-title="${item.group}"`;
                 
@@ -376,7 +396,7 @@
 
                 if (line.startsWith('#EXTINF')) {
                     // Reset current item
-                    currentItem = { name: 'Unknown', url: '', group: 'Uncategorized', logo: '' };
+                    currentItem = { name: 'Unknown', url: '', group: 'Uncategorized', logo: '', isRadio: false };
                     
                     // Parse attributes
                     const infoPart = line.substring(8); // Remove #EXTINF:
@@ -393,6 +413,11 @@
                         // Extract Group
                         const groupMatch = attrs.match(/group-title="([^"]*)"/);
                         if (groupMatch) currentItem.group = groupMatch[1];
+
+                        // Extract Radio Flag
+                        if (attrs.includes('radio="true"')) {
+                            currentItem.isRadio = true;
+                        }
                     }
                 } else if (!line.startsWith('#')) {
                     // It's a URL
@@ -406,7 +431,8 @@
                             name: 'Imported Stream',
                             url: line,
                             group: 'Imported',
-                            logo: ''
+                            logo: '',
+                            isRadio: false
                         });
                     }
                 }
@@ -433,7 +459,6 @@
         function handleDrop(e) {
             e.preventDefault();
             document.getElementById('drag-overlay').classList.add('hidden');
-            
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                 processFile(e.dataTransfer.files[0]);
             }
