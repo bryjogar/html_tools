@@ -142,12 +142,13 @@
         </aside>
 
         <section class="flex-1 flex flex-col h-full bg-obsidian-bg overflow-hidden">
-            <div class="h-10 border-b border-obsidian-border bg-obsidian-bg/90 backdrop-blur flex items-center px-4 text-xs font-mono text-gray-500 uppercase tracking-wide shrink-0">
-                <div class="w-12 text-center">#</div>
-                <div class="w-12 text-center">Type</div>
-                <div class="flex-1 px-4">Name & URL</div>
-                <div class="w-24 hidden md:block">Group</div>
-                <div class="w-32 text-right">Actions</div>
+            <div class="h-10 border-b border-obsidian-border bg-obsidian-bg/90 backdrop-blur flex items-center px-2 text-xs font-mono text-gray-500 uppercase tracking-wide shrink-0">
+                <div class="w-8 text-center">#</div>
+                <div class="w-8 text-center">Type</div>
+                <div class="w-10 text-center">Logo</div>
+                <div class="flex-1 px-2">Name & URL</div>
+                <div class="w-24 hidden md:block text-right pr-2">Group</div>
+                <div class="w-28 text-right">Actions</div>
             </div>
 
             <div id="playlistContainer" class="flex-1 overflow-y-auto p-0 scroll-smooth pb-20">
@@ -246,31 +247,32 @@
 
             playlist.forEach((item, index) => {
                 const el = document.createElement('div');
-                el.className = 'group flex items-center px-4 py-3 border-b border-obsidian-border hover:bg-obsidian-pane/50 transition-colors';
+                el.className = 'group flex items-center px-2 py-3 border-b border-obsidian-border hover:bg-obsidian-pane/50 transition-colors';
                 
                 // Type Icon
                 const typeIcon = item.isRadio 
                     ? `<i class="fa-solid fa-tower-broadcast text-green-400" title="Radio Station"></i>` 
                     : `<i class="fa-solid fa-tv text-gray-600" title="Standard Stream"></i>`;
 
-                // Logo or Default
-                let logoHtml = `<div class="w-8 h-8 rounded bg-obsidian-border flex items-center justify-center text-gray-600"><i class="fa-solid fa-music"></i></div>`;
+                // Logo or Default Placeholder
+                let logoHtml = `<div class="w-8 h-8 rounded bg-obsidian-border flex items-center justify-center text-gray-600"><i class="fa-solid fa-music text-xs"></i></div>`;
                 if (item.logo) {
-                    logoHtml = `<img src="${item.logo}" class="w-8 h-8 object-contain rounded bg-white/5" onerror="this.src='';this.parentElement.innerHTML='<i class=\'fa-solid fa-triangle-exclamation text-yellow-500/50\'></i>'">`;
+                    // Use object-contain to ensure the whole logo is visible within the square
+                    logoHtml = `<img src="${item.logo}" alt="${escapeHtml(item.name)}" class="w-8 h-8 object-contain rounded bg-white/5" onerror="this.onerror=null;this.parentElement.innerHTML='<i class=\'fa-solid fa-triangle-exclamation text-yellow-500/50\'></i>'">`;
                 }
 
                 el.innerHTML = `
-                    <div class="w-12 text-center text-gray-600 font-mono text-xs">${index + 1}</div>
-                    <div class="w-12 text-center text-lg">${typeIcon}</div>
-                    <div class="flex-1 px-4 overflow-hidden">
+                    <div class="w-8 text-center text-gray-600 font-mono text-xs">${index + 1}</div>
+                    <div class="w-8 text-center text-base">${typeIcon}</div>
+                    <div class="w-10 flex justify-center">${logoHtml}</div>
+                    <div class="flex-1 px-2 overflow-hidden">
                         <div class="font-medium text-white truncate flex items-center gap-2">
                             ${escapeHtml(item.name)}
-                            ${item.isRadio ? '<span class="text-[10px] uppercase bg-green-500/10 text-green-400 border border-green-500/20 px-1 rounded">Radio</span>' : ''}
                         </div>
                         <div class="text-xs text-gray-500 truncate font-mono">${escapeHtml(item.url)}</div>
                     </div>
-                    <div class="w-24 hidden md:block text-xs text-obsidian-accent truncate">${escapeHtml(item.group)}</div>
-                    <div class="w-32 flex justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="w-24 hidden md:block text-xs text-obsidian-accent truncate text-right pr-2">${escapeHtml(item.group)}</div>
+                    <div class="w-28 flex justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onclick="moveEntry(${index}, -1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 hover:text-white" title="Move Up">
                             <i class="fa-solid fa-arrow-up text-xs"></i>
                         </button>
