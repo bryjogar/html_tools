@@ -1,0 +1,29 @@
+!Current Configuration:
+!
+!System Description "EdgeSwitch 24 250W, 1.9.1, Linux 3.6.5-03329b4a, 1.1.0.5102011"
+!System Software Version "1.9.1"
+!System Up Time          "266 days 19 hrs 59 mins 40 secs"
+!Additional Packages     QOS,IPv6 Management,Routing
+!Current SNTP Synchronized Time: SNTP Last Attempt Status Is Not Successful
+! 
+hostname "UBNT EdgeSwitch - GC"
+network protocol none
+network parms 192.168.8.3 255.255.255.0 192.168.8.1
+vlan database
+set igmp 1
+set igmp fast-leave 1
+exit 
+configure
+no device analytics
+ip name server 192.168.8.1
+username "ubnt" password 40955fca54df7f11d9d9c85bf63ed17a91908f1789cf4bed6d45f19fed176595ca9bf49db1d6d22b5337d0f209c63522a71354a94c9027fed4464ffa69305862 level 15 encrypted
+line console
+exit 
+line telnet
+exit 
+line ssh
+exit 
+snmp-server sysname "UBNT EdgeSwitch - GC"
+! 
+exit 
+ 

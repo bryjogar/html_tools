@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Storage Manager | Homelab Playground</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Toast Animation */
+        @keyframes slideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .toast {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        .toast.hiding {
+            animation: fadeOut 0.3s ease-in forwards;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-4 justify-between shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-database text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-white">Storage Manager</h1>
+        </div>
+        <div class="text-xs text-gray-500 font-mono hidden sm:block">
+            localStorage Access
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 relative">
+        <div class="max-w-5xl mx-auto space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex items-center gap-4">
+                    <div class="bg-blue-500/10 p-3 rounded-full text-blue-400">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase font-bold">Total Keys</p>
+                        <p class="text-xl font-bold text-white" id="keyCount">0</p>
+                    </div>
+                </div>
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex items-center gap-4">
+                    <div class="bg-emerald-500/10 p-3 rounded-full text-emerald-400">
+                        <i class="fa-solid fa-hard-drive"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase font-bold">Est. Size</p>
+                        <p class="text-xl font-bold text-white" id="totalSize">0 KB</p>
+                    </div>
+                </div>
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-4 flex items-center gap-4">
+                    <div class="bg-obsidian-accent/10 p-3 rounded-full text-obsidian-accent">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase font-bold">Status</p>
+                        <p class="text-xl font-bold text-white">Active</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 flex flex-col gap-4 h-full">
+                    <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-file-arrow-up-down text-gray-400"></i> Backup & Restore
+                    </h2>
+                    
+                    <div class="flex-1 flex flex-col justify-center gap-4">
+                        <div class="p-4 rounded border border-dashed border-obsidian-border bg-obsidian-bg/50 hover:bg-obsidian-bg transition-colors">
+                            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div>
+                                    <h3 class="font-bold text-white">Export Storage</h3>
+                                    <p class="text-sm text-gray-500 mt-1">Download a JSON file containing all current local storage data.</p>
+                                </div>
+                                <button onclick="exportStorage()" class="shrink-0 px-4 py-2 bg-obsidian-accent hover:bg-violet-600 text-white rounded font-medium transition-colors flex items-center gap-2">
+                                    <i class="fa-solid fa-download"></i> Export JSON
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded border border-dashed border-obsidian-border bg-obsidian-bg/50 hover:bg-obsidian-bg transition-colors">
+                            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div>
+                                    <h3 class="font-bold text-white">Import Storage</h3>
+                                    <p class="text-sm text-gray-500 mt-1">Overwrite current storage with a backup file.</p>
+                                </div>
+                                <div class="relative overflow-hidden shrink-0">
+                                    <input type="file" id="importFile" accept=".json" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleFileSelect(this)">
+                                    <button class="w-full px-4 py-2 bg-obsidian-pane border border-obsidian-border hover:bg-obsidian-border text-white rounded font-medium transition-colors flex items-center gap-2">
+                                        <i class="fa-solid fa-upload"></i> Select File
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-4 border-t border-obsidian-border">
+                            <button onclick="clearStorage()" class="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20 py-2 rounded text-sm transition-colors flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-trash-can"></i> Clear All Storage
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-lg flex flex-col h-[500px] md:h-auto overflow-hidden">
+                    <div class="p-4 border-b border-obsidian-border flex justify-between items-center bg-obsidian-pane">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list text-gray-400"></i> Current Data
+                        </h2>
+                        <button onclick="renderTable()" class="text-xs text-obsidian-accent hover:text-white transition-colors">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-0">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-obsidian-bg text-gray-400 sticky top-0 font-mono text-xs uppercase">
+                                <tr>
+                                    <th class="p-3 font-semibold border-b border-obsidian-border">Key</th>
+                                    <th class="p-3 font-semibold border-b border-obsidian-border text-right">Size</th>
+                                    <th class="p-3 font-semibold border-b border-obsidian-border text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="storageTableBody" class="divide-y divide-obsidian-border font-mono text-gray-300">
+                                </tbody>
+                        </table>
+                        <div id="emptyState" class="hidden h-full flex flex-col items-center justify-center text-gray-600 p-8">
+                            <i class="fa-solid fa-box-open text-4xl mb-2"></i>
+                            <p>Storage is empty</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <div id="toastContainer" class="fixed bottom-16 right-4 flex flex-col gap-2 z-50 pointer-events-none"></div>
+
+    <script>
+        // --- Utilities ---
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const colors = type === 'error' 
+                ? 'bg-red-500/10 border-red-500 text-red-200' 
+                : 'bg-obsidian-accent/20 border-obsidian-accent text-white';
+
+            toast.className = `toast pointer-events-auto flex items-center gap-3 px-4 py-3 rounded border ${colors} backdrop-blur-md shadow-lg min-w-[250px]`;
+            toast.innerHTML = `
+                <i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-check-circle'}"></i>
+                <span class="text-sm font-medium">${message}</span>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                toast.addEventListener('animationend', () => toast.remove());
+            }, 3000);
+        }
+
+        // --- Core Logic ---
+
+        function getStorageData() {
+            const data = {};
+            let totalBytes = 0;
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                data[key] = value;
+                totalBytes += (key.length + value.length) * 2; // Approx UTF-16 size
+            }
+            return { data, totalBytes, count: localStorage.length };
+        }
+
+        function renderTable() {
+            const { data, totalBytes, count } = getStorageData();
+            const tbody = document.getElementById('storageTableBody');
+            const emptyState = document.getElementById('emptyState');
+            
+            document.getElementById('keyCount').textContent = count;
+            document.getElementById('totalSize').textContent = formatBytes(totalBytes);
+
+            tbody.innerHTML = '';
+
+            if (count === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                
+                Object.keys(data).sort().forEach(key => {
+                    const value = data[key];
+                    const size = (key.length + value.length) * 2;
+                    
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-white/5 transition-colors group';
+                    
+                    tr.innerHTML = `
+                        <td class="p-3 truncate max-w-[150px] text-white" title="${key}">${key}</td>
+                        <td class="p-3 text-right text-gray-500">${formatBytes(size)}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="deleteKey('${key}')" class="text-gray-600 hover:text-red-400 p-1 transition-colors" title="Delete Key">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        function deleteKey(key) {
+            if(confirm(`Are you sure you want to delete "${key}"?`)) {
+                localStorage.removeItem(key);
+                renderTable();
+                showToast(`Deleted key: ${key}`);
+            }
+        }
+
+        function clearStorage() {
+            if (confirm("DANGER: This will wipe ALL Local Storage for this domain. This cannot be undone. Are you sure?")) {
+                localStorage.clear();
+                renderTable();
+                showToast("Storage completely cleared", "error");
+            }
+        }
+
+        function exportStorage() {
+            const { data } = getStorageData();
+            if (Object.keys(data).length === 0) {
+                showToast("Nothing to export!", "error");
+                return;
+            }
+
+            const exportObj = {
+                timestamp: new Date().toISOString(),
+                source: 'HomelabPlayground_StorageTool',
+                storage: data
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj, null, 2));
+            const downloadAnchor = document.createElement('a');
+            const dateStr = new Date().toISOString().split('T')[0];
+            
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `homelab-storage-backup-${dateStr}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            showToast("Export started successfully");
+        }
+
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    
+                    // Basic validation
+                    if (!json.storage || typeof json.storage !== 'object') {
+                        throw new Error("Invalid backup file format");
+                    }
+
+                    const keyCount = Object.keys(json.storage).length;
+                    
+                    if(confirm(`Found ${keyCount} keys in backup from ${json.timestamp || 'unknown date'}.\n\nThis will merge/overwrite existing keys. Continue?`)) {
+                        
+                        let successCount = 0;
+                        for (const [key, value] of Object.entries(json.storage)) {
+                            try {
+                                localStorage.setItem(key, value);
+                                successCount++;
+                            } catch (err) {
+                                console.error(`Failed to restore key ${key}`, err);
+                            }
+                        }
+                        
+                        renderTable();
+                        showToast(`Successfully restored ${successCount} keys`);
+                    }
+                } catch (err) {
+                    showToast("Error parsing JSON file", "error");
+                    console.error(err);
+                } finally {
+                    // Reset input so same file can be selected again if needed
+                    input.value = ''; 
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+
+        // Initialize
+        window.addEventListener('load', renderTable);
+
+    </script>
+</body>
+</html>

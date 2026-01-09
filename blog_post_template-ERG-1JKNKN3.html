@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Publisher v3.2</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc',    // Standard Text
+                            800: '#151516'      // Card Dark BG
+                        },
+                        brand: {
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #505050; }
+
+        .editor-input {
+            width: 100%;
+            height: 100%;
+            background-color: #1e1e1e;
+            color: #e5e5e5;
+            font-family: 'Fira Code', Consolas, monospace;
+            font-size: 0.9rem;
+            border: none;
+            resize: none;
+            outline: none;
+            padding: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        .tab-btn { border-bottom: 2px solid transparent; }
+        .tab-btn.active {
+            border-bottom: 2px solid #7c3aed;
+            color: #fff;
+            background-color: rgba(124, 58, 237, 0.05);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-layer-group text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-gray-200">Content Publisher <span class="text-xs font-normal text-gray-500 ml-2 border border-gray-600 rounded px-1">v3.2</span></h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="toggleHelp()" class="text-gray-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-circle-question text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        <section class="flex-1 flex flex-col border-r border-obsidian-border min-w-0 h-1/2 md:h-full relative z-10">
+            <div class="flex border-b border-obsidian-border bg-obsidian-pane shrink-0">
+                <button id="tab-input-md" onclick="switchInputTab('markdown')" class="tab-btn active flex-1 py-3 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-brands fa-markdown mr-1"></i> MARKDOWN (YAML)
+                </button>
+                <button id="tab-input-tpl" onclick="switchInputTab('template')" class="tab-btn flex-1 py-3 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-code mr-1"></i> PAGE TEMPLATE
+                </button>
+            </div>
+
+            <div class="flex-1 relative overflow-hidden group">
+                <textarea id="markdown-input" class="editor-input absolute inset-0" spellcheck="false"></textarea>
+                <textarea id="template-input" class="editor-input absolute inset-0 hidden" spellcheck="false"></textarea>
+            </div>
+        </section>
+
+        <section class="flex-1 flex flex-col bg-[#111] h-1/2 md:h-full relative z-0">
+            <div class="h-10 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-0 shrink-0">
+                <div class="flex h-full">
+                    <button id="tab-out-page" onclick="switchOutputTab('page')" class="tab-btn active h-full px-4 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors border-r border-obsidian-border">
+                        <i class="fa-regular fa-file-lines mr-1"></i> FULL PAGE
+                    </button>
+                    <button id="tab-out-card" onclick="switchOutputTab('card')" class="tab-btn h-full px-4 text-xs font-semibold tracking-wider text-gray-400 hover:text-white transition-colors border-r border-obsidian-border">
+                        <i class="fa-solid fa-id-card mr-1"></i> INDEX CARD
+                    </button>
+                </div>
+                <div class="pr-3">
+                     <button onclick="handleDownloadOrCopy()" class="text-xs text-obsidian-accent hover:text-violet-400 font-mono cursor-pointer flex items-center gap-1">
+                        <i id="action-icon" class="fa-solid fa-download"></i> <span id="action-text">Download Page</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="view-page" class="flex-1 relative overflow-hidden w-full h-full bg-[#111]">
+                <iframe id="preview-frame" class="absolute inset-0 w-full h-full border-none"></iframe>
+            </div>
+
+            <div id="view-card" class="flex-1 hidden flex-col w-full h-full bg-obsidian-bg">
+                <div class="p-8 flex items-center justify-center bg-[#111] border-b border-obsidian-border">
+                    <div id="card-visual-container" class="w-full max-w-md"></div>
+                </div>
+                <div class="flex-1 flex flex-col min-h-0 bg-obsidian-pane p-4">
+                    <label class="text-xs font-mono text-gray-500 mb-2 block uppercase">Card HTML Code</label>
+                    <textarea id="card-code-output" readonly class="flex-1 w-full bg-obsidian-bg border border-obsidian-border rounded p-3 font-mono text-xs text-gray-400 focus:outline-none resize-none custom-scrollbar whitespace-pre"></textarea>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <div id="help-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b border-obsidian-border flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-white">YAML & WikiLinks</h3>
+                <button onclick="toggleHelp()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div class="p-4 text-sm text-gray-300 space-y-4 overflow-y-auto">
+                <p>Fill out the YAML at the top of your markdown. You can also use Obsidian-style links in the body.</p>
+                
+                <h4 class="font-bold text-white text-xs uppercase mt-4 mb-2">Wiki Link Support</h4>
+                <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border font-mono text-xs space-y-2">
+                    <div>
+                        <span class="text-obsidian-accent">[[God's Grace]]</span> <br>
+                        <span class="text-gray-500">becomes &lt;a href="gods-grace.html"&gt;God's Grace&lt;/a&gt;</span>
+                    </div>
+                    <div>
+                        <span class="text-obsidian-accent">[[Folder/Note|Alias]]</span> <br>
+                        <span class="text-gray-500">becomes &lt;a href="folder/note.html"&gt;Alias&lt;/a&gt;</span>
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-white text-xs uppercase mt-4 mb-2">YAML Frontmatter</h4>
+                <div class="bg-obsidian-bg p-3 rounded border border-obsidian-border font-mono text-xs">
+<span class="text-pink-400">---</span><br>
+<span class="text-blue-400">title:</span> "My Blog Post"<br>
+<span class="text-blue-400">date:</span> 2025-09-20<br>
+<span class="text-blue-400">category:</span> Networking<br>
+<span class="text-blue-400">tags:</span> [obsidian, pkm]<br>
+<span class="text-blue-400">hero_image:</span> https://...<br>
+<span class="text-blue-400">excerpt:</span> "Short summary..."<br>
+<span class="text-blue-400">permalink:</span> notes/my-post.html<br>
+<span class="text-pink-400">---</span>
+                </div>
+            </div>
+            <div class="p-4 bg-obsidian-bg border-t border-obsidian-border text-center shrink-0">
+                <button onclick="toggleHelp()" class="px-4 py-2 bg-obsidian-accent hover:bg-violet-600 text-white rounded text-sm transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const els = {
+            mdInput: document.getElementById('markdown-input'),
+            tplInput: document.getElementById('template-input'),
+            iframe: document.getElementById('preview-frame'),
+            cardVisual: document.getElementById('card-visual-container'),
+            cardCode: document.getElementById('card-code-output'),
+            actionText: document.getElementById('action-text'),
+            actionIcon: document.getElementById('action-icon'),
+            modal: document.getElementById('help-modal'),
+            tabs: {
+                inMd: document.getElementById('tab-input-md'),
+                inTpl: document.getElementById('tab-input-tpl'),
+                outPage: document.getElementById('tab-out-page'),
+                outCard: document.getElementById('tab-out-card')
+            },
+            views: {
+                page: document.getElementById('view-page'),
+                card: document.getElementById('view-card')
+            }
+        };
+
+        const STORAGE_KEYS = { MD: 'hlp_pub_v3_md', TPL: 'hlp_pub_v3_tpl' };
+        let currentOutputMode = 'page'; // 'page' or 'card'
+
+        // --- Templates ---
+        const CARD_STANDARD = `<article class="group bg-white dark:bg-obsidian-800 rounded-xl p-6 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md hover:ring-brand-500 dark:hover:ring-brand-500 transition-all duration-300">
+    <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+        <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{{CATEGORY}}</span>
+        <span>•</span>
+        <time>{{DATE}}</time>
+    </div>
+    <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-brand-600 dark:group-hover:text-brand-400">
+        <a href="{{PERMALINK}}">{{TITLE}}</a>
+    </h3>
+    <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4">
+        {{EXCERPT}}
+    </p>
+    <div class="flex items-center text-brand-600 dark:text-brand-400 text-sm font-medium">
+        Read more <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+    </div>
+</article>`;
+
+        const CARD_HERO = `<article class="note-card group bg-white dark:bg-obsidian-800 rounded-xl shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md hover:ring-brand-500 dark:hover:ring-brand-500 transition-all duration-300 flex flex-col overflow-hidden">
+    <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-700 relative">
+         <img src="{{HERO_IMAGE}}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="{{TITLE}}">
+    </div>
+    <div class="p-6 flex flex-col flex-grow">
+        <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-3">
+            <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">{{CATEGORY}}</span>
+            <span>•</span>
+            <time>{{DATE}}</time>
+        </div>
+        <h3 class="text-xl font-semibold text-slate-900 dark:text-white mb-2 group-hover:text-brand-600 dark:group-hover:text-brand-400">
+            <a href="{{PERMALINK}}">{{TITLE}}</a>
+        </h3>
+        <p class="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mb-4 flex-grow">
+            {{EXCERPT}}
+        </p>
+        <div class="flex items-center text-brand-600 dark:text-brand-400 text-sm font-medium mt-auto">
+            Read more <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+        </div>
+    </div>
+</article>`;
+
+        const PAGE_TEMPLATE = `<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{TITLE}} | Bryan Garrison</title>
+    <meta name="description" content="{{EXCERPT}}">
+    <script src="https://cdn.tailwindcss.com?plugins=typography"><\/script>
+    <script src="https://unpkg.com/lucide@latest"><\/script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9', // Sky blue - feels airy like cloud/network
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        obsidian: {
+                            800: '#202020', // Dark theme background match
+                            900: '#161616',
+                        }
+                    }
+                }
+            }
+        }
+    <\/script>
+<!-- Dark Mode Prevention Script -->
+    <!-- Placing this in the head ensures the class is added BEFORE the body renders -->
+    <script>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    <\/script>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-obsidian-900 dark:text-slate-200 transition-colors duration-300 flex flex-col min-h-screen font-sans">
+    
+    <nav class="sticky top-0 z-50 bg-slate-50/80 dark:bg-obsidian-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex-shrink-0 flex items-center">
+                    <a href="index.html" class="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="terminal-square" class="w-6 h-6 text-brand-600 dark:text-brand-500"></i>
+                        <span>Bryan Garrison</span>
+                    </a>
+                </div>
+                <div class="hidden sm:flex sm:items-center sm:space-x-8">
+                    <a href="notes.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Notes</a>
+                    <a href="about.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">About</a>
+                    <a href="projects.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Projects</a>
+                    <a href="now.html" class="text-sm font-medium hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Now</a>
+                    <button id="theme-toggle" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label="Toggle Dark Mode">
+                        <i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
+                        <i data-lucide="sun" class="w-5 h-5 block dark:hidden"></i>
+                    </button>
+                </div>
+                <div class="flex items-center sm:hidden gap-4">
+                     <button id="theme-toggle-mobile" class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+                        <i data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
+                        <i data-lucide="sun" class="w-5 h-5 block dark:hidden"></i>
+                    </button>
+                    <a href="index.html" class="p-2 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+                        <i data-lucide="home" class="w-6 h-6"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+        <div class="mb-8">
+            <a href="index.html" class="inline-flex items-center text-sm text-slate-500 hover:text-brand-600 dark:hover:text-brand-400"><i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Back to Home</a>
+        </div>
+
+        {{HERO_BLOCK}}
+
+        <header class="mb-10">
+            <div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mb-4 font-mono">
+                <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> <time>{{DATE}}</time></span>
+                <span>/</span>
+                <span class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> {{READING_TIME}}</span>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white font-sans tracking-tight">{{TITLE}}</h1>
+        </header>
+
+        <article class="prose prose-slate dark:prose-invert prose-lg max-w-none">
+            {{CONTENT}}
+        </article>
+
+        <div class="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Tags</h3>
+            <div class="flex flex-wrap gap-2">
+                {{TAGS}}
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white dark:bg-obsidian-900 border-t border-slate-200 dark:border-slate-800 mt-auto">
+        <div class="max-w-4xl mx-auto px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">&copy; 2025 Bryan Garrison.</div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+        const btn = document.getElementById('theme-toggle');
+        const btnMobile = document.getElementById('theme-toggle-mobile');
+        const html = document.documentElement;
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) { html.classList.add('dark'); } else { html.classList.remove('dark'); }
+        function toggleTheme() { html.classList.toggle('dark'); localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light'; }
+        if(btn) btn.addEventListener('click', toggleTheme);
+        if(btnMobile) btnMobile.addEventListener('click', toggleTheme);
+    <\/script>
+</body>
+</html>`;
+
+        const DEFAULT_MD = `---
+title: Refining the Zettelkasten Workflow
+date: 2025-09-20
+category: PKM
+permalink: notes/zettelkasten.html
+hero_image: https://images.unsplash.com/photo-1456324504439-367cee10d632?auto=format&fit=crop&q=80&w=1000
+excerpt: I've spent the last six months trying to force my notes into a rigid hierarchy of folders. It hasn't worked. Today, I'm refactoring my vault.
+tags: [meta, pkm, obsidian]
+---
+
+## The Folder Trap
+
+Coming from a Windows SysAdmin background, I love folders. But ideas, especially theological and philosophical ones, don't fit into neat boxes.
+
+For example, does a note on *"The concept of Time in St. Augustine"* belong in:
+
+1. \`/Theology/Patristics/Augustine\`
+2. \`/Philosophy/Metaphysics/Time\`
+
+### Wiki Links Example
+You can now link to other notes using Wiki syntax:
+
+* Standard Link: [[Philosophy/Metaphysics/Time]]
+* Aliased Link: [[Theology/Patristics/Augustine|St. Augustine's view on time]]
+* Special Chars: [[God's Infinite Goodness]]
+
+The answer is **all of them**.`;
+
+        // --- Logic ---
+
+        function init() {
+            els.mdInput.value = localStorage.getItem(STORAGE_KEYS.MD) || DEFAULT_MD;
+            els.tplInput.value = localStorage.getItem(STORAGE_KEYS.TPL) || PAGE_TEMPLATE;
+            
+            updateOutputs();
+
+            els.mdInput.addEventListener('input', handleInput);
+            els.tplInput.addEventListener('input', handleInput);
+        }
+
+        function handleInput(e) {
+            const isMd = e.target === els.mdInput;
+            const key = isMd ? STORAGE_KEYS.MD : STORAGE_KEYS.TPL;
+            localStorage.setItem(key, e.target.value);
+            updateOutputs();
+        }
+
+        /**
+         * Sluggifies text for URLs.
+         * 1. Lowercase
+         * 2. Remove apostrophes (so "God's" becomes "gods", not "god-s")
+         * 3. Replace non-alphanumeric chars (except /) with hyphens
+         * 4. Remove duplicate hyphens
+         */
+        function slugify(text) {
+            return text
+                .toLowerCase()
+                .trim()
+                .replace(/'/g, '')              // Remove apostrophes specially
+                .replace(/[^\w\s-\/]/g, '')     // Remove non-word chars (allow / for folders)
+                .replace(/[\s]+/g, '-')         // Replace spaces with hyphens
+                .replace(/-+/g, '-');           // Remove duplicate hyphens
+        }
+
+        /**
+         * Transforms WikiLinks [[target]] and [[target|alias]] into HTML <a> tags
+         * before parsing markdown.
+         */
+        function transformWikiLinks(text) {
+            // 1. Handle [[target|alias]]
+            // Regex breakdown: \[\[ matches opening, ([^\]|]+) captures target, \| matches pipe, ([^\]]+) captures alias, \]\] matches closing
+            let processed = text.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, (match, link, alias) => {
+                const url = slugify(link) + '.html'; 
+                return `<a href="${url}">${alias.trim()}</a>`;
+            });
+
+            // 2. Handle [[target]]
+            // Regex breakdown: \[\[ matches opening, ([^\]|]+) captures target, \]\] matches closing
+            processed = processed.replace(/\[\[([^\]|]+)\]\]/g, (match, link) => {
+                const cleanLink = link.trim();
+                const url = slugify(cleanLink) + '.html';
+                // Note: We use cleanLink for display (preserving Case/Space), but slugify for href
+                return `<a href="${url}">${cleanLink}</a>`;
+            });
+
+            return processed;
+        }
+
+        function parseInput() {
+            const raw = els.mdInput.value;
+            const fmRegex = /^---\n([\s\S]*?)\n---/;
+            const match = raw.match(fmRegex);
+
+            let metadata = {
+                title: 'Untitled Post',
+                date: new Date().toISOString().split('T')[0],
+                tags: [],
+                hero_image: '',
+                category: 'Uncategorized',
+                permalink: '#',
+                excerpt: 'No excerpt provided.'
+            };
+            
+            let markdownBody = raw;
+
+            if (match) {
+                try {
+                    const parsed = jsyaml.load(match[1]);
+                    if (parsed && typeof parsed === 'object') {
+                        metadata = { ...metadata, ...parsed };
+                    }
+                    markdownBody = raw.replace(fmRegex, '');
+                } catch (e) { console.log("YAML Parse Error", e); }
+            }
+
+            // Word count / read time calculation on raw text
+            const cleanText = markdownBody.replace(/[#*`]/g, '').trim();
+            const wordCount = cleanText ? cleanText.split(/\s+/).length : 0;
+            const readTime = Math.ceil(wordCount / 200) + ' min read';
+
+            // 1. Pre-process Wiki Links
+            const linkedBody = transformWikiLinks(markdownBody);
+
+            // 2. Parse Markdown to HTML
+            const bodyHtml = marked.parse(linkedBody);
+
+            // Date Formatting
+            let displayDate = metadata.date;
+            if (metadata.date) {
+                const d = new Date(metadata.date);
+                if (!isNaN(d.getTime())) {
+                    displayDate = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+                }
+            }
+
+            return { metadata, bodyHtml, readTime, displayDate };
+        }
+
+        function generateTagsHtml(tags) {
+            if (!Array.isArray(tags)) return '';
+            return tags.map(tag => 
+                `<span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs rounded-md">#${tag}</span>`
+            ).join('\n');
+        }
+
+        function updateOutputs() {
+            const { metadata, bodyHtml, readTime, displayDate } = parseInput();
+            const safeReplace = (str, pattern, replacement) => str.split(pattern).join(replacement);
+            const tagsHtml = generateTagsHtml(metadata.tags);
+
+            // 1. Generate FULL PAGE HTML
+            let pageHtml = els.tplInput.value;
+            let heroHtml = '';
+            if (metadata.hero_image) {
+                heroHtml = `<img src="${metadata.hero_image}" alt="Hero Image" class="w-full h-64 object-cover rounded-xl mb-8 shadow-sm">`;
+            }
+
+            pageHtml = safeReplace(pageHtml, '{{TITLE}}', metadata.title);
+            pageHtml = safeReplace(pageHtml, '{{DATE}}', displayDate);
+            pageHtml = safeReplace(pageHtml, '{{READING_TIME}}', readTime);
+            pageHtml = safeReplace(pageHtml, '{{TAGS}}', tagsHtml);
+            pageHtml = safeReplace(pageHtml, '{{HERO_BLOCK}}', heroHtml);
+            pageHtml = safeReplace(pageHtml, '{{EXCERPT}}', metadata.excerpt);
+            pageHtml = safeReplace(pageHtml, '{{CONTENT}}', bodyHtml);
+
+            // Update Iframe
+            const iframeDoc = els.iframe.contentDocument || els.iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(pageHtml);
+            iframeDoc.close();
+
+            // 2. Generate CARD HTML
+            // Decide between Standard and Hero card based on image presence
+            let cardHtml = metadata.hero_image ? CARD_HERO : CARD_STANDARD;
+            
+            cardHtml = safeReplace(cardHtml, '{{TITLE}}', metadata.title);
+            cardHtml = safeReplace(cardHtml, '{{DATE}}', displayDate);
+            cardHtml = safeReplace(cardHtml, '{{CATEGORY}}', metadata.category);
+            cardHtml = safeReplace(cardHtml, '{{PERMALINK}}', metadata.permalink);
+            cardHtml = safeReplace(cardHtml, '{{EXCERPT}}', metadata.excerpt);
+            cardHtml = safeReplace(cardHtml, '{{HERO_IMAGE}}', metadata.hero_image); // Only affects Hero template
+
+            // Update Card Visual
+            els.cardVisual.innerHTML = cardHtml;
+            // Update Card Code
+            els.cardCode.value = cardHtml;
+
+            // Re-render icons in the card visual container
+            if (window.lucide) lucide.createIcons({ root: els.cardVisual });
+            
+            // Store final HTML for download
+            window.finalPageHtml = pageHtml;
+        }
+
+        // --- Interaction Logic ---
+        function switchInputTab(tab) {
+            if (tab === 'markdown') {
+                els.tabs.inMd.classList.add('active');
+                els.tabs.inTpl.classList.remove('active');
+                els.mdInput.classList.remove('hidden');
+                els.tplInput.classList.add('hidden');
+            } else {
+                els.tabs.inTpl.classList.add('active');
+                els.tabs.inMd.classList.remove('active');
+                els.tplInput.classList.remove('hidden');
+                els.mdInput.classList.add('hidden');
+            }
+        }
+
+        function switchOutputTab(tab) {
+            currentOutputMode = tab;
+            if (tab === 'page') {
+                els.tabs.outPage.classList.add('active');
+                els.tabs.outCard.classList.remove('active');
+                els.views.page.classList.remove('hidden');
+                els.views.card.classList.add('hidden');
+                els.views.card.classList.remove('flex');
+                
+                els.actionText.textContent = "Download Page";
+                els.actionIcon.className = "fa-solid fa-download";
+            } else {
+                els.tabs.outCard.classList.add('active');
+                els.tabs.outPage.classList.remove('active');
+                els.views.card.classList.remove('hidden');
+                els.views.card.classList.add('flex');
+                els.views.page.classList.add('hidden');
+
+                els.actionText.textContent = "Copy Card HTML";
+                els.actionIcon.className = "fa-regular fa-copy";
+                
+                // Trigger icon refresh when card becomes visible
+                if (window.lucide) lucide.createIcons({ root: els.cardVisual });
+            }
+        }
+
+        function handleDownloadOrCopy() {
+            if (currentOutputMode === 'page') {
+                // Download
+                const blob = new Blob([window.finalPageHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'post.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else {
+                // Copy Card
+                els.cardCode.select();
+                navigator.clipboard.writeText(els.cardCode.value).then(() => {
+                    const originalText = els.actionText.textContent;
+                    els.actionText.textContent = "Copied!";
+                    els.actionIcon.className = "fa-solid fa-check";
+                    setTimeout(() => {
+                        els.actionText.textContent = originalText;
+                        els.actionIcon.className = "fa-regular fa-copy";
+                    }, 1500);
+                });
+            }
+        }
+
+        function toggleHelp() {
+            els.modal.classList.toggle('hidden');
+        }
+
+        // Init
+        init();
+
+    </script>
+</body>
+</html>

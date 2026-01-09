@@ -1,0 +1,107 @@
+! Netgear M-Series (AV Line) Configuration Template
+! -------------------------------------------------
+
+! System Initialization
+! ---------------------
+hostname {{ hostname }}
+
+! Set Time Zone and SNTP (Critical for logs)
+clock timezone us central
+
+sntp interval 60
+sntp unicast-client enable
+
+sntp server time-a-g.nist.gov
+sntp server time-a-wwv.nist.gov
+
+! ---- IF Exists
+sntp server {{ custom_ntp_server }}
+
+! Enable SSH and Disable Telnet
+ip ssh server enable
+no ip telnet server enable
+
+! Enable HTTP/HTTPS for the AV Web Interface (The nice GUI)
+ip http server enable
+ip http secure-server enable
+
+! Global AV / Multicast Settings (Crucial for M-Series)
+! -----------------------------------------------------
+! Enable IGMP Snooping Globally to handle AV-over-IP streams
+ip igmp snooping
+
+! VLAN Database Configuration (for each)
+! ---------------------------
+vlan database
+ vlan {{ vlan_id }} name {{ vlan_name }}
+ exit
+
+! VLAN Interface Configuration (Layer 3 SVIs)
+! -------------------------------------------
+interface vlan {{ vlan_id }}
+ ip address {{ ve_ip }} {{ ve_subnet_mask }}
+ no shutdown
+ {{ ip igmp snooping enable }}
+ {{ ip igmp snooping querier }}
+ {{ ip igmp snooping fast-leave }}
+ {{ ip igmp snooping report-suppression }}
+ exit
+
+! Interface Configuration 
+! --------------------------------------
+interface range {{ port_range }}
+ description {{ port_description }}
+ 
+ ! Set VLAN membership (Untagged/Access)
+ vlan pvid {{ video_vlan_id }}
+ vlan participation include {{ video_vlan_id }}
+ vlan participation exclude 1
+ 
+ ! PoE Settings (Power up devices)
+ poe
+ poe priority critical
+ 
+ ! Enable Jumbo Frames if using raw video (SDVoE)
+ mtu 9000
+ exit
+
+! Interface Configuration (Control/Data Ports)
+! --------------------------------------------
+interface range {{ control_ports_range }}
+ description {{ control_ports_description }}
+ vlan pvid {{ control_vlan_id }}
+ vlan participation include {{ control_vlan_id }}
+ vlan participation exclude 1
+ exit
+
+! Interface Configuration (Uplinks/Trunks)
+! ----------------------------------------
+interface range {{ uplink_ports_range }}
+ description {{ uplink_description }}
+ 
+ ! Trunking Mode (Tagging all VLANs)
+ vlan participation include {{ management_vlan_id }}
+ vlan tagging {{ management_vlan_id }}
+ 
+ vlan participation include {{ video_vlan_id }}
+ vlan tagging {{ video_vlan_id }}
+ 
+ vlan participation include {{ audio_vlan_id }}
+ vlan tagging {{ audio_vlan_id }}
+ 
+ ! Uplinks usually exclude default VLAN 1 untagged
+ vlan participation exclude 1
+ exit
+
+! IP Routing & Gateway
+! --------------------
+! If L2 mode (Gateway)
+ip default-gateway {{ gateway_ip_address }}
+
+! If L3 mode (Routing enabled)
+! ip route 0.0.0.0 0.0.0.0 {{ next_hop_gateway_ip }}
+
+! Final Save
+! ----------
+exit
+write memory

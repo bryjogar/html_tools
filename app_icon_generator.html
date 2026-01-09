@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal App Icon Generator - Homelab Playground</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',
+                            pane: '#252526',
+                            border: '#3c3c3c',
+                            accent: '#7c3aed',
+                            text: '#cccccc'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap');
+
+        body {
+            background-color: #1e1e1e;
+            color: #cccccc;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050;
+        }
+
+        .upload-area {
+            transition: all 0.3s ease;
+        }
+
+        .upload-area.dragover {
+            border-color: #7c3aed;
+            background-color: #7c3aed/10;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+        }
+
+        .icon-preview {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            border: 1px solid #3c3c3c;
+            border-radius: 8px;
+            background: #111827;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center px-6 shrink-0 justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-image text-obsidian-accent"></i>
+            <h1 class="font-semibold text-lg tracking-wide">Universal App Icon Generator</h1>
+        </div>
+        <div class="text-xs text-gray-500 flex items-center gap-2">
+            <i class="fa-solid fa-lock"></i>
+            <span>Client-side only processing</span>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-auto p-4 md:p-8">
+        <div class="max-w-6xl mx-auto space-y-6">
+            
+            <!-- Upload Section -->
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-upload text-obsidian-accent"></i>
+                    Upload Logo
+                </h2>
+                
+                <div 
+                    id="uploadArea" 
+                    class="upload-area border-2 border-dashed border-obsidian-border rounded-lg p-8 text-center cursor-pointer hover:border-obsidian-accent transition-colors"
+                    ondrop="handleDrop(event)"
+                    ondragover="handleDragOver(event)"
+                    ondragleave="handleDragLeave(event)"
+                    onclick="document.getElementById('fileInput').click()"
+                >
+                    <input 
+                        type="file" 
+                        id="fileInput" 
+                        accept="image/*" 
+                        class="hidden" 
+                        onchange="handleFileSelect(event)"
+                    >
+                    <i class="fa-solid fa-cloud-arrow-up text-4xl text-gray-500 mb-4"></i>
+                    <p class="text-gray-400 mb-2">Click to upload or drag and drop</p>
+                    <p class="text-xs text-gray-500">PNG, JPG, SVG (recommended: 1024x1024 or larger)</p>
+                </div>
+
+                <div id="previewSection" class="hidden mt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-white">Preview</h3>
+                        <button onclick="clearImage()" class="text-xs text-red-400 hover:text-red-300">
+                            <i class="fa-solid fa-trash mr-1"></i> Clear
+                        </button>
+                    </div>
+                    <div class="flex gap-4 items-start">
+                        <img id="previewImage" class="preview-image" alt="Preview">
+                        <div class="flex-1 text-xs text-gray-400 space-y-1">
+                            <div id="imageInfo"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Platform Selection -->
+            <div id="platformSection" class="hidden bg-obsidian-pane border border-obsidian-border rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-mobile-screen-button text-obsidian-accent"></i>
+                    Platform Selection
+                </h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="platform-ios" checked class="rounded bg-obsidian-bg border-obsidian-border text-obsidian-accent">
+                        <span class="text-sm text-white">
+                            <i class="fa-brands fa-apple mr-1"></i> iOS
+                        </span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="platform-android" checked class="rounded bg-obsidian-bg border-obsidian-border text-obsidian-accent">
+                        <span class="text-sm text-white">
+                            <i class="fa-brands fa-android mr-1"></i> Android
+                        </span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="platform-windows" checked class="rounded bg-obsidian-bg border-obsidian-border text-obsidian-accent">
+                        <span class="text-sm text-white">
+                            <i class="fa-brands fa-windows mr-1"></i> Windows
+                        </span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="platform-favicon" checked class="rounded bg-obsidian-bg border-obsidian-border text-obsidian-accent">
+                        <span class="text-sm text-white">
+                            <i class="fa-solid fa-globe mr-1"></i> Favicon
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Generate Button -->
+            <div id="generateSection" class="hidden">
+                <button 
+                    onclick="generateIcons()" 
+                    id="generateBtn"
+                    class="w-full bg-obsidian-accent hover:bg-violet-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                    <i class="fa-solid fa-magic"></i>
+                    Generate Icon Package
+                </button>
+            </div>
+
+            <!-- Progress Section -->
+            <div id="progressSection" class="hidden bg-obsidian-pane border border-obsidian-border rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-spinner fa-spin text-obsidian-accent"></i>
+                    Generating Icons...
+                </h2>
+                <div id="progressText" class="text-sm text-gray-400"></div>
+                <div class="mt-4 bg-obsidian-bg rounded-full h-2 overflow-hidden">
+                    <div id="progressBar" class="bg-obsidian-accent h-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Icon Preview Section -->
+            <div id="previewIconsSection" class="hidden bg-obsidian-pane border border-obsidian-border rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-eye text-obsidian-accent"></i>
+                    Generated Icons Preview
+                </h2>
+                <div id="iconPreviews" class="grid grid-cols-4 md:grid-cols-8 gap-4"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        let sourceImage = null;
+        let sourceImageData = null;
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.currentTarget.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    sourceImage = img;
+                    sourceImageData = e.target.result;
+                    
+                    // Show preview
+                    document.getElementById('previewImage').src = e.target.result;
+                    document.getElementById('previewSection').classList.remove('hidden');
+                    document.getElementById('platformSection').classList.remove('hidden');
+                    document.getElementById('generateSection').classList.remove('hidden');
+                    
+                    // Update image info
+                    document.getElementById('imageInfo').innerHTML = `
+                        <div><strong>Dimensions:</strong> ${img.width} × ${img.height}px</div>
+                        <div><strong>File:</strong> ${file.name}</div>
+                        <div><strong>Size:</strong> ${(file.size / 1024).toFixed(2)} KB</div>
+                    `;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearImage() {
+            sourceImage = null;
+            sourceImageData = null;
+            document.getElementById('previewSection').classList.add('hidden');
+            document.getElementById('platformSection').classList.add('hidden');
+            document.getElementById('generateSection').classList.add('hidden');
+            document.getElementById('previewIconsSection').classList.add('hidden');
+            document.getElementById('fileInput').value = '';
+        }
+
+        function resizeImage(canvas, size) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = function() {
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Use high-quality image rendering
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    
+                    // Calculate scaling to fill canvas (square) while maintaining aspect ratio
+                    const scale = Math.max(size / img.width, size / img.height);
+                    const scaledWidth = img.width * scale;
+                    const scaledHeight = img.height * scale;
+                    const x = (size - scaledWidth) / 2;
+                    const y = (size - scaledHeight) / 2;
+                    
+                    // Fill background with transparent
+                    ctx.clearRect(0, 0, size, size);
+                    
+                    // Draw image centered
+                    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.src = sourceImageData;
+            });
+        }
+
+        function updateProgress(text, percent) {
+            document.getElementById('progressText').textContent = text;
+            document.getElementById('progressBar').style.width = percent + '%';
+        }
+
+        async function generateIcons() {
+            if (!sourceImage) {
+                alert('Please upload an image first');
+                return;
+            }
+
+            const platforms = {
+                ios: document.getElementById('platform-ios').checked,
+                android: document.getElementById('platform-android').checked,
+                windows: document.getElementById('platform-windows').checked,
+                favicon: document.getElementById('platform-favicon').checked
+            };
+
+            if (!Object.values(platforms).some(v => v)) {
+                alert('Please select at least one platform');
+                return;
+            }
+
+            // Show progress
+            document.getElementById('progressSection').classList.remove('hidden');
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('previewIconsSection').classList.add('hidden');
+
+            const zip = new JSZip();
+            let totalTasks = 0;
+            let completedTasks = 0;
+
+            // Count total tasks
+            if (platforms.ios) totalTasks += 15; // iOS sizes (15 icons)
+            if (platforms.android) totalTasks += 5; // Android densities
+            if (platforms.windows) totalTasks += 6; // Windows sizes
+            if (platforms.favicon) totalTasks += 8; // Favicon sizes
+
+            updateProgress('Initializing...', 0);
+
+            // iOS Icons
+            if (platforms.ios) {
+                updateProgress('Generating iOS icons...', (completedTasks / totalTasks) * 100);
+                const iosSizes = [
+                    { size: 20, scale: 1, name: 'AppIcon-20x20@1x.png' },
+                    { size: 20, scale: 2, name: 'AppIcon-20x20@2x.png' },
+                    { size: 20, scale: 3, name: 'AppIcon-20x20@3x.png' },
+                    { size: 29, scale: 1, name: 'AppIcon-29x29@1x.png' },
+                    { size: 29, scale: 2, name: 'AppIcon-29x29@2x.png' },
+                    { size: 29, scale: 3, name: 'AppIcon-29x29@3x.png' },
+                    { size: 40, scale: 1, name: 'AppIcon-40x40@1x.png' },
+                    { size: 40, scale: 2, name: 'AppIcon-40x40@2x.png' },
+                    { size: 40, scale: 3, name: 'AppIcon-40x40@3x.png' },
+                    { size: 60, scale: 2, name: 'AppIcon-60x60@2x.png' },
+                    { size: 60, scale: 3, name: 'AppIcon-60x60@3x.png' },
+                    { size: 76, scale: 1, name: 'AppIcon-76x76@1x.png' },
+                    { size: 76, scale: 2, name: 'AppIcon-76x76@2x.png' },
+                    { size: 83.5, scale: 2, name: 'AppIcon-83.5x83.5@2x.png' },
+                    { size: 1024, scale: 1, name: 'AppIcon-1024x1024@1x.png' }
+                ];
+
+                const iosFolder = zip.folder('iOS/AppIcon.appiconset');
+                const images = [];
+
+                for (const icon of iosSizes) {
+                    const canvas = document.createElement('canvas');
+                    const actualSize = Math.round(icon.size * icon.scale);
+                    const dataUrl = await resizeImage(canvas, actualSize);
+                    const blob = await (await fetch(dataUrl)).blob();
+                    iosFolder.file(icon.name, blob);
+                    images.push({
+                        filename: icon.name,
+                        size: `${icon.size}x${icon.size}`,
+                        scale: `${icon.scale}x`,
+                        idiom: 'universal'
+                    });
+                    completedTasks++;
+                    updateProgress(`iOS: ${icon.name}`, (completedTasks / totalTasks) * 100);
+                }
+
+                // Create Contents.json with proper iOS structure
+                const contentsJson = {
+                    images: images.map(img => ({
+                        filename: img.filename,
+                        size: img.size,
+                        scale: img.scale,
+                        idiom: img.idiom
+                    })),
+                    info: {
+                        version: 1,
+                        author: 'xcode'
+                    }
+                };
+                iosFolder.file('Contents.json', JSON.stringify(contentsJson, null, 2));
+                
+                // Add README for iOS
+                const iosReadme = `iOS App Icon Package
+====================
+
+This folder contains the AppIcon.appiconset directory structure for Xcode.
+
+To use:
+1. Open your Xcode project
+2. Navigate to Assets.xcassets
+3. Replace the AppIcon.appiconset folder with the contents of this folder
+4. Or drag the AppIcon.appiconset folder into Assets.xcassets in Xcode
+
+All required icon sizes have been generated:
+- App icons (20pt, 29pt, 40pt, 60pt, 76pt, 83.5pt, 1024pt)
+- All @1x, @2x, and @3x scale factors included
+`;
+                zip.folder('iOS').file('README.txt', iosReadme);
+            }
+
+            // Android Icons
+            if (platforms.android) {
+                updateProgress('Generating Android icons...', (completedTasks / totalTasks) * 100);
+                const androidSizes = [
+                    { density: 'mdpi', size: 48, folder: 'mipmap-mdpi' },
+                    { density: 'hdpi', size: 72, folder: 'mipmap-hdpi' },
+                    { density: 'xhdpi', size: 96, folder: 'mipmap-xhdpi' },
+                    { density: 'xxhdpi', size: 144, folder: 'mipmap-xxhdpi' },
+                    { density: 'xxxhdpi', size: 192, folder: 'mipmap-xxxhdpi' }
+                ];
+
+                for (const icon of androidSizes) {
+                    const canvas = document.createElement('canvas');
+                    const dataUrl = await resizeImage(canvas, icon.size);
+                    const blob = await (await fetch(dataUrl)).blob();
+                    const folder = zip.folder(`Android/app/src/main/res/${icon.folder}`);
+                    folder.file('ic_launcher.png', blob);
+                    completedTasks++;
+                    updateProgress(`Android: ${icon.density}`, (completedTasks / totalTasks) * 100);
+                }
+                
+                // Add README for Android
+                const androidReadme = `Android App Icon Package
+========================
+
+This folder contains the res/mipmap directory structure for Android.
+
+To use:
+1. Copy the contents of app/src/main/res/ to your Android project's app/src/main/res/ directory
+2. Or replace the existing mipmap folders in your project
+
+Icon densities included:
+- mdpi: 48x48px
+- hdpi: 72x72px
+- xhdpi: 96x96px
+- xxhdpi: 144x144px
+- xxxhdpi: 192x192px
+
+All icons are saved as ic_launcher.png in their respective mipmap folders.
+`;
+                zip.folder('Android').file('README.txt', androidReadme);
+            }
+
+            // Windows Icons
+            if (platforms.windows) {
+                updateProgress('Generating Windows icons...', (completedTasks / totalTasks) * 100);
+                const windowsSizes = [16, 24, 32, 48, 64, 256];
+
+                const windowsFolder = zip.folder('Windows');
+                for (const size of windowsSizes) {
+                    const canvas = document.createElement('canvas');
+                    const dataUrl = await resizeImage(canvas, size);
+                    const blob = await (await fetch(dataUrl)).blob();
+                    windowsFolder.file(`icon-${size}x${size}.png`, blob);
+                    completedTasks++;
+                    updateProgress(`Windows: ${size}x${size}`, (completedTasks / totalTasks) * 100);
+                }
+                
+                // Add README for Windows
+                const windowsReadme = `Windows App Icon Package
+========================
+
+This folder contains PNG icons for Windows applications.
+
+Icon sizes included:
+- 16x16px
+- 24x24px
+- 32x32px
+- 48x48px
+- 64x64px
+- 256x256px
+
+To use:
+- For UWP apps: Add icons to your app's Assets folder
+- For desktop apps: Use these PNGs or convert to .ico format
+- For web apps: Use as favicons or app icons
+`;
+                windowsFolder.file('README.txt', windowsReadme);
+            }
+
+            // Favicons
+            if (platforms.favicon) {
+                updateProgress('Generating favicons...', (completedTasks / totalTasks) * 100);
+                const faviconSizes = [16, 32, 48, 64, 96, 128, 192, 256];
+
+                const faviconFolder = zip.folder('Favicon');
+                for (const size of faviconSizes) {
+                    const canvas = document.createElement('canvas');
+                    const dataUrl = await resizeImage(canvas, size);
+                    const blob = await (await fetch(dataUrl)).blob();
+                    faviconFolder.file(`favicon-${size}x${size}.png`, blob);
+                    completedTasks++;
+                    updateProgress(`Favicon: ${size}x${size}`, (completedTasks / totalTasks) * 100);
+                }
+                
+                // Generate HTML for favicon
+                let faviconHtml = '<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">\n';
+                faviconHtml += '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">\n';
+                faviconHtml += '<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">\n';
+                faviconHtml += '<link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png">\n';
+                faviconHtml += '<link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">\n';
+                faviconHtml += '<link rel="icon" type="image/png" sizes="128x128" href="/favicon-128x128.png">\n';
+                faviconHtml += '<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">\n';
+                faviconHtml += '<link rel="icon" type="image/png" sizes="256x256" href="/favicon-256x256.png">\n';
+                faviconHtml += '<link rel="apple-touch-icon" sizes="180x180" href="/favicon-192x192.png">\n';
+                faviconFolder.file('favicon-links.html', faviconHtml);
+            }
+
+            updateProgress('Creating ZIP package...', 95);
+
+            // Generate ZIP
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            
+            // Download
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `app-icons-${new Date().toISOString().split('T')[0]}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            updateProgress('Complete!', 100);
+            
+            // Show preview
+            showIconPreviews(platforms);
+            document.getElementById('generateBtn').disabled = false;
+            
+            setTimeout(() => {
+                document.getElementById('progressSection').classList.add('hidden');
+            }, 2000);
+        }
+
+        function showIconPreviews(platforms) {
+            const container = document.getElementById('iconPreviews');
+            container.innerHTML = '';
+            
+            const previewSizes = [];
+            if (platforms.ios) previewSizes.push(60, 1024);
+            if (platforms.android) previewSizes.push(48, 192);
+            if (platforms.windows) previewSizes.push(32, 256);
+            if (platforms.favicon) previewSizes.push(32, 192);
+
+            previewSizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                resizeImage(canvas, size).then(dataUrl => {
+                    const div = document.createElement('div');
+                    div.className = 'text-center';
+                    div.innerHTML = `
+                        <img src="${dataUrl}" class="icon-preview mx-auto mb-2">
+                        <div class="text-xs text-gray-400">${size}×${size}</div>
+                    `;
+                    container.appendChild(div);
+                });
+            });
+
+            document.getElementById('previewIconsSection').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

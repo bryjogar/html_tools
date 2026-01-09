@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Loops | Homelab Playground</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc',    // Standard Text
+                            success: '#10b981'  // Green for completion
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #505050; 
+        }
+
+        /* Checkbox Styling override */
+        input[type="checkbox"] {
+            accent-color: #7c3aed;
+            cursor: pointer;
+            width: 1.2em;
+            height: 1.2em;
+        }
+
+        /* Task strikethrough animation */
+        .task-text {
+            transition: all 0.2s ease;
+        }
+        .task-done .task-text {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-arrows-spin text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-wide text-white">Process Loops</h1>
+        </div>
+        <button onclick="openModal()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> New Loop
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 relative">
+        <div id="cardGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-10">
+            </div>
+        
+        <div id="emptyState" class="hidden flex flex-col items-center justify-center h-full text-gray-500 mt-20">
+            <i class="fa-solid fa-clipboard-list text-6xl mb-4 text-obsidian-border"></i>
+            <p class="text-lg">No active processes.</p>
+            <p class="text-sm">Click "New Loop" to start defining your workflows.</p>
+        </div>
+    </main>
+
+    <div id="processModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl w-full max-w-md mx-4 overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-5 py-4 border-b border-obsidian-border flex justify-between items-center bg-obsidian-bg shrink-0">
+                <h3 id="modalTitle" class="font-semibold text-white">Create New Process Loop</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-5 overflow-y-auto">
+                <label class="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-2">Process Name</label>
+                <input type="text" id="processTitleInput" placeholder="e.g. Obsidian Daily Review" 
+                    class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded focus:outline-none focus:border-obsidian-accent font-mono text-sm">
+                
+                <label class="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-2 mt-4">Tasks (One per line)</label>
+                <p class="text-xs text-gray-500 mb-2">Reorder lines to reorder tasks. Unchanged text keeps checked status.</p>
+                <textarea id="processTasksInput" rows="10" placeholder="Read Inbox&#10;Create Slipnotes&#10;Link Notes..." 
+                    class="w-full bg-obsidian-bg border border-obsidian-border text-white px-3 py-2 rounded focus:outline-none focus:border-obsidian-accent font-mono text-sm"></textarea>
+            </div>
+            <div class="px-5 py-3 bg-obsidian-bg border-t border-obsidian-border flex justify-end gap-3 shrink-0">
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white text-sm px-3 py-1.5 transition-colors">Cancel</button>
+                <button id="modalSaveBtn" onclick="saveProcess()" class="bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // State Management
+        let processes = [];
+        let editingId = null; // Tracks if we are editing an existing loop
+
+        // Constants
+        const STORAGE_KEY = 'hlp_process_loops_v1';
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            render();
+        });
+
+        // Data Persistence
+        function loadData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try {
+                    processes = JSON.parse(data);
+                } catch (e) {
+                    console.error("Failed to parse data", e);
+                    processes = [];
+                }
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(processes));
+            render(); // Re-render on save to update UI states
+        }
+
+        // Logic Functions
+        function saveProcess() {
+            const titleInput = document.getElementById('processTitleInput');
+            const tasksInput = document.getElementById('processTasksInput');
+            
+            const title = titleInput.value.trim();
+            if (!title) return alert("Please enter a process title.");
+
+            // Parse tasks from textarea (split by newline)
+            const lines = tasksInput.value.split('\n')
+                .map(t => t.trim())
+                .filter(t => t.length > 0);
+
+            if (editingId) {
+                // UPDATE EXISTING
+                const process = processes.find(p => p.id === editingId);
+                if (process) {
+                    process.title = title;
+                    
+                    // Smart Merge: Preserve 'done' state if text matches exactly
+                    const newTaskList = lines.map(lineText => {
+                        const existingTask = process.tasks.find(t => t.text === lineText);
+                        if (existingTask) {
+                            return existingTask; // Keep the object (and its done state)
+                        } else {
+                            return { text: lineText, done: false }; // New task
+                        }
+                    });
+                    process.tasks = newTaskList;
+                }
+            } else {
+                // CREATE NEW
+                const newProcess = {
+                    id: Date.now().toString(),
+                    title: title,
+                    tasks: lines.map(t => ({ text: t, done: false }))
+                };
+                processes.push(newProcess);
+            }
+            
+            closeModal();
+            saveData();
+        }
+
+        function deleteProcess(id) {
+            if(confirm("Are you sure you want to delete this process loop?")) {
+                processes = processes.filter(p => p.id !== id);
+                saveData();
+            }
+        }
+
+        function addTaskSingle(processId) {
+            const input = document.getElementById(`input-${processId}`);
+            const text = input.value.trim();
+            if (!text) return;
+
+            const process = processes.find(p => p.id === processId);
+            if (process) {
+                process.tasks.push({ text: text, done: false });
+                saveData();
+            }
+        }
+
+        function toggleTask(processId, taskIndex) {
+            const process = processes.find(p => p.id === processId);
+            if (process) {
+                process.tasks[taskIndex].done = !process.tasks[taskIndex].done;
+                saveData();
+            }
+        }
+
+        function removeTask(processId, taskIndex) {
+            const process = processes.find(p => p.id === processId);
+            if (process) {
+                process.tasks.splice(taskIndex, 1);
+                saveData();
+            }
+        }
+
+        function resetProcess(processId) {
+            const process = processes.find(p => p.id === processId);
+            if (process) {
+                process.tasks.forEach(t => t.done = false);
+                saveData();
+            }
+        }
+
+        // Modal Handling
+        function openModal(id = null) {
+            const modal = document.getElementById('processModal');
+            const titleInput = document.getElementById('processTitleInput');
+            const tasksInput = document.getElementById('processTasksInput');
+            const modalTitle = document.getElementById('modalTitle');
+            const saveBtn = document.getElementById('modalSaveBtn');
+
+            editingId = id;
+
+            if (id) {
+                // Edit Mode
+                const process = processes.find(p => p.id === id);
+                modalTitle.innerText = "Edit Process Loop";
+                saveBtn.innerText = "Save Changes";
+                titleInput.value = process.title;
+                // Join tasks with newlines for textarea
+                tasksInput.value = process.tasks.map(t => t.text).join('\n');
+            } else {
+                // Create Mode
+                modalTitle.innerText = "Create New Process Loop";
+                saveBtn.innerText = "Create";
+                titleInput.value = '';
+                tasksInput.value = '';
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            titleInput.focus();
+        }
+
+        function closeModal() {
+            document.getElementById('processModal').classList.add('hidden');
+            document.getElementById('processModal').classList.remove('flex');
+            editingId = null;
+        }
+
+        // Rendering
+        function render() {
+            const grid = document.getElementById('cardGrid');
+            const empty = document.getElementById('emptyState');
+            grid.innerHTML = '';
+
+            if (processes.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            } else {
+                empty.classList.add('hidden');
+            }
+
+            processes.forEach(proc => {
+                // Calculate Progress
+                const total = proc.tasks.length;
+                const completed = proc.tasks.filter(t => t.done).length;
+                const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+                const isComplete = total > 0 && total === completed;
+
+                const card = document.createElement('div');
+                card.className = `flex flex-col bg-obsidian-pane border ${isComplete ? 'border-obsidian-success' : 'border-obsidian-border'} rounded-lg shadow-lg overflow-hidden transition-all duration-300`;
+                
+                // Card Header
+                const headerClass = isComplete ? 'bg-obsidian-success/10 border-b border-obsidian-success/30' : 'bg-obsidian-bg border-b border-obsidian-border';
+                const titleColor = isComplete ? 'text-green-400' : 'text-white';
+                
+                let html = `
+                    <div class="${headerClass} p-3 flex justify-between items-center">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <h2 class="${titleColor} font-semibold truncate" title="${proc.title}">${proc.title}</h2>
+                            <div class="w-full bg-obsidian-border h-1 mt-1.5 rounded-full overflow-hidden">
+                                <div class="h-full ${isComplete ? 'bg-green-500' : 'bg-obsidian-accent'} transition-all duration-500" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button onclick="openModal('${proc.id}')" class="text-gray-500 hover:text-white transition-colors px-2" title="Edit Loop">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteProcess('${proc.id}')" class="text-gray-500 hover:text-red-400 transition-colors px-2" title="Delete Loop">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Task List
+                html += `<div class="flex-1 overflow-y-auto max-h-96 p-2 space-y-1">`;
+                
+                if (proc.tasks.length === 0) {
+                    html += `<p class="text-xs text-center text-gray-600 italic py-4">No tasks defined.</p>`;
+                }
+
+                proc.tasks.forEach((task, idx) => {
+                    const doneClass = task.done ? 'task-done bg-obsidian-bg/50' : 'hover:bg-white/5';
+                    html += `
+                        <div class="group flex items-center p-2 rounded ${doneClass} transition-colors">
+                            <input type="checkbox" ${task.done ? 'checked' : ''} 
+                                onchange="toggleTask('${proc.id}', ${idx})" 
+                                class="mr-3">
+                            <span class="flex-1 text-sm task-text select-none cursor-pointer" onclick="toggleTask('${proc.id}', ${idx})">${task.text}</span>
+                            <button onclick="removeTask('${proc.id}', ${idx})" class="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity px-2">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+
+                // Footer (Add Task & Reset)
+                html += `
+                    <div class="p-3 border-t border-obsidian-border bg-obsidian-bg">
+                        ${isComplete 
+                            ? `
+                            <button onclick="resetProcess('${proc.id}')" class="w-full py-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-600/50 rounded flex items-center justify-center gap-2 transition-colors">
+                                <i class="fa-solid fa-rotate-right"></i> Loop Complete! Reset?
+                            </button>
+                            `
+                            : `
+                            <div class="flex gap-2">
+                                <input type="text" id="input-${proc.id}" placeholder="Add next step..." 
+                                    onkeypress="if(event.key === 'Enter') addTaskSingle('${proc.id}')"
+                                    class="flex-1 bg-obsidian-pane border border-obsidian-border text-xs px-2 py-1.5 rounded text-white focus:border-obsidian-accent focus:outline-none">
+                                <button onclick="addTaskSingle('${proc.id}')" class="bg-obsidian-pane hover:bg-obsidian-accent border border-obsidian-border hover:border-obsidian-accent text-white px-3 py-1 rounded transition-colors">
+                                    <i class="fa-solid fa-plus text-xs"></i>
+                                </button>
+                            </div>
+                            `
+                        }
+                    </div>
+                `;
+
+                card.innerHTML = html;
+                grid.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
