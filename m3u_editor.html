@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3U Playlist Builder</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Glass effect for drag overlay */
+        #drag-overlay { backdrop-filter: blur(4px); }
+
+        /* Custom Checkbox Toggle */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #7c3aed;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #7c3aed;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+
+    <div id="drag-overlay" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center pointer-events-none">
+        <div class="text-2xl font-bold text-white border-2 border-dashed border-obsidian-accent p-10 rounded-xl bg-obsidian-pane">
+            <i class="fa-solid fa-file-import mr-3"></i> Drop M3U File Here
+        </div>
+    </div>
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-tower-broadcast text-obsidian-accent text-xl"></i>
+            <h1 class="font-bold text-lg tracking-tight text-white">M3U Radio Builder</h1>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="clearAll()" class="px-3 py-1.5 text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded border border-red-500/20 transition-colors">
+                <i class="fa-solid fa-trash-can mr-1"></i> Reset
+            </button>
+            <button onclick="document.getElementById('fileInput').click()" class="px-3 py-1.5 text-xs font-medium bg-obsidian-border hover:bg-white/10 text-white rounded transition-colors">
+                <i class="fa-solid fa-upload mr-1"></i> Import
+            </button>
+            <button onclick="downloadM3U()" class="px-3 py-1.5 text-xs font-medium bg-obsidian-accent hover:bg-violet-600 text-white rounded transition-colors shadow-lg shadow-violet-900/20">
+                <i class="fa-solid fa-download mr-1"></i> Download
+            </button>
+            <input type="file" id="fileInput" accept=".m3u,.m3u8" class="hidden" onchange="handleFileSelect(event)">
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden flex flex-col md:flex-row relative">
+        
+        <aside class="w-full md:w-96 flex flex-col bg-obsidian-pane border-r border-obsidian-border shrink-0 z-10 h-full overflow-y-auto">
+            <div class="p-4 border-b border-obsidian-border">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">Station Details</h2>
+                
+                <form id="entryForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                    <input type="hidden" id="editIndex" value="-1">
+                    
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Station Name</label>
+                        <input type="text" id="inputName" required placeholder="e.g. Chillhop Radio" 
+                            class="w-full bg-obsidian-bg text-white border border-obsidian-border focus:border-obsidian-accent focus:outline-none rounded p-2 text-sm font-mono placeholder-gray-600">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Stream URL</label>
+                        <input type="url" id="inputUrl" required placeholder="http://stream.example.com/live" 
+                            class="w-full bg-obsidian-bg text-white border border-obsidian-border focus:border-obsidian-accent focus:outline-none rounded p-2 text-sm font-mono placeholder-gray-600">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Group / Genre</label>
+                            <input type="text" id="inputGroup" placeholder="e.g. Jazz" 
+                                class="w-full bg-obsidian-bg text-white border border-obsidian-border focus:border-obsidian-accent focus:outline-none rounded p-2 text-sm font-mono placeholder-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Logo URL (Optional)</label>
+                            <input type="url" id="inputLogo" placeholder="https://..." 
+                                class="w-full bg-obsidian-bg text-white border border-obsidian-border focus:border-obsidian-accent focus:outline-none rounded p-2 text-sm font-mono placeholder-gray-600">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between bg-obsidian-bg p-2 rounded border border-obsidian-border">
+                        <span class="text-xs text-gray-400">Is this a Radio Station?</span>
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="isRadio" id="inputIsRadio" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-600 checked:right-0 transition-all duration-300"/>
+                            <label for="inputIsRadio" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-600 cursor-pointer transition-colors duration-300"></label>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 flex gap-2">
+                        <button type="submit" id="submitBtn" class="flex-1 bg-obsidian-accent hover:bg-violet-600 text-white font-medium py-2 px-4 rounded transition-all text-sm">
+                            <i class="fa-solid fa-plus mr-2"></i>Add Station
+                        </button>
+                        <button type="button" onclick="resetForm()" id="cancelBtn" class="hidden px-3 bg-gray-600 hover:bg-gray-500 text-white rounded transition-all text-sm">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="p-4 bg-obsidian-pane/50 flex-1">
+                <div class="bg-blue-500/5 border border-blue-500/20 rounded p-3 text-xs text-blue-200/80 leading-relaxed">
+                    <i class="fa-solid fa-circle-info mr-1"></i> 
+                    <strong>Tip:</strong> Marking a stream as "Radio" adds the <code>radio="true"</code> tag to the file, which helps players like VLC or TiviMate identify it as audio-only.
+                </div>
+            </div>
+        </aside>
+
+        <section class="flex-1 flex flex-col h-full bg-obsidian-bg overflow-hidden">
+            <div class="h-10 border-b border-obsidian-border bg-obsidian-bg/90 backdrop-blur flex items-center px-2 text-xs font-mono text-gray-500 uppercase tracking-wide shrink-0">
+                <div class="w-8 text-center">#</div>
+                <div class="w-8 text-center">Type</div>
+                <div class="w-10 text-center">Logo</div>
+                <div class="flex-1 px-2">Name & URL</div>
+                <div class="w-24 hidden md:block text-right pr-2">Group</div>
+                <div class="w-28 text-right">Actions</div>
+            </div>
+
+            <div id="playlistContainer" class="flex-1 overflow-y-auto p-0 scroll-smooth pb-20">
+                <div id="emptyState" class="flex flex-col items-center justify-center h-full text-gray-600 opacity-50">
+                    <i class="fa-solid fa-list-music text-6xl mb-4 text-obsidian-border"></i>
+                    <p>Playlist is empty</p>
+                </div>
+            </div>
+            
+            <div class="bg-obsidian-bg border-t border-obsidian-border px-4 py-2 text-xs text-gray-500 font-mono flex justify-between shrink-0">
+                <span id="countDisplay">0 Stations</span>
+                <span>M3U8 / M3U Compatible</span>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+    
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+    
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <script>
+        // State
+        let playlist = [];
+
+        // DOM Elements
+        const form = document.getElementById('entryForm');
+        const container = document.getElementById('playlistContainer');
+        const emptyState = document.getElementById('emptyState');
+        const countDisplay = document.getElementById('countDisplay');
+        
+        // Input Elements
+        const iName = document.getElementById('inputName');
+        const iUrl = document.getElementById('inputUrl');
+        const iGroup = document.getElementById('inputGroup');
+        const iLogo = document.getElementById('inputLogo');
+        const iIsRadio = document.getElementById('inputIsRadio');
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const editIndexInput = document.getElementById('editIndex');
+
+        // Initial Render
+        renderList();
+
+        // --- Core Logic ---
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const entry = {
+                name: iName.value.trim(),
+                url: iUrl.value.trim(),
+                group: iGroup.value.trim() || 'Uncategorized',
+                logo: iLogo.value.trim(),
+                isRadio: iIsRadio.checked
+            };
+
+            const idx = parseInt(editIndexInput.value);
+
+            if (idx === -1) {
+                // Add new
+                playlist.push(entry);
+            } else {
+                // Update existing
+                playlist[idx] = entry;
+                resetForm();
+            }
+
+            renderList();
+            if(idx === -1) {
+                form.reset();
+                // Persist group for convenience, but reset checkbox
+                iGroup.value = entry.group; 
+                iIsRadio.checked = entry.isRadio; 
+            }
+        }
+
+        function renderList() {
+            container.innerHTML = '';
+            
+            if (playlist.length === 0) {
+                container.appendChild(emptyState);
+                countDisplay.textContent = `0 Stations`;
+                return;
+            }
+
+            playlist.forEach((item, index) => {
+                const el = document.createElement('div');
+                el.className = 'group flex items-center px-2 py-3 border-b border-obsidian-border hover:bg-obsidian-pane/50 transition-colors';
+                
+                // Type Icon
+                const typeIcon = item.isRadio 
+                    ? `<i class="fa-solid fa-tower-broadcast text-green-400" title="Radio Station"></i>` 
+                    : `<i class="fa-solid fa-tv text-gray-600" title="Standard Stream"></i>`;
+
+                // Logo or Default Placeholder
+                let logoHtml = `<div class="w-8 h-8 rounded bg-obsidian-border flex items-center justify-center text-gray-600"><i class="fa-solid fa-music text-xs"></i></div>`;
+                if (item.logo) {
+                    // Use object-contain to ensure the whole logo is visible within the square
+                    logoHtml = `<img src="${item.logo}" alt="${escapeHtml(item.name)}" class="w-8 h-8 object-contain rounded bg-white/5" onerror="this.onerror=null;this.parentElement.innerHTML='<i class=\'fa-solid fa-triangle-exclamation text-yellow-500/50\'></i>'">`;
+                }
+
+                el.innerHTML = `
+                    <div class="w-8 text-center text-gray-600 font-mono text-xs">${index + 1}</div>
+                    <div class="w-8 text-center text-base">${typeIcon}</div>
+                    <div class="w-10 flex justify-center">${logoHtml}</div>
+                    <div class="flex-1 px-2 overflow-hidden">
+                        <div class="font-medium text-white truncate flex items-center gap-2">
+                            ${escapeHtml(item.name)}
+                        </div>
+                        <div class="text-xs text-gray-500 truncate font-mono">${escapeHtml(item.url)}</div>
+                    </div>
+                    <div class="w-24 hidden md:block text-xs text-obsidian-accent truncate text-right pr-2">${escapeHtml(item.group)}</div>
+                    <div class="w-28 flex justify-end gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="moveEntry(${index}, -1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 hover:text-white" title="Move Up">
+                            <i class="fa-solid fa-arrow-up text-xs"></i>
+                        </button>
+                        <button onclick="moveEntry(${index}, 1)" class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 hover:text-white" title="Move Down">
+                            <i class="fa-solid fa-arrow-down text-xs"></i>
+                        </button>
+                        <button onclick="editEntry(${index})" class="w-7 h-7 flex items-center justify-center rounded hover:bg-blue-500/20 text-blue-400" title="Edit">
+                            <i class="fa-solid fa-pencil text-xs"></i>
+                        </button>
+                        <button onclick="deleteEntry(${index})" class="w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/20 text-red-400" title="Delete">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+
+            countDisplay.textContent = `${playlist.length} Station${playlist.length !== 1 ? 's' : ''}`;
+        }
+
+        function editEntry(index) {
+            const item = playlist[index];
+            iName.value = item.name;
+            iUrl.value = item.url;
+            iGroup.value = item.group;
+            iLogo.value = item.logo || '';
+            iIsRadio.checked = item.isRadio || false;
+            
+            editIndexInput.value = index;
+            submitBtn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Update';
+            submitBtn.classList.replace('bg-obsidian-accent', 'bg-emerald-600');
+            submitBtn.classList.replace('hover:bg-violet-600', 'hover:bg-emerald-500');
+            cancelBtn.classList.remove('hidden');
+        }
+
+        function resetForm() {
+            form.reset();
+            editIndexInput.value = -1;
+            submitBtn.innerHTML = '<i class="fa-solid fa-plus mr-2"></i>Add Station';
+            submitBtn.classList.replace('bg-emerald-600', 'bg-obsidian-accent');
+            submitBtn.classList.replace('hover:bg-emerald-500', 'hover:bg-violet-600');
+            cancelBtn.classList.add('hidden');
+            iIsRadio.checked = false;
+        }
+
+        function deleteEntry(index) {
+            if(confirm('Remove this station?')) {
+                playlist.splice(index, 1);
+                renderList();
+            }
+        }
+
+        function moveEntry(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex >= 0 && newIndex < playlist.length) {
+                [playlist[index], playlist[newIndex]] = [playlist[newIndex], playlist[index]];
+                renderList();
+            }
+        }
+
+        function clearAll() {
+            if(playlist.length > 0 && confirm('Clear entire playlist? This cannot be undone.')) {
+                playlist = [];
+                renderList();
+                resetForm();
+            }
+        }
+
+        // --- File I/O Logic ---
+
+        function downloadM3U() {
+            if (playlist.length === 0) {
+                alert('Add some stations first!');
+                return;
+            }
+
+            let content = '#EXTM3U\n';
+            playlist.forEach(item => {
+                let attr = '';
+                if(item.isRadio) attr += ` radio="true"`;
+                if(item.logo) attr += ` tvg-logo="${item.logo}"`;
+                if(item.group) attr += ` group-title="${item.group}"`;
+                
+                content += `#EXTINF:-1${attr},${item.name}\n`;
+                content += `${item.url}\n`;
+            });
+
+            const blob = new Blob([content], { type: 'audio/x-mpegurl' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'playlist.m3u';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) processFile(file);
+            event.target.value = ''; // Reset input
+        }
+
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                parseM3U(text);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseM3U(content) {
+            const lines = content.split(/\r?\n/);
+            const newPlaylist = [];
+            
+            let currentItem = null;
+
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return;
+
+                if (line.startsWith('#EXTINF')) {
+                    // Reset current item
+                    currentItem = { name: 'Unknown', url: '', group: 'Uncategorized', logo: '', isRadio: false };
+                    
+                    // Parse attributes
+                    const infoPart = line.substring(8); // Remove #EXTINF:
+                    const commaIndex = infoPart.lastIndexOf(',');
+                    
+                    if (commaIndex !== -1) {
+                        currentItem.name = infoPart.substring(commaIndex + 1).trim();
+                        const attrs = infoPart.substring(0, commaIndex);
+                        
+                        // Extract Logo
+                        const logoMatch = attrs.match(/tvg-logo="([^"]*)"/);
+                        if (logoMatch) currentItem.logo = logoMatch[1];
+                        
+                        // Extract Group
+                        const groupMatch = attrs.match(/group-title="([^"]*)"/);
+                        if (groupMatch) currentItem.group = groupMatch[1];
+
+                        // Extract Radio Flag
+                        if (attrs.includes('radio="true"')) {
+                            currentItem.isRadio = true;
+                        }
+                    }
+                } else if (!line.startsWith('#')) {
+                    // It's a URL
+                    if (currentItem) {
+                        currentItem.url = line;
+                        newPlaylist.push(currentItem);
+                        currentItem = null; // Reset
+                    } else {
+                        // Loose URL without EXTINF header
+                        newPlaylist.push({
+                            name: 'Imported Stream',
+                            url: line,
+                            group: 'Imported',
+                            logo: '',
+                            isRadio: false
+                        });
+                    }
+                }
+            });
+
+            if (newPlaylist.length > 0) {
+                if(confirm(`Imported ${newPlaylist.length} stations. Replace current list (OK) or Append (Cancel)?`)) {
+                    playlist = newPlaylist;
+                } else {
+                    playlist = [...playlist, ...newPlaylist];
+                }
+                renderList();
+            } else {
+                alert('No valid streams found in file.');
+            }
+        }
+
+        // --- Drag & Drop Utilities ---
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('drag-overlay').classList.remove('hidden');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('drag-overlay').classList.add('hidden');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        }
+
+        // Hide overlay if drag leaves window
+        document.addEventListener('dragleave', (e) => {
+            if (e.clientX === 0 && e.clientY === 0) {
+                document.getElementById('drag-overlay').classList.add('hidden');
+            }
+        });
+
+        // --- Utils ---
+        function escapeHtml(text) {
+            if(!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

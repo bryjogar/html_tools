@@ -182,6 +182,7 @@
             articles: [],
             readItems: new Set(),
             favoriteItems: new Set(),
+            favoriteArticles: new Map(), // Store full article data for favorites
             currentFilter: 'all',
             showRead: false,
             // Using rss2json to bypass CORS issues for a frontend-only app
@@ -230,10 +231,15 @@
                 const savedFeeds = localStorage.getItem('hl_rss_feeds');
                 const savedRead = localStorage.getItem('hl_rss_read');
                 const savedFavs = localStorage.getItem('hl_rss_favorites');
+                const savedFavArticles = localStorage.getItem('hl_rss_favorite_articles');
                 
                 if (savedFeeds) this.feeds = JSON.parse(savedFeeds);
                 if (savedRead) this.readItems = new Set(JSON.parse(savedRead));
                 if (savedFavs) this.favoriteItems = new Set(JSON.parse(savedFavs));
+                if (savedFavArticles) {
+                    const favArticlesArray = JSON.parse(savedFavArticles);
+                    this.favoriteArticles = new Map(favArticlesArray.map(a => [a.id, a]));
+                }
 
                 // Default Feeds if empty
                 if (this.feeds.length === 0) {
@@ -248,6 +254,7 @@
                 this.safeSave('hl_rss_feeds', JSON.stringify(this.feeds));
                 this.safeSave('hl_rss_read', JSON.stringify([...this.readItems]));
                 this.safeSave('hl_rss_favorites', JSON.stringify([...this.favoriteItems]));
+                this.safeSave('hl_rss_favorite_articles', JSON.stringify([...this.favoriteArticles.values()]));
             },
 
             async addFeed() {
@@ -332,6 +339,19 @@
 
                 this.articles = allArticles.sort((a, b) => b.timestamp - a.timestamp);
                 
+                // Update favorite articles with latest data if they're in the current feed
+                // Also migrate any favorite IDs that don't have article data yet
+                this.favoriteItems.forEach(favId => {
+                    const updatedArticle = this.articles.find(a => a.id === favId);
+                    if (updatedArticle) {
+                        this.favoriteArticles.set(favId, updatedArticle);
+                    } else if (!this.favoriteArticles.has(favId)) {
+                        // Favorite ID exists but article not found - might be from old feed
+                        // Keep the ID but article won't show until it appears in a feed again
+                    }
+                });
+                this.saveState();
+                
                 loader.classList.add('hidden');
                 refreshIcon.classList.remove('fa-spin');
                 
@@ -380,13 +400,17 @@
 
                 // 1. Filter by Feed or Favorites
                 if (this.currentFilter === 'favorites') {
-                    filtered = filtered.filter(a => this.favoriteItems.has(a.id));
+                    // Merge current articles with stored favorite articles
+                    const currentFavorites = filtered.filter(a => this.favoriteItems.has(a.id));
+                    const storedFavorites = Array.from(this.favoriteArticles.values())
+                        .filter(a => !currentFavorites.find(fa => fa.id === a.id)); // Only add if not already in current favorites
+                    filtered = [...currentFavorites, ...storedFavorites].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                 } else if (this.currentFilter !== 'all') {
                     filtered = filtered.filter(a => a.feedId === this.currentFilter);
                 }
 
-                // 2. Filter by Read Status
-                if (!this.showRead) {
+                // 2. Filter by Read Status (skip for favorites - always show all favorites)
+                if (this.currentFilter !== 'favorites' && !this.showRead) {
                     filtered = filtered.filter(a => !this.readItems.has(a.id));
                 }
 
@@ -462,8 +486,14 @@
             toggleFavorite(id) {
                 if (this.favoriteItems.has(id)) {
                     this.favoriteItems.delete(id);
+                    this.favoriteArticles.delete(id);
                 } else {
                     this.favoriteItems.add(id);
+                    // Store the full article data
+                    const article = this.articles.find(a => a.id === id);
+                    if (article) {
+                        this.favoriteArticles.set(id, article);
+                    }
                 }
                 this.saveState();
                 this.renderArticles();
