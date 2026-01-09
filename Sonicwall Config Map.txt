@@ -1,8 +1,8 @@
 buildNum=7.1.1-7058-R6162
 shortProdName=TZ%20670
-
-
 disableBypassPolicyLogs=on
+
+# CLI Settings
 cli_idleTimeout=300
 cli_screenWidth=80
 cli_screenLength=24
