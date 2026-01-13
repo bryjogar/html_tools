@@ -1,0 +1,160 @@
+{
+  "CLI": {
+    "cli_idleTimeout": "Idle Timeout (minutes)",
+    "cli_screenWidth": "Screen Width",
+    "cli_screenLength": "Screen Length",
+    "cli_exportNetObjByVal": "Export Network Objects By Value",
+    "cli_hideUnmodified": "Hide Unmodified Settings",
+    "cli_ftpUser": "FTP User",
+    "cli_ftpPassword": "FTP Password",
+    "cli_ttyPager": "TTY Pager",
+    "cli_connectionBanner": "Connection Banner",
+    "cli_loginBanner": "Login Banner",
+    "cli_logoutBanner": "Logout Banner",
+    "cli_interactivePrompts": "Interactive Prompts"
+  },
+  "Zones": {
+    "_array": "zoneObjId",
+    "zoneObjId": "Name",
+    "zoneObjProperties": "Properties",
+    "zoneObjZoneType": "Zone Type",
+    "zoneObjIntraZoneCom": "Allow Interface Trust",
+    "zoneObjAvProfile": "Gateway AV Profile",
+    "zoneObjACProfile": "App Control Profile",
+    "zoneObjASProfile": "Anti-Spyware Profile",
+    "zoneObjGavProfile": "GAV Profile",
+    "zoneObjDPISSLSProfile": "DPI-SSL Server Profile",
+    "zoneObjDPISSLCProfile": "DPI-SSL Client Profile",
+    "zoneObjSslVpnProfile": "SSL VPN Profile",
+    "zoneObjEnableGuestServices": "Enable Guest Services",
+    "zoneObjMaxGuests": "Max Guests",
+    "zoneObjEnableContentFiltering": "Enable Content Filtering"
+  },
+  "Interfaces": {
+    "_array": "iface_ifnum",
+    "iface_name": "Name",
+    "iface_type": "Type",
+    "interface_Zone": "Zone",
+    "iface_comment": "Comment",
+    "iface_lan_ip": "IP Address (LAN)",
+    "iface_lan_mask": "Subnet Mask (LAN)",
+    "iface_static_ip": "IP Address (Static)",
+    "iface_static_mask": "Subnet Mask (Static)",
+    "iface_static_gateway": "Gateway (Static)",
+    "iface_https_mgmt": "HTTPS Management",
+    "iface_ping_mgmt": "Ping Management",
+    "iface_ssh_mgmt": "SSH Management",
+    "iface_snmp_mgmt": "SNMP Management"
+  },
+  "AccessRules": {
+    "_array": "policyAction",
+    "policyAction": "Action",
+    "policySrcZone": "Source Zone",
+    "policyDstZone": "Destination Zone",
+    "policySrcNet": "Source Network",
+    "policyDstNet": "Destination Network",
+    "policySrcSvc": "Source Service",
+    "policyDstSvc": "Destination Service",
+    "policyComment": "Comment",
+    "policyName": "Name",
+    "policyEnabled": "Enabled",
+    "policyLog": "Logging Enabled",
+    "policyUsersd": "Users Allowed",
+    "policySchedule": "Schedule"
+  },
+  "NATRules": {
+    "_array": "natPolicyOrigSrc",
+    "natPolicyName": "Name",
+    "natPolicyOrigSrc": "Original Source",
+    "natPolicyOrigDst": "Original Destination",
+    "natPolicyOrigSvc": "Original Service",
+    "natPolicyTransSrc": "Translated Source",
+    "natPolicyTransDst": "Translated Destination",
+    "natPolicyTransSvc": "Translated Service",
+    "natPolicySrcIface": "Source Interface",
+    "natPolicyDstIface": "Destination Interface",
+    "natPolicyComment": "Comment",
+    "natPolicyEnabled": "Enabled",
+    "natPolicyReflexive": "Reflexive",
+    "natPolicyDnsDoctorEnable": "DNS Doctoring"
+  },
+  "RoutingPolicies": {
+    "_array": "pbrObjId",
+    "pbrPolicyName": "Name",
+    "pbrObjSrc": "Source",
+    "pbrObjDst": "Destination",
+    "pbrObjSvc": "Service",
+    "pbrObjGw": "Gateway",
+    "pbrObjIfaceName": "Interface",
+    "pbrObjMetric": "Metric",
+    "pbrObjPriority": "Priority",
+    "pbrObjProbe": "Probe",
+    "pbrObjDisableOnProbeFail": "Disable on Probe Failure"
+  },
+  "SecurityServices": {
+    "GAV": {
+      "gavEnableScanning": "Enable GAV Scanning",
+      "gavEnableInbound": "Enable Inbound Inspection",
+      "gavEnableOutbound": "Enable Outbound Inspection",
+      "gavEnableFTP": "Enable FTP",
+      "gavEnableHTTP": "Enable HTTP",
+      "gavEnableSMTP": "Enable SMTP",
+      "gavEnablePOP3": "Enable POP3",
+      "gavEnableIMAP": "Enable IMAP",
+      "gavEnableTCPStream": "Enable TCP Stream"
+    },
+    "IPS": {
+      "isIDPEnabled": "Enable IPS",
+      "idpPreventHighPriority": "Prevent High Priority Attacks",
+      "idpDetectHighPriority": "Detect High Priority Attacks",
+      "idpPreventMediumPriority": "Prevent Medium Priority Attacks",
+      "idpDetectMediumPriority": "Detect Medium Priority Attacks",
+      "idpPreventLowPriority": "Prevent Low Priority Attacks",
+      "idpDetectLowPriority": "Detect Low Priority Attacks"
+    },
+    "GeoIP": {
+      "geoIpBlkMode": "Block Mode",
+      "geoIpLoggingEnabled": "Logging Enabled",
+      "geoEnforcement": "Enable Geo-IP Enforcement",
+      "blockUnknownGeo": "Block Unknown Countries"
+    },
+    "Botnet": {
+      "botnetBlock": "Block Botnet Traffic",
+      "botnetLoggingEnabled": "Logging Enabled"
+    },
+    "AS": {
+      "asEnableScanning": "Enable Anti-Spyware",
+      "asEnableInbound": "Enable Inbound Inspection",
+      "asEnableOutbound": "Enable Outbound Inspection",
+      "asPreventHighPriority": "Prevent High Priority",
+      "asDetectHighPriority": "Detect High Priority",
+      "asPreventMediumPriority": "Prevent Medium Priority"
+    }
+  },
+  "DNS": {
+    "dns_server_one": "DNS Server 1",
+    "dns_server_two": "DNS Server 2",
+    "dns_server_three": "DNS Server 3",
+    "dns_use_static_servers": "Use Static DNS Servers"
+  },
+  "DHCP": {
+    "enableDHCP": "Enable DHCP Server",
+    "DynamicScopes": {
+        "_array": "prefs_dhdynstart",
+        "prefs_dhdynstart": "Range Start",
+        "prefs_dhdynend": "Range End",
+        "prefs_dhdynrouter": "Default Gateway",
+        "prefs_dhdynsubnetmask": "Subnet Mask",
+        "prefs_dhdyndomainname": "Domain Name",
+        "prefs_dhdynlease": "Lease Time",
+        "prefs_dhdynComment": "Comment"
+    },
+    "StaticScopes": {
+        "_array": "prefs_dhstaticip",
+        "prefs_dhstaticip": "IP Address",
+        "prefs_dhstatichw": "MAC Address",
+        "prefs_dhstaticname": "Entry Name",
+        "prefs_dhStatComment": "Comment"
+    }
+  }
+}

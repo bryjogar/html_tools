@@ -1,0 +1,54 @@
+# HTML-First Tools Inventory
+
+This document lists all the HTML-based tools available in this repository with a brief description.
+
+- **[App Icon Generator](app_icon_generator.html)** - Generate app icons for various platforms.
+- **[Build Assist](build_asist.html)** - Helper for building PC configurations or projects.
+- **[Convert Mac](convert_mac.html)** - MAC address format converter.
+- **[Cron Parser](cron_parser.html)** - Parse and explain cron schedule expressions.
+- **[Day Planner](day_planner.html)** - Simple daily planning tool.
+- **[Diff Tool](diff_tool.html)** - Compare text differences.
+- **[Docker Run Compose Generator](docker_run_compose_generator.html)** - Convert `docker run` commands to `docker-compose.yml`.
+- **[Domain Research](domain_research.html)** - Research domain availability and info.
+- **[Email Header Analyzer](email_header_analyzer.html)** - Analyze email headers for security and pathing.
+- **[Font Awesome Search](fa_search.html)** - Search and browse Font Awesome icons.
+- **[FFmpeg Command Generator](ffmpeg_command.html)** - GUI to generate complex FFmpeg commands.
+- **[Flexbox Generator](flexbox_generator.html)** - Interactive CSS Flexbox layout generator.
+- **[Fstab Generator](fstab_generator.html)** - Generate `/etc/fstab` entries for Linux mounting.
+- **[Garden Planner](garden_planner.html)** - Advanced garden visualizer and planner.
+- **[Homebrew Planner](homebrew_planner.html)** - Plan Homebrew installations and recipes.
+- **[IPTV Player](iptv_player.html)** - Browser-based IPTV stream player.
+- **[Index Link Generator](index_link_generator.html)** - Universal card generator for index pages.
+- **[JSON-YAML Converter](json-yaml_converter.html)** - Convert between JSON and YAML formats.
+- **[JWT Decoder](jwt_decoder.html)** - Decode and inspect JSON Web Tokens.
+- **[Local Storage Manager](local_storage_manager.html)** - Manage browser local storage data.
+- **[Lumber Calculator](lumber_calculator.html)** - Linear cut optimizer for woodworking.
+- **[M3U Editor](m3u_editor.html)** - Create and edit M3U playlists.
+- **[Markdown Converter](markdown_converter.html)** - Convert Markdown text to HTML.
+- **[Markdown Link Generator](Markdown_Link_Generator.html)** - Generate link lists for READMEs.
+- **[Markdown Table Generator](markdown_table_generator.html)** - Architect Markdown tables visually.
+- **[Meal Ideas](meal_ideas.html)** - Random meal idea generator.
+- **[Media Stack Generator](media_stack_generator.html)** - Composer for media server stacks (Plex, *arrs, etc).
+- **[Mermaid Editor](mermaid.html)** - Live editor for Mermaid diagrams.
+- **[Mulch & Gravel Estimator](mulch_gravel_estimator.html)** - Estimate materials for landscaping.
+- **[Password Generator](password_generator.html)** - SecureGen: Passphrase and password generation tool.
+- **[PoE Budget Calculator](poe_budget_calculator.html)** - Calculate Power over Ethernet budget requirements.
+- **[Pomodoro](pomodoro.html)** - Obsidian-styled Pomodoro timer.
+- **[Process Looper](process_looper.html)** - Tool for looping processes or tasks.
+- **[Project Designer](project_designer.html)** - Project flow and requirement designer.
+- **[Quick Time Tracker](quick_time_tracker.html)** - Simple task time tracking.
+- **[Rack Visualizer](rack_unit_visualizer.html)** - Visualize server rack layouts (v2).
+- **[RAID Calculator](raid_capacity_calculator.html)** - Calculate usable capacity for RAID and ZFS pools.
+- **[Rare Book Scout](rare_book_dashboard.html)** - Dashboard for tracking rare book values.
+- **[Recipe Parser](recipe_parser.html)** - Scrape and convert recipes from websites.
+- **[Reverse Proxy Generator](reverse_proxy_generator.html)** - Generate Nginx/Traefik reverse proxy configs.
+- **[RSS Reader](rss_reader.html)** - Lightweight local RSS feed reader.
+- **[Shopping List](shopping_list.html)** - Homelab shopping tracker.
+- **[Snippet Library](snippet_library.html)** - Store and retrieve code snippets.
+- **[SonicWall Config Parser](sonicwall_config_parser.html)** - Parse and analyze SonicWall configuration files.
+- **[Spaced Repetition](spaced_repetition.html)** - FlashRecall: Spaced repetition learning tool.
+- **[Subnet Calculator](subnet_calculator.html)** - CIDR subnet calculator and visualizer.
+- **[Switch Planner](switch_planner.html)** - Network switch port planner and designer.
+- **[Topology Builder](topology_builder.html)** - Napkin-style network topology builder.
+- **[UPS Calculator](ups_runtime_calculator.html)** - UPS runtime and load estimator.
+- **[Writing Timer](writing_timer.html)** - Hemingway-style flow writing timer.

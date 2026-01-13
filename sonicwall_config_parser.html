@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SonicWall Config Parser - Homelab Playground</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',
+                            pane: '#252526',
+                            border: '#3c3c3c',
+                            accent: '#7c3aed',
+                            text: '#cccccc'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap');
+
+        body {
+            background-color: #1e1e1e;
+            color: #cccccc;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        textarea {
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+        }
+    </style>
+</head>
+
+<body class="bg-obsidian-bg text-obsidian-text font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <!-- Header & Controls -->
+        <div
+            class="mb-6 bg-obsidian-pane border border-obsidian-border rounded-lg p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+                <h1
+                    class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-obsidian-accent to-purple-400">
+                    <i class="fas fa-server text-obsidian-accent mr-2"></i>
+                    SonicWall Configuration Parser
+                </h1>
+                <p class="text-gray-400 text-sm mt-1">Extract insights from configuration dumps</p>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <!-- File Input Wrapper -->
+                <div class="relative">
+                    <input type="file" id="configInput" accept=".txt" class="hidden"
+                        onchange="handleFileSelect(this)" />
+                    <label for="configInput"
+                        class="cursor-pointer px-4 py-2 bg-obsidian-bg border border-gray-600 hover:border-obsidian-accent text-gray-300 rounded transition-colors text-sm font-medium flex items-center">
+                        <i class="fas fa-upload mr-2"></i>
+                        <span id="fileNameLabel">Upload Config</span>
+                    </label>
+                </div>
+
+                <div class="h-8 w-px bg-gray-700 mx-1"></div>
+
+                <button onclick="parseConfig()"
+                    class="px-4 py-2 bg-obsidian-accent hover:bg-purple-600 text-white rounded transition-colors text-sm font-medium shadow-lg shadow-purple-900/20">
+                    <i class="fas fa-cog mr-2"></i>Parse
+                </button>
+
+                <button onclick="clearInput()"
+                    class="px-3 py-2 bg-obsidian-bg border border-obsidian-border hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/50 text-gray-400 rounded transition-colors text-sm"
+                    title="Clear">
+                    <i class="fas fa-trash"></i>
+                </button>
+
+                <div class="h-8 w-px bg-gray-700 mx-1"></div>
+
+                <button onclick="copyResults()"
+                    class="px-3 py-2 bg-obsidian-bg border border-obsidian-border hover:bg-obsidian-accent hover:text-white text-gray-400 rounded transition-colors text-sm"
+                    title="Copy Results">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content (Full Width) -->
+        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 min-h-[60vh]">
+            <div class="flex items-center justify-between mb-4 border-b border-obsidian-border pb-4">
+                <div class="flex items-center">
+                    <h2 class="text-lg font-semibold mr-4">
+                        <i class="fas fa-list-alt text-obsidian-accent mr-2"></i>
+                        Results
+                    </h2>
+                    <!-- Tab container will be injected here or below, but let's keep tabs inside results rendering -->
+                </div>
+                <div class="text-sm text-gray-500">
+                    <i class="fas fa-info-circle mr-1"></i> Ready
+                </div>
+            </div>
+
+            <div id="results" class="space-y-4">
+                <div class="text-center text-gray-500 py-20">
+                    <div class="bg-obsidian-bg inline-block p-6 rounded-full border border-obsidian-border mb-4">
+                        <i class="fas fa-file-invoice text-4xl text-gray-600"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-300 mb-1">No Configuration Loaded</h3>
+                    <p class="text-sm text-gray-500">Upload a SonicWall config file using the controls above.</p>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script>
+
+        // Configuration Map - Embedded from sonicwall_map.json
+        const CONFIG_MAP = {
+            "CLI": {
+                "cli_idleTimeout": "Idle Timeout (minutes)",
+                "cli_screenWidth": "Screen Width",
+                "cli_screenLength": "Screen Length",
+                "cli_exportNetObjByVal": "Export Network Objects By Value",
+                "cli_hideUnmodified": "Hide Unmodified Settings",
+                "cli_ftpUser": "FTP User",
+                "cli_ftpPassword": "FTP Password",
+                "cli_ttyPager": "TTY Pager",
+                "cli_connectionBanner": "Connection Banner",
+                "cli_loginBanner": "Login Banner",
+                "cli_logoutBanner": "Logout Banner",
+                "cli_interactivePrompts": "Interactive Prompts"
+            },
+            "Zones": {
+                "_array": "zoneObjId",
+                "zoneObjId": "Name",
+                "zoneObjProperties": "Properties",
+                "zoneObjZoneType": "Zone Type",
+                "zoneObjIntraZoneCom": "Allow Interface Trust",
+                "zoneObjAvProfile": "Gateway AV Profile",
+                "zoneObjACProfile": "App Control Profile",
+                "zoneObjASProfile": "Anti-Spyware Profile",
+                "zoneObjGavProfile": "GAV Profile",
+                "zoneObjDPISSLSProfile": "DPI-SSL Server Profile",
+                "zoneObjDPISSLCProfile": "DPI-SSL Client Profile",
+                "zoneObjSslVpnProfile": "SSL VPN Profile",
+                "zoneObjEnableGuestServices": "Enable Guest Services",
+                "zoneObjMaxGuests": "Max Guests",
+                "zoneObjEnableContentFiltering": "Enable Content Filtering"
+            },
+            "Interfaces": {
+                "_array": "iface_ifnum",
+                "iface_name": "Name",
+                "iface_type": "Type",
+                "interface_Zone": "Zone",
+                "iface_comment": "Comment",
+                "iface_lan_ip": "IP Address (LAN)",
+                "iface_lan_mask": "Subnet Mask (LAN)",
+                "iface_static_ip": "IP Address (Static)",
+                "iface_static_mask": "Subnet Mask (Static)",
+                "iface_static_gateway": "Gateway (Static)",
+                "iface_https_mgmt": "HTTPS Management",
+                "iface_ping_mgmt": "Ping Management",
+                "iface_ssh_mgmt": "SSH Management",
+                "iface_snmp_mgmt": "SNMP Management"
+            },
+            "AccessRules": {
+                "_array": "policyAction",
+                "policyAction": "Action",
+                "policySrcZone": "Source Zone",
+                "policyDstZone": "Destination Zone",
+                "policySrcNet": "Source Network",
+                "policyDstNet": "Destination Network",
+                "policySrcSvc": "Source Service",
+                "policyDstSvc": "Destination Service",
+                "policyComment": "Comment",
+                "policyName": "Name",
+                "policyEnabled": "Enabled",
+                "policyLog": "Logging Enabled",
+                "policyUsersd": "Users Allowed",
+                "policySchedule": "Schedule"
+            },
+            "NATRules": {
+                "_array": "natPolicyOrigSrc",
+                "natPolicyName": "Name",
+                "natPolicyOrigSrc": "Original Source",
+                "natPolicyOrigDst": "Original Destination",
+                "natPolicyOrigSvc": "Original Service",
+                "natPolicyTransSrc": "Translated Source",
+                "natPolicyTransDst": "Translated Destination",
+                "natPolicyTransSvc": "Translated Service",
+                "natPolicySrcIface": "Source Interface",
+                "natPolicyDstIface": "Destination Interface",
+                "natPolicyComment": "Comment",
+                "natPolicyEnabled": "Enabled",
+                "natPolicyReflexive": "Reflexive",
+                "natPolicyDnsDoctorEnable": "DNS Doctoring"
+            },
+            "RoutingPolicies": {
+                "_array": "pbrObjId",
+                "pbrPolicyName": "Name",
+                "pbrObjSrc": "Source",
+                "pbrObjDst": "Destination",
+                "pbrObjSvc": "Service",
+                "pbrObjGw": "Gateway",
+                "pbrObjIfaceName": "Interface",
+                "pbrObjMetric": "Metric",
+                "pbrObjPriority": "Priority",
+                "pbrObjProbe": "Probe",
+                "pbrObjDisableOnProbeFail": "Disable on Probe Failure"
+            },
+            "SecurityServices": {
+                "GAV": {
+                    "gavEnableScanning": "Enable GAV Scanning",
+                    "gavEnableInbound": "Enable Inbound Inspection",
+                    "gavEnableOutbound": "Enable Outbound Inspection",
+                    "gavEnableFTP": "Enable FTP",
+                    "gavEnableHTTP": "Enable HTTP",
+                    "gavEnableSMTP": "Enable SMTP",
+                    "gavEnablePOP3": "Enable POP3",
+                    "gavEnableIMAP": "Enable IMAP",
+                    "gavEnableTCPStream": "Enable TCP Stream"
+                },
+                "IPS": {
+                    "isIDPEnabled": "Enable IPS",
+                    "idpPreventHighPriority": "Prevent High Priority Attacks",
+                    "idpDetectHighPriority": "Detect High Priority Attacks",
+                    "idpPreventMediumPriority": "Prevent Medium Priority Attacks",
+                    "idpDetectMediumPriority": "Detect Medium Priority Attacks",
+                    "idpPreventLowPriority": "Prevent Low Priority Attacks",
+                    "idpDetectLowPriority": "Detect Low Priority Attacks"
+                },
+                "GeoIP": {
+                    "geoIpBlkMode": "Block Mode",
+                    "geoIpLoggingEnabled": "Logging Enabled",
+                    "geoEnforcement": "Enable Geo-IP Enforcement",
+                    "blockUnknownGeo": "Block Unknown Countries"
+                },
+                "Botnet": {
+                    "botnetBlock": "Block Botnet Traffic",
+                    "botnetLoggingEnabled": "Logging Enabled"
+                },
+                "AS": {
+                    "asEnableScanning": "Enable Anti-Spyware",
+                    "asEnableInbound": "Enable Inbound Inspection",
+                    "asEnableOutbound": "Enable Outbound Inspection",
+                    "asPreventHighPriority": "Prevent High Priority",
+                    "asDetectHighPriority": "Detect High Priority",
+                    "asPreventMediumPriority": "Prevent Medium Priority"
+                }
+            },
+            "DNS": {
+                "dns_server_one": "DNS Server 1",
+                "dns_server_two": "DNS Server 2",
+                "dns_server_three": "DNS Server 3",
+                "dns_use_static_servers": "Use Static DNS Servers"
+            },
+            "DHCP": {
+                "enableDHCP": "Enable DHCP Server",
+                "DynamicScopes": {
+                    "_array": "prefs_dhdynstart",
+                    "prefs_dhdynstart": "Range Start",
+                    "prefs_dhdynend": "Range End",
+                    "prefs_dhdynrouter": "Default Gateway",
+                    "prefs_dhdynsubnetmask": "Subnet Mask",
+                    "prefs_dhdyndomainname": "Domain Name",
+                    "prefs_dhdynlease": "Lease Time",
+                    "prefs_dhdynComment": "Comment"
+                },
+                "StaticScopes": {
+                    "_array": "prefs_dhstaticip",
+                    "prefs_dhstaticip": "IP Address",
+                    "prefs_dhstatichw": "MAC Address",
+                    "prefs_dhstaticname": "Entry Name",
+                    "prefs_dhStatComment": "Comment"
+                }
+            }
+        };
+
+        /**
+         * Generic Parser for Key-Value Pairs
+         * @param {string} configText - Raw config text
+         * @param {Object} mapSection - Section from CONFIG_MAP (e.g., CONFIG_MAP.CLI)
+         * @returns {Object} - Key-Value pair of { "Human Readable Name": "Value" }
+         */
+        function parseGenericKV(configText, mapSection) {
+            const results = {};
+            const lines = configText.split('\n');
+
+            // Create a lookup map for faster access
+            // rawKey -> humanReadableLabel
+            const keyMap = new Map();
+            for (const [key, label] of Object.entries(mapSection)) {
+                if (typeof label === 'string' && key !== '_array') {
+                    keyMap.set(key, label);
+                }
+            }
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('#')) continue;
+
+                const equalsIndex = trimmed.indexOf('=');
+                if (equalsIndex === -1) continue;
+
+                const key = trimmed.substring(0, equalsIndex).trim();
+
+                if (keyMap.has(key)) {
+                    let value = trimmed.substring(equalsIndex + 1).trim();
+                    try {
+                        value = decodeURIComponent(value);
+                    } catch (e) { } // ignore encoding errors
+
+                    results[keyMap.get(key)] = value;
+                }
+            }
+            return results;
+        }
+
+        /**
+         * Generic Parser for Array-based Objects (Suffix-based)
+         * looks for keys like zoneObjId_0, zoneObjId_1, etc.
+         * @param {string} configText - Raw config text
+         * @param {Object} mapSection - Section from CONFIG_MAP
+         * @returns {Array} - Array of objects, each representing one item (e.g. a Zone)
+         */
+        function parseGenericArray(configText, mapSection) {
+            const arrayKey = mapSection._array;
+            if (!arrayKey) return [];
+
+            const itemsMap = new Map(); // Index -> Object
+            const lines = configText.split('\n');
+
+            // Pre-process keys to human labels
+            const keyToLabel = {};
+            for (const [k, v] of Object.entries(mapSection)) {
+                if (k !== '_array') keyToLabel[k] = v;
+            }
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                // We're looking for lines like: specificKey_Index=Value
+                // But simplified: Key_Index=Value
+
+                const equalsIndex = trimmed.indexOf('=');
+                if (equalsIndex === -1) continue;
+
+                const leftSide = trimmed.substring(0, equalsIndex).trim();
+                const lastUnderscore = leftSide.lastIndexOf('_');
+
+                if (lastUnderscore === -1) continue;
+
+                const keyBase = leftSide.substring(0, lastUnderscore);
+                const indexStr = leftSide.substring(lastUnderscore + 1);
+
+                // keyBase must be one of our mapped keys
+                if (!keyToLabel[keyBase]) continue;
+
+                const index = parseInt(indexStr);
+                if (isNaN(index)) continue;
+
+                if (!itemsMap.has(index)) {
+                    itemsMap.set(index, {});
+                }
+
+                let value = trimmed.substring(equalsIndex + 1).trim();
+                // Removing inline comments if any (simple heuristic, might need refinement)
+                // Assuming comments start with ' # ' or tab #? No, user file has comments like # Name
+                // But some values might contain #. Let's be careful. The sample file has " # Name" at the end.
+                // We will split by " #" just to be safe for now, if it appears end of line.
+                const commentIndex = value.indexOf(' #');
+                if (commentIndex !== -1) {
+                    value = value.substring(0, commentIndex).trim(); // Remove trailing comment
+                }
+
+                try {
+                    value = decodeURIComponent(value);
+                } catch (e) { }
+
+                itemsMap.get(index)[keyToLabel[keyBase]] = value;
+            }
+
+            // Convert map to array and sort by index if needed, or just values
+            return Array.from(itemsMap.values());
+        }
+
+        /**
+         * Specific Handlers
+         */
+
+        // Metadata (Firmware, Hostname, etc) - Keep original custom logic or map?
+        // The original logic handled buildNum and shortProdName which are not in the JSON (mostly).
+        // Actually shortProdName is not in the JSON map snippet provided in the PROMPT, but I can keep the manual ones.
+
+        function parseMetadata(configText) {
+            const res = {};
+            // Re-use logic from original parseBuildNum/ShortProdName but consolidated
+            const lines = configText.split('\n');
+            for (const line of lines) {
+                const t = line.trim();
+                if (t.startsWith('buildNum=')) res['Firmware Version'] = t.split('=')[1].trim();
+                if (t.startsWith('shortProdName=')) {
+                    let v = t.split('=')[1].trim();
+                    try { v = decodeURIComponent(v); } catch (e) { }
+                    res['Hostname'] = v;
+                }
+            }
+            return res;
+        }
+
+        /**
+         * Main parsing function
+         */
+        function parseConfigText(configText) {
+            const result = {};
+
+            // 0. Metadata
+            result.Metadata = parseMetadata(configText);
+
+            // 1. CLI (KV)
+            result.CLI = parseGenericKV(configText, CONFIG_MAP.CLI);
+
+            // 2. Zones (Array)
+            result.Zones = parseGenericArray(configText, CONFIG_MAP.Zones);
+
+            // 3. Interfaces (Array)
+            result.Interfaces = parseGenericArray(configText, CONFIG_MAP.Interfaces);
+
+            // 4. Access Rules (Array)
+            result.AccessRules = parseGenericArray(configText, CONFIG_MAP.AccessRules);
+
+            // 5. NAT Rules (Array)
+            result.NATRules = parseGenericArray(configText, CONFIG_MAP.NATRules);
+
+            // 6. Routing Policies (Array)
+            result.RoutingPolicies = parseGenericArray(configText, CONFIG_MAP.RoutingPolicies);
+
+            // 7. Security Services (Nested KVs)
+            result.SecurityServices = {};
+            for (const [subKey, mapSec] of Object.entries(CONFIG_MAP.SecurityServices)) {
+                result.SecurityServices[subKey] = parseGenericKV(configText, mapSec);
+            }
+
+            // 8. DNS (KV)
+            result.DNS = parseGenericKV(configText, CONFIG_MAP.DNS);
+
+            // 9. DHCP (Mixed)
+            result.DHCP = {
+                General: parseGenericKV(configText, { enableDHCP: CONFIG_MAP.DHCP.enableDHCP }),
+                DynamicScopes: parseGenericArray(configText, CONFIG_MAP.DHCP.DynamicScopes),
+                StaticScopes: parseGenericArray(configText, CONFIG_MAP.DHCP.StaticScopes)
+            };
+
+            return result;
+        }
+
+
+        /**
+         * Render Helpers
+         */
+
+        function renderKVTable(data, title) {
+            if (!data || Object.keys(data).length === 0) return '';
+
+            let html = `
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-obsidian-accent mb-2">${title}</h3>
+                    <div class="bg-obsidian-bg border border-obsidian-border rounded overflow-hidden">
+                        <table class="w-full text-sm text-left">
+                            <tbody class="divide-y divide-obsidian-border">
+            `;
+
+            for (const [key, value] of Object.entries(data)) {
+                html += `
+                    <tr class="hover:bg-obsidian-pane/50">
+                        <td class="px-4 py-2 font-medium text-gray-400 w-1/3">${key}</td>
+                        <td class="px-4 py-2 text-gray-200 font-mono break-all">${value}</td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            return html;
+        }
+
+        function renderArrayTable(data, title) {
+            if (!data || data.length === 0) return '';
+
+            // Collect all unique columns (keys) from all items
+            const columns = new Set();
+            data.forEach(item => Object.keys(item).forEach(k => columns.add(k)));
+
+            // Filter columns: Remove if ALL values are undefined/null/empty
+            const colArray = Array.from(columns).filter(col => {
+                return data.some(item => {
+                    const val = item[col];
+                    return val !== undefined && val !== null && val !== '';
+                });
+            });
+
+            // Determine Boolean Columns (only 0/1/on/off/true/false)
+            const booleanCols = new Set();
+            colArray.forEach(col => {
+                const isBool = data.every(item => {
+                    const v = item[col];
+                    // Allow empty for sparse columns, but if present must be bool-like
+                    if (v === undefined || v === null || v === '') return true;
+                    const s = String(v).toLowerCase();
+                    return ['0', '1', 'on', 'off', 'true', 'false'].includes(s);
+                });
+                if (isBool) booleanCols.add(col);
+            });
+
+            let html = `
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-obsidian-accent mb-2">${title} <span class="text-xs text-gray-500 font-normal ml-2">(${data.length} items)</span></h3>
+                    <div class="bg-obsidian-bg border border-obsidian-border rounded overflow-x-auto">
+                        <table class="w-full text-sm text-left whitespace-nowrap">
+                            <thead class="bg-obsidian-pane text-gray-400 font-semibold">
+                                <tr>
+            `;
+
+            colArray.forEach(col => {
+                html += `<th class="px-4 py-2 border-b border-obsidian-border">${col}</th>`;
+            });
+
+            html += `
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-obsidian-border">
+            `;
+
+            data.forEach(item => {
+                html += `<tr class="hover:bg-obsidian-pane/50">`;
+                colArray.forEach(col => {
+                    let val = item[col];
+                    if (val === undefined || val === null) val = '';
+
+                    if (booleanCols.has(col)) {
+                        const s = String(val).toLowerCase();
+                        const checked = (s === '1' || s === 'on' || s === 'true') ? 'checked' : '';
+                        const activeClass = checked ? 'text-green-500' : 'text-gray-600';
+                        // Render as icon or disabled checkbox
+                        html += `
+                            <td class="px-4 py-2 text-center">
+                                <i class="fas fa-check-circle ${activeClass}"></i>
+                            </td>
+                        `;
+                    } else {
+                        html += `<td class="px-4 py-2 text-gray-200 font-mono">${val}</td>`;
+                    }
+                });
+                html += `</tr>`;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            return html;
+        }
+
+        function renderTabs(parsedData) {
+            const tabs = [
+                { id: 'summary', label: 'Summary', icon: 'fa-info-circle' },
+                { id: 'cli', label: 'CLI', icon: 'fa-terminal' },
+                { id: 'zones', label: 'Zones', icon: 'fa-network-wired' },
+                { id: 'interfaces', label: 'Interfaces', icon: 'fa-ethernet' },
+                { id: 'access_rules', label: 'Access Rules', icon: 'fa-shield-alt' },
+                { id: 'nat_rules', label: 'NAT Rules', icon: 'fa-exchange-alt' },
+                { id: 'routing', label: 'Routing', icon: 'fa-route' },
+                { id: 'security', label: 'Security', icon: 'fa-lock' },
+                { id: 'services', label: 'DNS/DHCP', icon: 'fa-server' }
+            ];
+
+            // Generate Tab Headers
+            let resultHtml = `
+                <div class="flex flex-wrap border-b border-obsidian-border mb-4">
+            `;
+
+            tabs.forEach((tab, index) => {
+                const activeClass = index === 0 ? 'border-obsidian-accent text-obsidian-accent' : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600';
+                resultHtml += `
+                    <button 
+                        onclick="switchTab('${tab.id}')"
+                        class="tab-btn px-4 py-2 text-sm font-medium border-b-2 focus:outline-none transition-colors ${activeClass}"
+                        data-target="${tab.id}"
+                    >
+                        <i class="fas ${tab.icon} mr-2"></i>${tab.label}
+                    </button>
+                `;
+            });
+            resultHtml += `</div>`;
+
+            // Tab Contents
+
+            // 1. Summary Tab
+            resultHtml += `<div id="tab-summary" class="tab-content block">`;
+            resultHtml += renderKVTable(parsedData.Metadata, 'Firmware & Device Info');
+            // Quick Stats
+            resultHtml += `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-obsidian-bg p-4 rounded border border-obsidian-border text-center">
+                        <div class="text-2xl font-bold text-obsidian-accent">${parsedData.Zones.length}</div>
+                        <div class="text-xs text-gray-500 uppercase">Zones</div>
+                    </div>
+                    <div class="bg-obsidian-bg p-4 rounded border border-obsidian-border text-center">
+                        <div class="text-2xl font-bold text-obsidian-accent">${parsedData.Interfaces.length}</div>
+                        <div class="text-xs text-gray-500 uppercase">Interfaces</div>
+                    </div>
+                    <div class="bg-obsidian-bg p-4 rounded border border-obsidian-border text-center">
+                        <div class="text-2xl font-bold text-obsidian-accent">${parsedData.AccessRules.length}</div>
+                        <div class="text-xs text-gray-500 uppercase">Access Rules</div>
+                    </div>
+                     <div class="bg-obsidian-bg p-4 rounded border border-obsidian-border text-center">
+                        <div class="text-2xl font-bold text-obsidian-accent">${parsedData.NATRules.length}</div>
+                        <div class="text-xs text-gray-500 uppercase">NAT Rules</div>
+                    </div>
+                </div>
+            `;
+            resultHtml += `</div>`;
+
+            // 2. CLI Tab
+            resultHtml += `<div id="tab-cli" class="tab-content hidden">`;
+            resultHtml += renderKVTable(parsedData.CLI, 'CLI Settings');
+            resultHtml += `</div>`;
+
+            // 3. Zones Tab
+            resultHtml += `<div id="tab-zones" class="tab-content hidden">`;
+            resultHtml += renderArrayTable(parsedData.Zones, 'Zone Definitions');
+            resultHtml += `</div>`;
+
+            // 4. Interfaces Tab
+            resultHtml += `<div id="tab-interfaces" class="tab-content hidden">`;
+            resultHtml += renderArrayTable(parsedData.Interfaces, 'Interface Configurations');
+            resultHtml += `</div>`;
+
+            // 5. Access Rules Tab
+            resultHtml += `<div id="tab-access_rules" class="tab-content hidden">`;
+            resultHtml += renderArrayTable(parsedData.AccessRules, 'Access Rules');
+            resultHtml += `</div>`;
+
+            // 6. NAT Rules Tab
+            resultHtml += `<div id="tab-nat_rules" class="tab-content hidden">`;
+            resultHtml += renderArrayTable(parsedData.NATRules, 'NAT Policies');
+            resultHtml += `</div>`;
+
+            // 7. Routing Tab
+            resultHtml += `<div id="tab-routing" class="tab-content hidden">`;
+            resultHtml += renderArrayTable(parsedData.RoutingPolicies, 'Routing Policies');
+            resultHtml += `</div>`;
+
+            // 8. Security Services Tab
+            resultHtml += `<div id="tab-security" class="tab-content hidden">`;
+            if (parsedData.SecurityServices) {
+                for (const [svcName, svcData] of Object.entries(parsedData.SecurityServices)) {
+                    resultHtml += renderKVTable(svcData, svcName);
+                }
+            }
+            resultHtml += `</div>`;
+
+            // 9. DNS/DHCP Tab
+            resultHtml += `<div id="tab-services" class="tab-content hidden">`;
+            resultHtml += renderKVTable(parsedData.DNS, 'DNS Settings');
+            if (parsedData.DHCP) {
+                resultHtml += renderKVTable(parsedData.DHCP.General, 'DHCP Settings');
+                resultHtml += renderArrayTable(parsedData.DHCP.DynamicScopes, 'DHCP Dynamic Scopes');
+                resultHtml += renderArrayTable(parsedData.DHCP.StaticScopes, 'DHCP Static Scopes');
+            }
+            resultHtml += `</div>`;
+
+            return resultHtml;
+        }
+
+        // Tab Switcher Logic
+        window.switchTab = function (tabId) {
+            // Hide all content
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('block'));
+
+            // Show target
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            document.getElementById('tab-' + tabId).classList.add('block');
+
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if (btn.dataset.target === tabId) {
+                    btn.classList.add('border-obsidian-accent', 'text-obsidian-accent');
+                    btn.classList.remove('border-transparent', 'text-gray-400');
+                } else {
+                    btn.classList.remove('border-obsidian-accent', 'text-obsidian-accent');
+                    btn.classList.add('border-transparent', 'text-gray-400');
+                }
+            });
+        };
+
+        /**
+         * Parse the configuration and display results
+         */
+        function parseConfig() {
+            const fileInput = document.getElementById('configInput');
+            const resultsDiv = document.getElementById('results');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="bg-yellow-900/30 border border-yellow-600 rounded p-4">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                        <span>Please select a configuration file first.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                const configText = e.target.result;
+                const parsed = parseConfigText(configText);
+
+                // Build results HTML using Tabs
+                resultsDiv.innerHTML = renderTabs(parsed);
+            };
+
+            reader.onerror = function () {
+                resultsDiv.innerHTML = `
+                    <div class="bg-red-900/30 border border-red-600 rounded p-4">
+                        <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
+                        <span>Error reading file. Please try again.</span>
+                    </div>
+                `;
+            };
+
+            reader.readAsText(file);
+        }
+
+
+        /**
+         * Clear the input file
+         */
+        function clearInput() {
+            document.getElementById('configInput').value = '';
+            document.getElementById('fileNameLabel').textContent = 'Upload Config';
+            document.getElementById('fileNameLabel').parentElement.classList.remove('border-obsidian-accent', 'text-white');
+            document.getElementById('fileNameLabel').parentElement.classList.add('border-gray-600', 'text-gray-300');
+
+            document.getElementById('results').innerHTML = `
+                <div class="text-center text-gray-500 py-20">
+                    <div class="bg-obsidian-bg inline-block p-6 rounded-full border border-obsidian-border mb-4">
+                         <i class="fas fa-file-invoice text-4xl text-gray-600"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-300 mb-1">No Configuration Loaded</h3>
+                    <p class="text-sm text-gray-500">Upload a SonicWall config file using the controls above.</p>
+                </div>
+            `;
+        }
+
+        /**
+         * Copy results to clipboard
+         */
+        function copyResults() {
+            const resultsDiv = document.getElementById('results');
+            const text = resultsDiv.innerText;
+
+            navigator.clipboard.writeText(text).then(() => {
+                // Show temporary feedback
+                const button = event.target.closest('button');
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+                button.classList.add('bg-green-600');
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.classList.remove('bg-green-600');
+                }, 2000);
+            }).catch(err => {
+                alert('Failed to copy to clipboard');
+            });
+        }
+
+        // Show filename when file is selected
+        function handleFileSelect(input) {
+            if (input.files && input.files.length > 0) {
+                const label = document.getElementById('fileNameLabel');
+                label.textContent = input.files[0].name;
+                // Add active style to label
+                label.parentElement.classList.remove('border-gray-600', 'text-gray-300');
+                label.parentElement.classList.add('border-obsidian-accent', 'text-white');
+            }
+        }
+        fileNameDiv.textContent = 'Selected: ' + e.target.files[0].name;
+        fileNameDiv.classList.remove('hidden');
+            } else {
+            fileNameDiv.classList.add('hidden');
+            fileNameDiv.textContent = '';
+        }
+        });
+    </script>
+</body>
+
+</html>

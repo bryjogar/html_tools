@@ -17,11 +17,11 @@ cli_logoutBanner=
 cli_interactivePrompts=on
 
 # Zone Object Definitions
-zoneObjId_0=LAN
-zoneObjTimeCreated_0=1640673021
-zoneObjTimeUpdated_0=1640673021
-zoneObjProperties_0=50973
-zoneObjInstanceId_0=10078174654336847150
+zoneObjId_0=LAN # Name
+zoneObjTimeCreated_0=1640673021  # Exclude
+zoneObjTimeUpdated_0=1640673021 # Exclude
+zoneObjProperties_0=50973 # Exclude
+zoneObjInstanceId_0=10078174654336847150 # Exclude
 zoneObjCflProfile_0=1
 zoneObjSslCtrlProfile_0=0
 zoneObjSslVpnProfile_0=0
