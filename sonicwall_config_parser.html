@@ -4,12 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SonicWall Config Parser - Homelab Playground</title>
+    <title>SonicWall Config Parser | Homelab Playground</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="apple-touch-icon" href="favicon.png">
+
+    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
 
+    <!-- Configuration -->
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -21,12 +26,17 @@
                             pane: '#252526',
                             border: '#3c3c3c',
                             accent: '#7c3aed',
-                            text: '#cccccc'
+                            accentHover: '#6d28d9',
+                            text: '#cccccc',
+                            textMuted: '#9ca3af',
+                            success: '#10b981',
+                            warning: '#f59e0b',
+                            danger: '#ef4444'
                         }
                     },
                     fontFamily: {
-                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
-                        sans: ['Inter', 'system-ui', 'sans-serif']
+                        mono: ['"Fira Code"', 'monospace'],
+                        sans: ['Inter', 'sans-serif']
                     }
                 }
             }
@@ -34,16 +44,10 @@
     </script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&display=swap');
-
-        body {
-            background-color: #1e1e1e;
-            color: #cccccc;
-        }
-
+        /* Custom Scrollbar */
         ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
         }
 
         ::-webkit-scrollbar-track {
@@ -52,182 +56,198 @@
 
         ::-webkit-scrollbar-thumb {
             background: #3c3c3c;
-            border-radius: 5px;
+            border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+            background: #505050;
         }
 
-        textarea {
-            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-btn.active {
+            border-bottom-color: #7c3aed;
+            color: #7c3aed;
         }
     </style>
 </head>
 
-<body class="bg-obsidian-bg text-obsidian-text font-sans">
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
-        <!-- Header -->
-        <!-- Header & Controls -->
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <!-- Header -->
+    <header
+        class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-6 shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-shield-halved text-obsidian-accent text-lg"></i>
+            <h1 class="font-semibold text-white tracking-tight">SonicWall Config Parser</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <!-- File Input hidden -->
+            <input type="file" id="fileInput" accept=".txt,.exp" class="hidden">
+
+            <button onclick="document.getElementById('fileInput').click()"
+                class="inline-flex items-center px-3 py-1.5 border border-obsidian-border text-sm font-medium rounded-md shadow-sm text-obsidian-text bg-obsidian-pane hover:bg-obsidian-accentHover/10 focus:outline-none transition-colors">
+                <i class="fa-solid fa-upload mr-2 text-obsidian-accent"></i>
+                Upload
+            </button>
+
+            <button onclick="togglePasteModal()"
+                class="inline-flex items-center px-3 py-1.5 border border-obsidian-border text-sm font-medium rounded-md shadow-sm text-obsidian-text bg-obsidian-pane hover:bg-obsidian-accentHover/10 focus:outline-none transition-colors">
+                <i class="fa-solid fa-paste mr-2 text-obsidian-accent"></i>
+                Paste Text
+            </button>
+
+            <span id="fileName" class="text-sm text-obsidian-textMuted italic max-w-[200px] truncate ml-2">No file
+                chosen</span>
+
+            <button onclick="copyToClipboard()"
+                class="inline-flex items-center px-3 py-1.5 border border-obsidian-border text-sm font-medium rounded-md shadow-sm text-obsidian-text bg-obsidian-pane hover:bg-obsidian-accentHover/10 focus:outline-none transition-colors ml-4">
+                <i class="fa-regular fa-copy mr-2 text-obsidian-accent"></i>
+                Copy JSON
+            </button>
+        </div>
+    </header>
+
+    <!-- Paste Modal -->
+    <div id="pasteModal"
+        class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center backdrop-blur-sm">
         <div
-            class="mb-6 bg-obsidian-pane border border-obsidian-border rounded-lg p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>
-                <h1
-                    class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-obsidian-accent to-purple-400">
-                    <i class="fas fa-server text-obsidian-accent mr-2"></i>
-                    SonicWall Configuration Parser
-                </h1>
-                <p class="text-gray-400 text-sm mt-1">Extract insights from configuration dumps</p>
+            class="bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl w-full max-w-4xl flex flex-col h-[80vh]">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-obsidian-border bg-obsidian-pane">
+                <h3 class="text-lg font-semibold text-white"><i
+                        class="fa-solid fa-clipboard mr-2 text-obsidian-accent"></i>Paste Configuration</h3>
+                <button onclick="togglePasteModal()" class="text-obsidian-textMuted hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
             </div>
-
-            <div class="flex items-center gap-3">
-                <!-- File Input Wrapper -->
-                <div class="relative">
-                    <input type="file" id="configInput" accept=".txt" class="hidden"
-                        onchange="handleFileSelect(this)" />
-                    <label for="configInput"
-                        class="cursor-pointer px-4 py-2 bg-obsidian-bg border border-gray-600 hover:border-obsidian-accent text-gray-300 rounded transition-colors text-sm font-medium flex items-center">
-                        <i class="fas fa-upload mr-2"></i>
-                        <span id="fileNameLabel">Upload Config</span>
-                    </label>
-                </div>
-
-                <div class="h-8 w-px bg-gray-700 mx-1"></div>
-
-                <button onclick="parseConfig()"
-                    class="px-4 py-2 bg-obsidian-accent hover:bg-purple-600 text-white rounded transition-colors text-sm font-medium shadow-lg shadow-purple-900/20">
-                    <i class="fas fa-cog mr-2"></i>Parse
-                </button>
-
-                <button onclick="clearInput()"
-                    class="px-3 py-2 bg-obsidian-bg border border-obsidian-border hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/50 text-gray-400 rounded transition-colors text-sm"
-                    title="Clear">
-                    <i class="fas fa-trash"></i>
-                </button>
-
-                <div class="h-8 w-px bg-gray-700 mx-1"></div>
-
-                <button onclick="copyResults()"
-                    class="px-3 py-2 bg-obsidian-bg border border-obsidian-border hover:bg-obsidian-accent hover:text-white text-gray-400 rounded transition-colors text-sm"
-                    title="Copy Results">
-                    <i class="fas fa-copy"></i>
+            <div class="p-0 flex-1 flex flex-col min-h-0">
+                <textarea id="pasteArea"
+                    class="w-full h-full bg-obsidian-bg border-none p-4 font-mono text-xs text-obsidian-text focus:ring-0 outline-none resize-none"
+                    placeholder="Paste SonicWall configuration text here..."></textarea>
+            </div>
+            <div class="px-6 py-4 border-t border-obsidian-border bg-obsidian-pane flex justify-end space-x-3">
+                <button onclick="togglePasteModal()"
+                    class="px-4 py-2 text-obsidian-textMuted hover:text-white transition-colors text-sm font-medium">Cancel</button>
+                <button onclick="processPaste()"
+                    class="bg-obsidian-accent hover:bg-obsidian-accentHover text-white px-6 py-2 rounded-md font-medium transition-colors shadow-lg shadow-obsidian-accent/20">
+                    <i class="fa-solid fa-bolt mr-2"></i>Parse Text
                 </button>
             </div>
         </div>
-
-        <!-- Main Content (Full Width) -->
-        <div class="bg-obsidian-pane border border-obsidian-border rounded-lg p-6 min-h-[60vh]">
-            <div class="flex items-center justify-between mb-4 border-b border-obsidian-border pb-4">
-                <div class="flex items-center">
-                    <h2 class="text-lg font-semibold mr-4">
-                        <i class="fas fa-list-alt text-obsidian-accent mr-2"></i>
-                        Results
-                    </h2>
-                    <!-- Tab container will be injected here or below, but let's keep tabs inside results rendering -->
-                </div>
-                <div class="text-sm text-gray-500">
-                    <i class="fas fa-info-circle mr-1"></i> Ready
-                </div>
-            </div>
-
-            <div id="results" class="space-y-4">
-                <div class="text-center text-gray-500 py-20">
-                    <div class="bg-obsidian-bg inline-block p-6 rounded-full border border-obsidian-border mb-4">
-                        <i class="fas fa-file-invoice text-4xl text-gray-600"></i>
-                    </div>
-                    <h3 class="text-lg font-medium text-gray-300 mb-1">No Configuration Loaded</h3>
-                    <p class="text-sm text-gray-500">Upload a SonicWall config file using the controls above.</p>
-                </div>
-            </div>
-        </div>
-
-
     </div>
 
-    <script>
 
-        // Configuration Map - Embedded from sonicwall_map.json
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto p-4 md:p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+
+        <!-- Results Section -->
+        <div id="resultsArea"
+            class="hidden bg-obsidian-pane shadow-lg border border-obsidian-border rounded-xl overflow-hidden min-h-[600px] flex flex-col">
+            <!-- Tabs Header -->
+            <div class="border-b border-obsidian-border overflow-x-auto bg-obsidian-pane shrink-0">
+                <nav class="flex px-4" aria-label="Tabs" id="tabsHeader">
+                    <!-- Tabs injected by JS -->
+                </nav>
+            </div>
+
+            <!-- Tab Contents -->
+            <div id="tabsContent" class="p-6 flex-1 overflow-auto">
+                <!-- Tab panes injected by JS -->
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-20 flex flex-col items-center justify-center opacity-60">
+            <i class="fa-solid fa-file-code text-6xl text-obsidian-border mb-4"></i>
+            <h3 class="mt-2 text-lg font-medium text-white">No configuration parsed</h3>
+            <p class="mt-1 text-sm text-obsidian-textMuted">Upload a SonicWall configuration file (.txt or .exp) to view
+                the parsed details.</p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0">
+        <a href="index.html"
+            class="text-obsidian-textMuted hover:text-obsidian-accent text-xs transition-colors no-underline">
+            HomeLab Playground
+        </a>
+    </footer>
+
+    <script>
+        // CONFIG_MAP defines the structure and mapping of the SonicWall config
         const CONFIG_MAP = {
-            "CLI": {
-                "cli_idleTimeout": "Idle Timeout (minutes)",
-                "cli_screenWidth": "Screen Width",
-                "cli_screenLength": "Screen Length",
-                "cli_exportNetObjByVal": "Export Network Objects By Value",
-                "cli_hideUnmodified": "Hide Unmodified Settings",
-                "cli_ftpUser": "FTP User",
-                "cli_ftpPassword": "FTP Password",
-                "cli_ttyPager": "TTY Pager",
-                "cli_connectionBanner": "Connection Banner",
-                "cli_loginBanner": "Login Banner",
-                "cli_logoutBanner": "Logout Banner",
-                "cli_interactivePrompts": "Interactive Prompts"
-            },
             "Zones": {
                 "_array": "zoneObjId",
                 "zoneObjId": "Name",
-                "zoneObjProperties": "Properties",
                 "zoneObjZoneType": "Zone Type",
                 "zoneObjIntraZoneCom": "Allow Interface Trust",
                 "zoneObjAvProfile": "Gateway AV Profile",
                 "zoneObjACProfile": "App Control Profile",
                 "zoneObjASProfile": "Anti-Spyware Profile",
                 "zoneObjGavProfile": "GAV Profile",
-                "zoneObjDPISSLSProfile": "DPI-SSL Server Profile",
-                "zoneObjDPISSLCProfile": "DPI-SSL Client Profile",
-                "zoneObjSslVpnProfile": "SSL VPN Profile",
-                "zoneObjEnableGuestServices": "Enable Guest Services",
-                "zoneObjMaxGuests": "Max Guests",
-                "zoneObjEnableContentFiltering": "Enable Content Filtering"
+                "zoneObjDPISSLSProfile": "DPI-SSL Server",
+                "zoneObjDPISSLCProfile": "DPI-SSL Client",
+                "zoneObjEnableContentFiltering": "CFS Enabled"
             },
             "Interfaces": {
                 "_array": "iface_ifnum",
                 "iface_name": "Name",
-                "iface_type": "Type",
+
                 "interface_Zone": "Zone",
                 "iface_comment": "Comment",
-                "iface_lan_ip": "IP Address (LAN)",
-                "iface_lan_mask": "Subnet Mask (LAN)",
-                "iface_static_ip": "IP Address (Static)",
-                "iface_static_mask": "Subnet Mask (Static)",
-                "iface_static_gateway": "Gateway (Static)",
-                "iface_https_mgmt": "HTTPS Management",
-                "iface_ping_mgmt": "Ping Management",
-                "iface_ssh_mgmt": "SSH Management",
-                "iface_snmp_mgmt": "SNMP Management"
+                "iface_lan_ip": "IP Address",
+                "iface_static_ip": "IP Address",
+                "iface_lan_mask": "Subnet Mask",
+                "iface_static_mask": "Subnet Mask",
+                "iface_static_gateway": "Gateway",
+                "iface_lan_default_gw": "Gateway",
+                "iface_https_mgmt": "HTTPS Mgmt",
+                "iface_ping_mgmt": "Ping Mgmt",
+                "iface_ssh_mgmt": "SSH Mgmt",
+                "iface_snmp_mgmt": "SNMP Mgmt"
             },
-            "AccessRules": {
+            "Access Rules": {
                 "_array": "policyAction",
+                "policyName": "Name",
                 "policyAction": "Action",
                 "policySrcZone": "Source Zone",
-                "policyDstZone": "Destination Zone",
+                "policyDstZone": "Dest Zone",
                 "policySrcNet": "Source Network",
-                "policyDstNet": "Destination Network",
+                "policyDstNet": "Dest Network",
                 "policySrcSvc": "Source Service",
-                "policyDstSvc": "Destination Service",
+                "policyDstSvc": "Dest Service",
+                "policySrcIf": "Source Interface",
+                "policyDstIf": "Dest Interface",
                 "policyComment": "Comment",
-                "policyName": "Name",
                 "policyEnabled": "Enabled",
-                "policyLog": "Logging Enabled",
-                "policyUsersd": "Users Allowed",
-                "policySchedule": "Schedule"
+                "policyLog": "Logging"
             },
-            "NATRules": {
+            "NAT Rules": {
                 "_array": "natPolicyOrigSrc",
                 "natPolicyName": "Name",
                 "natPolicyOrigSrc": "Original Source",
-                "natPolicyOrigDst": "Original Destination",
+                "natPolicyOrigDst": "Original Dest",
                 "natPolicyOrigSvc": "Original Service",
                 "natPolicyTransSrc": "Translated Source",
-                "natPolicyTransDst": "Translated Destination",
+                "natPolicyTransDst": "Translated Dest",
                 "natPolicyTransSvc": "Translated Service",
                 "natPolicySrcIface": "Source Interface",
-                "natPolicyDstIface": "Destination Interface",
+                "natPolicyDstIface": "Dest Interface",
                 "natPolicyComment": "Comment",
                 "natPolicyEnabled": "Enabled",
                 "natPolicyReflexive": "Reflexive",
                 "natPolicyDnsDoctorEnable": "DNS Doctoring"
             },
-            "RoutingPolicies": {
+            "Routing Policies": {
                 "_array": "pbrObjId",
                 "pbrPolicyName": "Name",
                 "pbrObjSrc": "Source",
@@ -238,594 +258,741 @@
                 "pbrObjMetric": "Metric",
                 "pbrObjPriority": "Priority",
                 "pbrObjProbe": "Probe",
-                "pbrObjDisableOnProbeFail": "Disable on Probe Failure"
+                "pbrObjDisableOnProbeFail": "Disable on Fail"
             },
-            "SecurityServices": {
+            "Security Services": {
                 "GAV": {
                     "gavEnableScanning": "Enable GAV Scanning",
-                    "gavEnableInbound": "Enable Inbound Inspection",
-                    "gavEnableOutbound": "Enable Outbound Inspection",
-                    "gavEnableFTP": "Enable FTP",
-                    "gavEnableHTTP": "Enable HTTP",
-                    "gavEnableSMTP": "Enable SMTP",
-                    "gavEnablePOP3": "Enable POP3",
-                    "gavEnableIMAP": "Enable IMAP",
-                    "gavEnableTCPStream": "Enable TCP Stream"
+                    "gavEnableInbound": "Enable Inbound",
+                    "gavEnableOutbound": "Enable Outbound"
                 },
                 "IPS": {
                     "isIDPEnabled": "Enable IPS",
-                    "idpPreventHighPriority": "Prevent High Priority Attacks",
-                    "idpDetectHighPriority": "Detect High Priority Attacks",
-                    "idpPreventMediumPriority": "Prevent Medium Priority Attacks",
-                    "idpDetectMediumPriority": "Detect Medium Priority Attacks",
-                    "idpPreventLowPriority": "Prevent Low Priority Attacks",
-                    "idpDetectLowPriority": "Detect Low Priority Attacks"
+                    "idpPreventHighPriority": "Prevent High Pri",
+                    "idpDetectHighPriority": "Detect High Pri",
+                    "idpPreventMediumPriority": "Prevent Med Pri",
+                    "idpDetectMediumPriority": "Detect Med Pri"
                 },
-                "GeoIP": {
+                "Geo-IP": {
                     "geoIpBlkMode": "Block Mode",
                     "geoIpLoggingEnabled": "Logging Enabled",
-                    "geoEnforcement": "Enable Geo-IP Enforcement",
-                    "blockUnknownGeo": "Block Unknown Countries"
+                    "geoEnforcement": "Enable Enforcement",
+                    "blockUnknownGeo": "Block Unknown"
                 },
                 "Botnet": {
-                    "botnetBlock": "Block Botnet Traffic",
+                    "botnetBlock": "Block Botnet",
                     "botnetLoggingEnabled": "Logging Enabled"
                 },
                 "AS": {
                     "asEnableScanning": "Enable Anti-Spyware",
-                    "asEnableInbound": "Enable Inbound Inspection",
-                    "asEnableOutbound": "Enable Outbound Inspection",
-                    "asPreventHighPriority": "Prevent High Priority",
-                    "asDetectHighPriority": "Detect High Priority",
-                    "asPreventMediumPriority": "Prevent Medium Priority"
+                    "asEnableInbound": "Enable Inbound",
+                    "asEnableOutbound": "Enable Outbound"
                 }
             },
             "DNS": {
                 "dns_server_one": "DNS Server 1",
                 "dns_server_two": "DNS Server 2",
                 "dns_server_three": "DNS Server 3",
-                "dns_use_static_servers": "Use Static DNS Servers"
+                "dns_use_static_servers": "Use Static DNS"
+            },
+            "Address Objects": {
+                "_array": "addrObjId",
+                "addrObjId": "Name",
+                "addrObjIdDisp": "Display Name",
+                "addrObjType": "Type",
+                "addrObjIp1": "IP/Start",
+                "addrObjIp2": "Mask/End",
+                "addrObjZone": "Zone"
             },
             "DHCP": {
-                "enableDHCP": "Enable DHCP Server",
-                "DynamicScopes": {
-                    "_array": "prefs_dhdynstart",
-                    "prefs_dhdynstart": "Range Start",
-                    "prefs_dhdynend": "Range End",
-                    "prefs_dhdynrouter": "Default Gateway",
-                    "prefs_dhdynsubnetmask": "Subnet Mask",
-                    "prefs_dhdyndomainname": "Domain Name",
-                    "prefs_dhdynlease": "Lease Time",
-                    "prefs_dhdynComment": "Comment"
+                "Settings": {
+                    "enableDHCP": "Enable DHCP Server"
                 },
-                "StaticScopes": {
+                "Static Scopes": {
                     "_array": "prefs_dhstaticip",
+                    "prefs_dhstaticscopeactive": "Enabled",
+                    "prefs_dhstaticname": "Name",
                     "prefs_dhstaticip": "IP Address",
                     "prefs_dhstatichw": "MAC Address",
-                    "prefs_dhstaticname": "Entry Name",
-                    "prefs_dhStatComment": "Comment"
+                    "prefs_dhstaticsubnetmask": "Subnet Mask",
+                    "prefs_dhstaticrouter": "Gateway",
+                    "prefs_dhstaticdns0": "DNS 1"
+                },
+                "Dynamic Scopes": {
+                    "_array": "prefs_dhdynstart",
+                    "prefs_dhdynscopeactive": "Enabled",
+                    "prefs_dhdynstart": "Range Start",
+                    "prefs_dhdynend": "Range End",
+                    "prefs_dhdynrouter": "Gateway",
+                    "prefs_dhdynsubnetmask": "Subnet Mask",
+                    "prefs_dhdynlease": "Lease (min)",
+                    "prefs_dhdyndns0": "DNS 1",
+                    "prefs_dhdyndns1": "DNS 2",
+                    "prefs_dhdynComment": "Comment"
                 }
             }
         };
 
-        /**
-         * Generic Parser for Key-Value Pairs
-         * @param {string} configText - Raw config text
-         * @param {Object} mapSection - Section from CONFIG_MAP (e.g., CONFIG_MAP.CLI)
-         * @returns {Object} - Key-Value pair of { "Human Readable Name": "Value" }
-         */
-        function parseGenericKV(configText, mapSection) {
-            const results = {};
-            const lines = configText.split('\n');
+        const ZONE_TYPE_MAP = {
+            "1": "Trusted", "0": "Untrusted", "2": "Public", "5": "Encrypted", "8": "SSL VPN", "4": "Wireless", "6": "Untrusted"
+        };
+        const ACTION_MAP = {
+            "2": "ALLOW", "0": "DENY", "1": "DISCARD"
+        };
+        const ANY_INTERFACE_ID = "4294967295";
+        const ANY_VALUE = "Any";
 
-            // Create a lookup map for faster access
-            // rawKey -> humanReadableLabel
-            const keyMap = new Map();
-            for (const [key, label] of Object.entries(mapSection)) {
-                if (typeof label === 'string' && key !== '_array') {
-                    keyMap.set(key, label);
-                }
+        const ADDRESS_OBJ_TYPE_MAP = {
+            "1": "Host", "2": "Range", "4": "Network", "8": "Group", "9": "MAC", "10": "FQDN", "0": "Host"
+        };
+
+        let PARSED_DATA = {};
+
+        const fileInput = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('fileName');
+
+        if (fileInput) {
+            fileInput.addEventListener('change', handleFileSelect);
+        }
+
+        // --- Paste Modal Logic ---
+        function togglePasteModal() {
+            const modal = document.getElementById('pasteModal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('pasteArea').focus();
             }
+        }
+
+        function processPaste() {
+            const text = document.getElementById('pasteArea').value;
+            if (text && text.trim().length > 0) {
+                fileNameDisplay.textContent = "Pasted Configuration";
+                fileNameDisplay.classList.remove('italic', 'text-obsidian-textMuted');
+                fileNameDisplay.classList.add('font-semibold', 'text-white');
+                parseConfig(text);
+                togglePasteModal();
+            }
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                fileNameDisplay.textContent = file.name;
+                fileNameDisplay.classList.remove('italic', 'text-obsidian-textMuted');
+                fileNameDisplay.classList.add('font-semibold', 'text-white');
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const text = e.target.result;
+                    parseConfig(text);
+                };
+                reader.readAsText(file);
+            } else {
+                clearInput();
+            }
+        }
+
+        function clearInput() {
+            fileInput.value = '';
+            fileNameDisplay.textContent = 'No file chosen';
+            fileNameDisplay.classList.add('italic', 'text-obsidian-textMuted');
+            fileNameDisplay.classList.remove('font-semibold', 'text-white');
+
+            document.getElementById('resultsArea').classList.add('hidden');
+            document.getElementById('emptyState').classList.remove('hidden');
+            PARSED_DATA = {};
+        }
+
+        function parseConfig(configText) {
+            const interfaceMap = buildInterfaceMap(configText);
+            const addressObjectMap = buildAddressObjectMap(configText);
+            const groupMemberMap = buildAddressGroupMemberMap(configText);
+            PARSED_DATA = parseConfigText(configText, interfaceMap, addressObjectMap, groupMemberMap);
+            renderTabs(PARSED_DATA);
+
+            document.getElementById('resultsArea').classList.remove('hidden');
+            document.getElementById('emptyState').classList.add('hidden');
+        }
+
+        function buildInterfaceMap(text) {
+            const map = {};
+            const lines = text.split('\n');
+            const ifNumRegex = /^iface_ifnum_(\d+)=(\d+)/;
+            const ifNameRegex = /^iface_name_(\d+)=(.*)/;
+
+            const temp = {};
 
             for (const line of lines) {
                 const trimmed = line.trim();
-                if (!trimmed || trimmed.startsWith('#')) continue;
+                let match = trimmed.match(ifNumRegex);
+                if (match) {
+                    const idx = match[1];
+                    if (!temp[idx]) temp[idx] = {};
+                    temp[idx].id = match[2];
+                    continue;
+                }
+                match = trimmed.match(ifNameRegex);
+                if (match) {
+                    const idx = match[1];
+                    if (!temp[idx]) temp[idx] = {};
+                    temp[idx].name = decodeURIComponent(match[2]);
+                }
+            }
 
-                const equalsIndex = trimmed.indexOf('=');
-                if (equalsIndex === -1) continue;
+            Object.values(temp).forEach(obj => {
+                if (obj.id && obj.name) {
+                    map[obj.id] = obj.name;
+                }
+            });
 
-                const key = trimmed.substring(0, equalsIndex).trim();
+            map["-1"] = "Any";
+            map[ANY_INTERFACE_ID] = "Any";
 
-                if (keyMap.has(key)) {
-                    let value = trimmed.substring(equalsIndex + 1).trim();
-                    try {
-                        value = decodeURIComponent(value);
-                    } catch (e) { } // ignore encoding errors
+            return map;
+        }
 
-                    results[keyMap.get(key)] = value;
+        function buildAddressObjectMap(text) {
+            const map = {};
+            // Basic regex for Address Objects: addrObjId_XX (Name), addrObjIp1_XX (IP)
+            // We want to map: Name -> IP String
+            const lines = text.split('\n');
+            const idRegex = /^addrObjId_(\d+)=(.*)/;
+            const ip1Regex = /^addrObjIp1_(\d+)=(.*)/;
+            const ip2Regex = /^addrObjIp2_(\d+)=(.*)/;
+            const typeRegex = /^addrObjType_(\d+)=(.*)/;
+
+            // FQDN Objects: addrObjFqdnId_XX, addrObjFqdn_XX
+            const fqdnIdRegex = /^addrObjFqdnId_(\d+)=(.*)/;
+            const fqdnValRegex = /^addrObjFqdn_(\d+)=(.*)/;
+
+            const temp = {};
+            const tempFqdn = {};
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                let match;
+
+                // Standard Address Objects
+                if ((match = trimmed.match(idRegex))) {
+                    const idx = match[1];
+                    if (!temp[idx]) temp[idx] = {};
+                    temp[idx].name = decodeURIComponent(match[2]);
+                } else if ((match = trimmed.match(ip1Regex))) {
+                    const idx = match[1];
+                    if (!temp[idx]) temp[idx] = {};
+                    temp[idx].ip1 = match[2];
+                } else if ((match = trimmed.match(ip2Regex))) {
+                    const idx = match[1];
+                    if (!temp[idx]) temp[idx] = {};
+                    temp[idx].ip2 = match[2];
+                } else if ((match = trimmed.match(typeRegex))) {
+                    const idx = match[1];
+                    if (!temp[idx]) temp[idx] = {};
+                    temp[idx].type = match[2]; // 1=Host, 2=Range, 4=Network
+                }
+                // FQDN Objects
+                else if ((match = trimmed.match(fqdnIdRegex))) {
+                    const idx = match[1];
+                    if (!tempFqdn[idx]) tempFqdn[idx] = {};
+                    tempFqdn[idx].name = decodeURIComponent(match[2]);
+                } else if ((match = trimmed.match(fqdnValRegex))) {
+                    const idx = match[1];
+                    if (!tempFqdn[idx]) tempFqdn[idx] = {};
+                    tempFqdn[idx].fqdn = match[2];
+                }
+            }
+
+            // Process Standard Objects
+            Object.values(temp).forEach(obj => {
+                if (obj.name) {
+                    let desc = "";
+                    const typeName = ADDRESS_OBJ_TYPE_MAP[obj.type] || `Type ${obj.type}`;
+
+                    // We only use this map for the tooltip/enrichment text usually, 
+                    // but for the "Address Objects" tab we want the actual type name.
+                    // The 'map' returned here is Name -> Description (IP/subnet).
+                    // Wait, this function returns a map for ENRICHMENT (Name -> Value).
+                    // The extraction for the TABLE happens in parseGenericArray using the raw lines.
+                    // Actually, looking at CONFIG_MAP["Address Objects"], it maps "addrObjType" to "Type".
+                    // So parseGenericArray extracts the raw number.
+                    // I need to update parseGenericArray to use ADDRESS_OBJ_TYPE_MAP for 'addrObjType'.
+
+                    if (obj.type === "8") {
+                        desc = "Group";
+                    } else if (obj.ip1) {
+                        desc = obj.ip1;
+                        if (obj.type === "4" && obj.ip2 && obj.ip2 !== "0.0.0.0") {
+                            desc = `${obj.ip1}/${obj.ip2}`; // Net/Mask
+                        } else if (obj.type === "2" && obj.ip2 && obj.ip2 !== "0.0.0.0") {
+                            desc = `${obj.ip1}-${obj.ip2}`; // Range
+                        }
+                    }
+                    if (desc) map[obj.name] = desc;
+                }
+            });
+
+            // Process FQDN Objects
+            Object.values(tempFqdn).forEach(obj => {
+                if (obj.name && obj.fqdn) {
+                    map[obj.name] = obj.fqdn;
+                }
+            });
+
+            return map;
+        }
+
+        function buildAddressGroupMemberMap(text) {
+            const map = {}; // GroupName -> [MemberName1, MemberName2]
+            const lines = text.split('\n');
+            // addro_atomToGrp_XX=Member
+            // addro_grpToGrp_XX=Group
+            const atomRegex = /^addro_atomToGrp_(\d+)=(.*)/;
+            const grpRegex = /^addro_grpToGrp_(\d+)=(.*)/;
+
+            const temp = {};
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                let match;
+
+                if ((match = trimmed.match(atomRegex))) {
+                    const idx = match[1];
+                    if (!temp[idx]) temp[idx] = {};
+                    temp[idx].atom = decodeURIComponent(match[2]);
+                } else if ((match = trimmed.match(grpRegex))) {
+                    const idx = match[1];
+                    if (!temp[idx]) temp[idx] = {};
+                    temp[idx].grp = decodeURIComponent(match[2]);
+                }
+            }
+
+            Object.values(temp).forEach(item => {
+                if (item.atom && item.grp) {
+                    if (!map[item.grp]) map[item.grp] = [];
+                    map[item.grp].push(item.atom);
+                }
+            });
+
+            return map;
+        }
+
+        function parseConfigText(configText, interfaceMap, addressObjectMap, groupMemberMap) {
+            const results = {};
+            const lines = configText.split('\n');
+
+            for (const [sectionName, sectionMap] of Object.entries(CONFIG_MAP)) {
+
+                const firstKey = Object.keys(sectionMap)[0];
+                if (typeof sectionMap[firstKey] === 'object' && sectionMap[firstKey] !== null) {
+                    results[sectionName] = {};
+                    for (const [subSectionName, subMap] of Object.entries(sectionMap)) {
+                        if (subMap._array) {
+                            results[sectionName][subSectionName] = parseGenericArray(lines, subMap, interfaceMap, addressObjectMap);
+                        } else {
+                            results[sectionName][subSectionName] = parseGenericKV(lines, subMap);
+                        }
+                    }
+                }
+                else {
+                    if (sectionMap._array) {
+                        let parsedArray = parseGenericArray(lines, sectionMap, interfaceMap, addressObjectMap);
+                        if (sectionName === "Interfaces") {
+                            parsedArray.sort((a, b) => {
+                                const nameA = a["Name"] || "";
+                                const nameB = b["Name"] || "";
+                                return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+                            });
+                        }
+                        // Enrich Address Groups
+                        if (sectionName === "Address Objects" && groupMemberMap) {
+                            parsedArray.forEach(obj => {
+                                if (obj["Name"] && groupMemberMap[obj["Name"]]) {
+                                    obj["Members"] = groupMemberMap[obj["Name"]];
+                                }
+                            });
+                        }
+                        results[sectionName] = parsedArray;
+                    } else {
+                        results[sectionName] = parseGenericKV(lines, sectionMap);
+                    }
                 }
             }
             return results;
         }
 
-        /**
-         * Generic Parser for Array-based Objects (Suffix-based)
-         * looks for keys like zoneObjId_0, zoneObjId_1, etc.
-         * @param {string} configText - Raw config text
-         * @param {Object} mapSection - Section from CONFIG_MAP
-         * @returns {Array} - Array of objects, each representing one item (e.g. a Zone)
-         */
-        function parseGenericArray(configText, mapSection) {
-            const arrayKey = mapSection._array;
-            if (!arrayKey) return [];
-
-            const itemsMap = new Map(); // Index -> Object
-            const lines = configText.split('\n');
-
-            // Pre-process keys to human labels
-            const keyToLabel = {};
-            for (const [k, v] of Object.entries(mapSection)) {
-                if (k !== '_array') keyToLabel[k] = v;
-            }
-
+        function parseGenericKV(lines, map) {
+            const result = {};
             for (const line of lines) {
                 const trimmed = line.trim();
-                // We're looking for lines like: specificKey_Index=Value
-                // But simplified: Key_Index=Value
+                if (!trimmed) continue;
 
-                const equalsIndex = trimmed.indexOf('=');
-                if (equalsIndex === -1) continue;
+                for (const [key, label] of Object.entries(map)) {
+                    if (trimmed.startsWith(key + '=')) {
+                        let value = trimmed.substring(key.length + 1);
+                        try { value = decodeURIComponent(value); } catch (e) { }
+                        value = value.trim();
 
-                const leftSide = trimmed.substring(0, equalsIndex).trim();
-                const lastUnderscore = leftSide.lastIndexOf('_');
+                        if (key === 'dns_use_static_servers') {
+                            if (value === '1' || value.toLowerCase() === 'on') value = 'True';
+                            else if (value === '0' || value.toLowerCase() === 'off') value = 'False';
+                        }
 
-                if (lastUnderscore === -1) continue;
-
-                const keyBase = leftSide.substring(0, lastUnderscore);
-                const indexStr = leftSide.substring(lastUnderscore + 1);
-
-                // keyBase must be one of our mapped keys
-                if (!keyToLabel[keyBase]) continue;
-
-                const index = parseInt(indexStr);
-                if (isNaN(index)) continue;
-
-                if (!itemsMap.has(index)) {
-                    itemsMap.set(index, {});
-                }
-
-                let value = trimmed.substring(equalsIndex + 1).trim();
-                // Removing inline comments if any (simple heuristic, might need refinement)
-                // Assuming comments start with ' # ' or tab #? No, user file has comments like # Name
-                // But some values might contain #. Let's be careful. The sample file has " # Name" at the end.
-                // We will split by " #" just to be safe for now, if it appears end of line.
-                const commentIndex = value.indexOf(' #');
-                if (commentIndex !== -1) {
-                    value = value.substring(0, commentIndex).trim(); // Remove trailing comment
-                }
-
-                try {
-                    value = decodeURIComponent(value);
-                } catch (e) { }
-
-                itemsMap.get(index)[keyToLabel[keyBase]] = value;
-            }
-
-            // Convert map to array and sort by index if needed, or just values
-            return Array.from(itemsMap.values());
-        }
-
-        /**
-         * Specific Handlers
-         */
-
-        // Metadata (Firmware, Hostname, etc) - Keep original custom logic or map?
-        // The original logic handled buildNum and shortProdName which are not in the JSON (mostly).
-        // Actually shortProdName is not in the JSON map snippet provided in the PROMPT, but I can keep the manual ones.
-
-        function parseMetadata(configText) {
-            const res = {};
-            // Re-use logic from original parseBuildNum/ShortProdName but consolidated
-            const lines = configText.split('\n');
-            for (const line of lines) {
-                const t = line.trim();
-                if (t.startsWith('buildNum=')) res['Firmware Version'] = t.split('=')[1].trim();
-                if (t.startsWith('shortProdName=')) {
-                    let v = t.split('=')[1].trim();
-                    try { v = decodeURIComponent(v); } catch (e) { }
-                    res['Hostname'] = v;
+                        result[label] = value;
+                        break;
+                    }
                 }
             }
-            return res;
-        }
-
-        /**
-         * Main parsing function
-         */
-        function parseConfigText(configText) {
-            const result = {};
-
-            // 0. Metadata
-            result.Metadata = parseMetadata(configText);
-
-            // 1. CLI (KV)
-            result.CLI = parseGenericKV(configText, CONFIG_MAP.CLI);
-
-            // 2. Zones (Array)
-            result.Zones = parseGenericArray(configText, CONFIG_MAP.Zones);
-
-            // 3. Interfaces (Array)
-            result.Interfaces = parseGenericArray(configText, CONFIG_MAP.Interfaces);
-
-            // 4. Access Rules (Array)
-            result.AccessRules = parseGenericArray(configText, CONFIG_MAP.AccessRules);
-
-            // 5. NAT Rules (Array)
-            result.NATRules = parseGenericArray(configText, CONFIG_MAP.NATRules);
-
-            // 6. Routing Policies (Array)
-            result.RoutingPolicies = parseGenericArray(configText, CONFIG_MAP.RoutingPolicies);
-
-            // 7. Security Services (Nested KVs)
-            result.SecurityServices = {};
-            for (const [subKey, mapSec] of Object.entries(CONFIG_MAP.SecurityServices)) {
-                result.SecurityServices[subKey] = parseGenericKV(configText, mapSec);
-            }
-
-            // 8. DNS (KV)
-            result.DNS = parseGenericKV(configText, CONFIG_MAP.DNS);
-
-            // 9. DHCP (Mixed)
-            result.DHCP = {
-                General: parseGenericKV(configText, { enableDHCP: CONFIG_MAP.DHCP.enableDHCP }),
-                DynamicScopes: parseGenericArray(configText, CONFIG_MAP.DHCP.DynamicScopes),
-                StaticScopes: parseGenericArray(configText, CONFIG_MAP.DHCP.StaticScopes)
-            };
-
             return result;
         }
 
+        function parseGenericArray(lines, map, interfaceMap, addressObjectMap) {
+            const result = [];
+            const tempMap = {};
 
-        /**
-         * Render Helpers
-         */
+            for (const line of lines) {
+                const trimmed = line.trim();
+                for (const [key, label] of Object.entries(map)) {
+                    if (key === '_array') continue;
 
-        function renderKVTable(data, title) {
-            if (!data || Object.keys(data).length === 0) return '';
+                    const regex = new RegExp(`^${key}_(\\d+)=(.*)`);
+                    const match = trimmed.match(regex);
 
-            let html = `
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-obsidian-accent mb-2">${title}</h3>
-                    <div class="bg-obsidian-bg border border-obsidian-border rounded overflow-hidden">
-                        <table class="w-full text-sm text-left">
-                            <tbody class="divide-y divide-obsidian-border">
-            `;
+                    if (match) {
+                        const index = match[1];
+                        let value = match[2];
+                        try { value = decodeURIComponent(value); } catch (e) { }
+                        value = value.trim();
 
-            for (const [key, value] of Object.entries(data)) {
-                html += `
-                    <tr class="hover:bg-obsidian-pane/50">
-                        <td class="px-4 py-2 font-medium text-gray-400 w-1/3">${key}</td>
-                        <td class="px-4 py-2 text-gray-200 font-mono break-all">${value}</td>
-                    </tr>
-                `;
+                        if (!tempMap[index]) tempMap[index] = {};
+
+                        if (key === 'zoneObjZoneType') value = ZONE_TYPE_MAP[value] || value;
+                        if (key === 'addrObjType') value = ADDRESS_OBJ_TYPE_MAP[value] || value;
+                        if (key === 'policyAction') value = ACTION_MAP[value] || value;
+                        if (key === 'policySrcIf' || key === 'policyDstIf' ||
+                            key === 'natPolicySrcIface' || key === 'natPolicyDstIface') {
+                            value = interfaceMap[value] || value;
+                        }
+
+                        if ((key === 'policySrcNet' || key === 'policyDstNet' ||
+                            key === 'policySrcSvc' || key === 'policyDstSvc' ||
+                            key === 'natPolicyOrigSrc' || key === 'natPolicyOrigDst' ||
+                            key === 'natPolicyOrigSvc' || key === 'natPolicyTransSrc' ||
+                            key === 'natPolicyTransDst' || key === 'natPolicyTransSvc'
+                        ) && value === "") {
+                            value = ANY_VALUE;
+                        }
+
+                        // Enrich Address Object names with IP/FQDN
+                        if ((key === 'policySrcNet' || key === 'policyDstNet' ||
+                            key === 'natPolicyOrigSrc' || key === 'natPolicyOrigDst' ||
+                            key === 'natPolicyTransSrc' || key === 'natPolicyTransDst' ||
+                            key === 'pbrObjSrc' || key === 'pbrObjDst'
+                        ) && value !== ANY_VALUE) {
+                            if (addressObjectMap && addressObjectMap[value]) {
+                                value = `${value} <span class="text-obsidian-textMuted text-xs">(${addressObjectMap[value]})</span>`;
+                            }
+                        }
+
+                        tempMap[index][label] = value;
+                        break;
+                    }
+                }
             }
-
-            html += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            return html;
+            return Object.values(tempMap);
         }
 
-        function renderArrayTable(data, title) {
-            if (!data || data.length === 0) return '';
+        // --- Rendering ---
 
-            // Collect all unique columns (keys) from all items
-            const columns = new Set();
-            data.forEach(item => Object.keys(item).forEach(k => columns.add(k)));
+        function renderTabs(data) {
+            const tabsHeader = document.getElementById('tabsHeader');
+            const tabsContent = document.getElementById('tabsContent');
 
-            // Filter columns: Remove if ALL values are undefined/null/empty
-            const colArray = Array.from(columns).filter(col => {
-                return data.some(item => {
-                    const val = item[col];
-                    return val !== undefined && val !== null && val !== '';
-                });
-            });
+            tabsHeader.innerHTML = '';
+            tabsContent.innerHTML = '';
 
-            // Determine Boolean Columns (only 0/1/on/off/true/false)
-            const booleanCols = new Set();
-            colArray.forEach(col => {
-                const isBool = data.every(item => {
-                    const v = item[col];
-                    // Allow empty for sparse columns, but if present must be bool-like
-                    if (v === undefined || v === null || v === '') return true;
-                    const s = String(v).toLowerCase();
-                    return ['0', '1', 'on', 'off', 'true', 'false'].includes(s);
-                });
-                if (isBool) booleanCols.add(col);
-            });
+            let first = true;
+            for (const [sectionName, sectionData] of Object.entries(data)) {
+                if (sectionName === 'CLI') continue;
 
-            let html = `
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-obsidian-accent mb-2">${title} <span class="text-xs text-gray-500 font-normal ml-2">(${data.length} items)</span></h3>
-                    <div class="bg-obsidian-bg border border-obsidian-border rounded overflow-x-auto">
-                        <table class="w-full text-sm text-left whitespace-nowrap">
-                            <thead class="bg-obsidian-pane text-gray-400 font-semibold">
-                                <tr>
-            `;
+                const tabId = sectionName.replace(/\s+/g, '-').toLowerCase();
 
-            colArray.forEach(col => {
-                html += `<th class="px-4 py-2 border-b border-obsidian-border">${col}</th>`;
-            });
+                // Create Button
+                const btn = document.createElement('button');
+                btn.className = `tab-btn group inline-flex items-center px-4 py-4 border-b-2 font-medium text-sm mr-4 whitespace-nowrap transition-colors ${first ? 'border-obsidian-accent text-obsidian-accent active' : 'border-transparent text-obsidian-textMuted hover:text-obsidian-text hover:border-obsidian-border'
+                    }`;
+                btn.innerText = sectionName;
+                btn.onclick = () => switchTab(tabId);
+                tabsHeader.appendChild(btn);
 
-            html += `
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-obsidian-border">
-            `;
+                // Create Content
+                const contentDiv = document.createElement('div');
+                contentDiv.id = tabId;
+                contentDiv.className = `tab-content ${first ? 'active' : ''} space-y-6`;
+
+                const isNested = !Array.isArray(sectionData) && Object.values(sectionData).some(v => typeof v === 'object');
+
+                if (isNested) {
+                    renderNestedSection(contentDiv, sectionData);
+                } else if (sectionName === "Address Objects" && Array.isArray(sectionData)) {
+                    renderAddressObjectsTabs(contentDiv, sectionData);
+                } else if (Array.isArray(sectionData)) {
+                    renderArrayTable(contentDiv, sectionData);
+                } else {
+                    renderKVTable(contentDiv, sectionData);
+                }
+
+                tabsContent.appendChild(contentDiv);
+                first = false;
+            }
+        }
+
+        function renderAddressObjectsTabs(container, data) {
+            // Segregate Data
+            const hosts = [], networks = [], ranges = [], groups = [];
 
             data.forEach(item => {
-                html += `<tr class="hover:bg-obsidian-pane/50">`;
-                colArray.forEach(col => {
-                    let val = item[col];
-                    if (val === undefined || val === null) val = '';
+                // Determine type based on properties or explicit type if available
+                // We mapped Type in buildAddressObjectMap, but here we have the PARSED/ENRICHED object.
+                // The 'Type' key might not be in the final array if not key-mapped.
+                // However, we can infer from keys or if we preserved 'Type'.
+                // Let's rely on our inference or the 'Members' field.
 
-                    if (booleanCols.has(col)) {
-                        const s = String(val).toLowerCase();
-                        const checked = (s === '1' || s === 'on' || s === 'true') ? 'checked' : '';
-                        const activeClass = checked ? 'text-green-500' : 'text-gray-600';
-                        // Render as icon or disabled checkbox
-                        html += `
-                            <td class="px-4 py-2 text-center">
-                                <i class="fas fa-check-circle ${activeClass}"></i>
-                            </td>
-                        `;
-                    } else {
-                        html += `<td class="px-4 py-2 text-gray-200 font-mono">${val}</td>`;
-                    }
-                });
-                html += `</tr>`;
+                if (item.Members) {
+                    groups.push(item);
+                } else if (item["Name"] && item["Name"].includes && (item["Name"].includes("/") || item["Name"].includes("-"))) {
+                    // Weak inference if no type. 
+                    // Better: check keys. Networks have Net/Mask or similar? 
+                    // Actually, parseGenericArray uses CONFIG_MAP. 
+                    // Address Objects map has: addrObjId (Name), addrObjType (Type), addrObjIp1 (IP/Start), addrObjIp2 (End/Mask)
+                    // So 'Type' should be there if we mapped it.
+                    // I didn't verify if 'addrObjType' is in CONFIG_MAP.
+                    // It IS: "Type": "addrObjType".
+                    // So we can use item["Type"].
+                }
+
+                const type = item["Type"];
+                if (type === "Group" || item.Members) groups.push(item);
+                else if (type === "Network" || type === "4") networks.push(item);
+                else if (type === "Range" || type === "2") ranges.push(item);
+                else {
+                    if (!item["Mask/End"] || item["Mask/End"] === "0.0.0.0") item["Mask/End"] = "255.255.255.255";
+                    hosts.push(item); // Default to Host (1)
+                }
             });
 
-            html += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            return html;
-        }
+            // Render Sub-Tabs Header
+            const subNav = document.createElement('div');
+            subNav.className = "flex space-x-2 mb-4 border-b border-obsidian-border";
 
-        function renderTabs(parsedData) {
-            const tabs = [
-                { id: 'summary', label: 'Summary', icon: 'fa-info-circle' },
-                { id: 'cli', label: 'CLI', icon: 'fa-terminal' },
-                { id: 'zones', label: 'Zones', icon: 'fa-network-wired' },
-                { id: 'interfaces', label: 'Interfaces', icon: 'fa-ethernet' },
-                { id: 'access_rules', label: 'Access Rules', icon: 'fa-shield-alt' },
-                { id: 'nat_rules', label: 'NAT Rules', icon: 'fa-exchange-alt' },
-                { id: 'routing', label: 'Routing', icon: 'fa-route' },
-                { id: 'security', label: 'Security', icon: 'fa-lock' },
-                { id: 'services', label: 'DNS/DHCP', icon: 'fa-server' }
+            const subContent = document.createElement('div');
+
+            const categories = [
+                { name: "Hosts", data: hosts },
+                { name: "Networks", data: networks },
+                { name: "Ranges", data: ranges },
+                { name: "Groups", data: groups }
             ];
 
-            // Generate Tab Headers
-            let resultHtml = `
-                <div class="flex flex-wrap border-b border-obsidian-border mb-4">
-            `;
+            categories.forEach((cat, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-2 text-sm font-medium transition-colors border-b-2 ${idx === 0 ? 'border-obsidian-accent text-obsidian-accent' : 'border-transparent text-obsidian-textMuted hover:text-obsidian-text'}`;
+                btn.innerText = `${cat.name} (${cat.data.length})`;
+                btn.onclick = (e) => {
+                    // Reset all
+                    subNav.querySelectorAll('button').forEach(b => {
+                        b.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-transparent text-obsidian-textMuted hover:text-obsidian-text";
+                    });
+                    // Active this
+                    e.target.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-obsidian-accent text-obsidian-accent";
 
-            tabs.forEach((tab, index) => {
-                const activeClass = index === 0 ? 'border-obsidian-accent text-obsidian-accent' : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600';
-                resultHtml += `
-                    <button 
-                        onclick="switchTab('${tab.id}')"
-                        class="tab-btn px-4 py-2 text-sm font-medium border-b-2 focus:outline-none transition-colors ${activeClass}"
-                        data-target="${tab.id}"
-                    >
-                        <i class="fas ${tab.icon} mr-2"></i>${tab.label}
-                    </button>
-                `;
+                    // Render content
+                    subContent.innerHTML = '';
+                    if (cat.name === "Groups") {
+                        renderArrayTable(subContent, cat.data, ["IP/Start", "Mask/End", "Zone", "Type"]);
+                    } else {
+                        renderArrayTable(subContent, cat.data);
+                    }
+                };
+                subNav.appendChild(btn);
             });
-            resultHtml += `</div>`;
 
-            // Tab Contents
+            container.appendChild(subNav);
+            container.appendChild(subContent);
 
-            // 1. Summary Tab
-            resultHtml += `<div id="tab-summary" class="tab-content block">`;
-            resultHtml += renderKVTable(parsedData.Metadata, 'Firmware & Device Info');
-            // Quick Stats
-            resultHtml += `
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-obsidian-bg p-4 rounded border border-obsidian-border text-center">
-                        <div class="text-2xl font-bold text-obsidian-accent">${parsedData.Zones.length}</div>
-                        <div class="text-xs text-gray-500 uppercase">Zones</div>
-                    </div>
-                    <div class="bg-obsidian-bg p-4 rounded border border-obsidian-border text-center">
-                        <div class="text-2xl font-bold text-obsidian-accent">${parsedData.Interfaces.length}</div>
-                        <div class="text-xs text-gray-500 uppercase">Interfaces</div>
-                    </div>
-                    <div class="bg-obsidian-bg p-4 rounded border border-obsidian-border text-center">
-                        <div class="text-2xl font-bold text-obsidian-accent">${parsedData.AccessRules.length}</div>
-                        <div class="text-xs text-gray-500 uppercase">Access Rules</div>
-                    </div>
-                     <div class="bg-obsidian-bg p-4 rounded border border-obsidian-border text-center">
-                        <div class="text-2xl font-bold text-obsidian-accent">${parsedData.NATRules.length}</div>
-                        <div class="text-xs text-gray-500 uppercase">NAT Rules</div>
-                    </div>
-                </div>
-            `;
-            resultHtml += `</div>`;
-
-            // 2. CLI Tab
-            resultHtml += `<div id="tab-cli" class="tab-content hidden">`;
-            resultHtml += renderKVTable(parsedData.CLI, 'CLI Settings');
-            resultHtml += `</div>`;
-
-            // 3. Zones Tab
-            resultHtml += `<div id="tab-zones" class="tab-content hidden">`;
-            resultHtml += renderArrayTable(parsedData.Zones, 'Zone Definitions');
-            resultHtml += `</div>`;
-
-            // 4. Interfaces Tab
-            resultHtml += `<div id="tab-interfaces" class="tab-content hidden">`;
-            resultHtml += renderArrayTable(parsedData.Interfaces, 'Interface Configurations');
-            resultHtml += `</div>`;
-
-            // 5. Access Rules Tab
-            resultHtml += `<div id="tab-access_rules" class="tab-content hidden">`;
-            resultHtml += renderArrayTable(parsedData.AccessRules, 'Access Rules');
-            resultHtml += `</div>`;
-
-            // 6. NAT Rules Tab
-            resultHtml += `<div id="tab-nat_rules" class="tab-content hidden">`;
-            resultHtml += renderArrayTable(parsedData.NATRules, 'NAT Policies');
-            resultHtml += `</div>`;
-
-            // 7. Routing Tab
-            resultHtml += `<div id="tab-routing" class="tab-content hidden">`;
-            resultHtml += renderArrayTable(parsedData.RoutingPolicies, 'Routing Policies');
-            resultHtml += `</div>`;
-
-            // 8. Security Services Tab
-            resultHtml += `<div id="tab-security" class="tab-content hidden">`;
-            if (parsedData.SecurityServices) {
-                for (const [svcName, svcData] of Object.entries(parsedData.SecurityServices)) {
-                    resultHtml += renderKVTable(svcData, svcName);
-                }
-            }
-            resultHtml += `</div>`;
-
-            // 9. DNS/DHCP Tab
-            resultHtml += `<div id="tab-services" class="tab-content hidden">`;
-            resultHtml += renderKVTable(parsedData.DNS, 'DNS Settings');
-            if (parsedData.DHCP) {
-                resultHtml += renderKVTable(parsedData.DHCP.General, 'DHCP Settings');
-                resultHtml += renderArrayTable(parsedData.DHCP.DynamicScopes, 'DHCP Dynamic Scopes');
-                resultHtml += renderArrayTable(parsedData.DHCP.StaticScopes, 'DHCP Static Scopes');
-            }
-            resultHtml += `</div>`;
-
-            return resultHtml;
+            // Initial Render (Hosts)
+            renderArrayTable(subContent, hosts);
         }
 
-        // Tab Switcher Logic
-        window.switchTab = function (tabId) {
-            // Hide all content
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('block'));
-
-            // Show target
-            document.getElementById('tab-' + tabId).classList.remove('hidden');
-            document.getElementById('tab-' + tabId).classList.add('block');
-
-            // Update buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                if (btn.dataset.target === tabId) {
-                    btn.classList.add('border-obsidian-accent', 'text-obsidian-accent');
-                    btn.classList.remove('border-transparent', 'text-gray-400');
-                } else {
-                    btn.classList.remove('border-obsidian-accent', 'text-obsidian-accent');
-                    btn.classList.add('border-transparent', 'text-gray-400');
-                }
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-obsidian-accent', 'text-obsidian-accent', 'active');
+                el.classList.add('border-transparent', 'text-obsidian-textMuted');
             });
-        };
 
-        /**
-         * Parse the configuration and display results
-         */
-        function parseConfig() {
-            const fileInput = document.getElementById('configInput');
-            const resultsDiv = document.getElementById('results');
+            document.getElementById(tabId).classList.add('active');
 
-            if (!fileInput.files || fileInput.files.length === 0) {
-                resultsDiv.innerHTML = `
-                    <div class="bg-yellow-900/30 border border-yellow-600 rounded p-4">
-                        <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
-                        <span>Please select a configuration file first.</span>
-                    </div>
+            const buttons = document.querySelectorAll('.tab-btn');
+            for (const btn of buttons) {
+                if (btn.innerText.replace(/\s+/g, '-').toLowerCase() === tabId) {
+                    btn.classList.add('border-obsidian-accent', 'text-obsidian-accent', 'active');
+                    btn.classList.remove('border-transparent', 'text-obsidian-textMuted');
+                }
+            }
+        }
+
+        function renderNestedSection(container, data) {
+            for (const [subTitle, subData] of Object.entries(data)) {
+                const h3 = document.createElement('h3');
+                h3.className = "text-lg font-medium leading-6 text-white mb-2 pb-1 border-b border-obsidian-border";
+                h3.innerText = subTitle;
+                container.appendChild(h3);
+
+                const subContainer = document.createElement('div');
+                subContainer.className = "mb-8";
+                if (Array.isArray(subData)) {
+                    renderArrayTable(subContainer, subData);
+                } else {
+                    renderKVTable(subContainer, subData);
+                }
+                container.appendChild(subContainer);
+            }
+        }
+
+        function renderKVTable(container, data) {
+            if (Object.keys(data).length === 0) {
+                container.innerHTML += '<p class="text-obsidian-textMuted text-sm italic">No data found.</p>';
+                return;
+            }
+            const table = document.createElement('table');
+            table.className = "min-w-full divide-y divide-obsidian-border";
+            const tbody = document.createElement('tbody');
+            tbody.className = "divide-y divide-obsidian-border";
+
+            for (const [key, value] of Object.entries(data)) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-obsidian-text w-1/3">${key}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm text-obsidian-textMuted font-mono">${renderValue(value)}</td>
                 `;
+                tbody.appendChild(tr);
+            }
+            table.appendChild(tbody);
+
+            const shadowWrapper = document.createElement('div');
+            shadowWrapper.className = "shadow ring-1 ring-obsidian-border rounded-lg overflow-hidden bg-obsidian-bg";
+            shadowWrapper.appendChild(table);
+            container.appendChild(shadowWrapper);
+        }
+
+        function renderArrayTable(container, data, excludeColumns = []) {
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p class="text-obsidian-textMuted text-sm italic">No items found.</p>';
                 return;
             }
 
-            const file = fileInput.files[0];
-            const reader = new FileReader();
+            const columns = new Set();
+            data.forEach(item => Object.keys(item).forEach(k => columns.add(k)));
+            let colArray = Array.from(columns);
 
-            reader.onload = function (e) {
-                const configText = e.target.result;
-                const parsed = parseConfigText(configText);
+            const priorityCols = ["Name", "Action", "Zone Type", "IP Address", "Source Zone"];
+            colArray.sort((a, b) => {
+                const idxA = priorityCols.indexOf(a);
+                const idxB = priorityCols.indexOf(b);
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return a.localeCompare(b);
+            });
 
-                // Build results HTML using Tabs
-                resultsDiv.innerHTML = renderTabs(parsed);
-            };
+            colArray = colArray.filter(col => {
+                if (excludeColumns.includes(col)) return false;
+                return data.some(row => row[col] && row[col] !== "");
+            });
 
-            reader.onerror = function () {
-                resultsDiv.innerHTML = `
-                    <div class="bg-red-900/30 border border-red-600 rounded p-4">
-                        <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
-                        <span>Error reading file. Please try again.</span>
-                    </div>
-                `;
-            };
+            const wrapper = document.createElement('div');
+            wrapper.className = "shadow ring-1 ring-obsidian-border rounded-lg overflow-hidden bg-obsidian-bg";
+            const scrollContainer = document.createElement('div');
+            scrollContainer.className = "overflow-x-auto table-container";
 
-            reader.readAsText(file);
+            const table = document.createElement('table');
+            table.className = "min-w-full divide-y divide-obsidian-border";
+
+            const thead = document.createElement('thead');
+            thead.className = "bg-obsidian-pane";
+            let thHtml = '<tr>';
+            colArray.forEach(col => {
+                thHtml += `<th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider whitespace-nowrap">${col}</th>`;
+            });
+            thHtml += '</tr>';
+            thead.innerHTML = thHtml;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            tbody.className = "divide-y divide-obsidian-border";
+
+            data.forEach((item, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = idx % 2 === 0 ? 'bg-transparent' : 'bg-[#2a2a2c]'; // Subtle zebra striping
+                tr.className += ' hover:bg-[#323234] transition-colors';
+
+                let tdHtml = '';
+                colArray.forEach(col => {
+                    let val = item[col] || "";
+
+                    let cellClass = "px-4 py-3 text-sm text-obsidian-text whitespace-nowrap";
+                    let content = renderValue(val);
+
+                    if (col === "Name" && val.includes(":")) {
+                        content = `<span class="ml-4 border-l-2 border-obsidian-border pl-2 text-obsidian-textMuted">${content}</span>`;
+                    }
+
+                    tdHtml += `<td class="${cellClass}">${content}</td>`;
+                });
+                tr.innerHTML = tdHtml;
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            scrollContainer.appendChild(table);
+            wrapper.appendChild(scrollContainer);
+            container.appendChild(wrapper);
         }
 
-
-        /**
-         * Clear the input file
-         */
-        function clearInput() {
-            document.getElementById('configInput').value = '';
-            document.getElementById('fileNameLabel').textContent = 'Upload Config';
-            document.getElementById('fileNameLabel').parentElement.classList.remove('border-obsidian-accent', 'text-white');
-            document.getElementById('fileNameLabel').parentElement.classList.add('border-gray-600', 'text-gray-300');
-
-            document.getElementById('results').innerHTML = `
-                <div class="text-center text-gray-500 py-20">
-                    <div class="bg-obsidian-bg inline-block p-6 rounded-full border border-obsidian-border mb-4">
-                         <i class="fas fa-file-invoice text-4xl text-gray-600"></i>
-                    </div>
-                    <h3 class="text-lg font-medium text-gray-300 mb-1">No Configuration Loaded</h3>
-                    <p class="text-sm text-gray-500">Upload a SonicWall config file using the controls above.</p>
-                </div>
-            `;
+        function renderValue(val) {
+            if (Array.isArray(val)) {
+                return val.map(v => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane border border-obsidian-border text-obsidian-text mr-1 mb-1">${v}</span>`).join('');
+            }
+            if (val === "1" || val.toLowerCase() === "on" || val === "True") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
+            }
+            if (val === "0" || val.toLowerCase() === "off" || val === "False") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
+            }
+            if (val === "ALLOW") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">ALLOW</span>';
+            }
+            if (val === "DENY") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">DENY</span>';
+            }
+            if (val === "DISCARD" || val === "DROP") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-900/30 text-orange-400 border border-orange-800">DISCARD</span>';
+            }
+            if (val === ANY_VALUE) {
+                return '<span class="italic text-obsidian-textMuted">Any</span>';
+            }
+            return val;
         }
 
-        /**
-         * Copy results to clipboard
-         */
-        function copyResults() {
-            const resultsDiv = document.getElementById('results');
-            const text = resultsDiv.innerText;
-
-            navigator.clipboard.writeText(text).then(() => {
-                // Show temporary feedback
-                const button = event.target.closest('button');
-                const originalHTML = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
-                button.classList.add('bg-green-600');
-                setTimeout(() => {
-                    button.innerHTML = originalHTML;
-                    button.classList.remove('bg-green-600');
-                }, 2000);
-            }).catch(err => {
-                alert('Failed to copy to clipboard');
+        function copyToClipboard() {
+            if (Object.keys(PARSED_DATA).length === 0) return;
+            const json = JSON.stringify(PARSED_DATA, null, 2);
+            navigator.clipboard.writeText(json).then(() => {
+                // Could be replaced with a nicer toast if desired, but alert is fine for now
+                alert('Parsed JSON copied to clipboard!');
             });
         }
-
-        // Show filename when file is selected
-        function handleFileSelect(input) {
-            if (input.files && input.files.length > 0) {
-                const label = document.getElementById('fileNameLabel');
-                label.textContent = input.files[0].name;
-                // Add active style to label
-                label.parentElement.classList.remove('border-gray-600', 'text-gray-300');
-                label.parentElement.classList.add('border-obsidian-accent', 'text-white');
-            }
-        }
-
     </script>
 </body>
 
