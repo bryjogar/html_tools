@@ -143,8 +143,6 @@
     </div>
 
 
-    </header>
-
     <!-- Main Content -->
     <main class="flex-1 overflow-auto p-4 md:p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
 
@@ -183,6 +181,10 @@
     </footer>
 
     <script>
+        /* =========================================
+           1. CONSTANTS & CONFIGURATION
+           ========================================= */
+
         // CONFIG_MAP defines the structure and mapping of the SonicWall config
         const CONFIG_MAP = {
             "Zones": {
@@ -200,8 +202,7 @@
             },
             "Interfaces": {
                 "_array": "iface_ifnum",
-                "iface_name": "Name",
-
+                "iface_name": "Name", // This is often overridden by enrichment, but good to have
                 "interface_Zone": "Zone",
                 "iface_comment": "Comment",
                 "iface_lan_ip": "IP Address",
@@ -339,15 +340,18 @@
         const ACTION_MAP = {
             "2": "ALLOW", "0": "DENY", "1": "DISCARD"
         };
-        const ANY_INTERFACE_ID = "4294967295";
-        const ANY_VALUE = "Any";
-
         const ADDRESS_OBJ_TYPE_MAP = {
             "1": "Host", "2": "Range", "4": "Network", "8": "Group", "9": "MAC", "10": "FQDN", "0": "Host"
         };
 
-        let PARSED_DATA = {};
+        const ANY_INTERFACE_ID = "4294967295";
+        const ANY_VALUE = "Any";
 
+        /* =========================================
+           2. GLOBAL STATE & DOM ELEMENTS
+           ========================================= */
+
+        let PARSED_DATA = {};
         const fileInput = document.getElementById('fileInput');
         const fileNameDisplay = document.getElementById('fileName');
 
@@ -355,21 +359,24 @@
             fileInput.addEventListener('change', handleFileSelect);
         }
 
-        // --- Paste Modal Logic ---
+        /* =========================================
+           3. EVENT HANDLERS
+           ========================================= */
+
         function togglePasteModal() {
             const modal = document.getElementById('pasteModal');
             modal.classList.toggle('hidden');
             if (!modal.classList.contains('hidden')) {
-                document.getElementById('pasteArea').focus();
+                const area = document.getElementById('pasteArea');
+                area.value = ''; // Clear previous content? User might want to keep it if they cancelled. Let's keep it as is.
+                area.focus();
             }
         }
 
         function processPaste() {
             const text = document.getElementById('pasteArea').value;
             if (text && text.trim().length > 0) {
-                fileNameDisplay.textContent = "Pasted Configuration";
-                fileNameDisplay.classList.remove('italic', 'text-obsidian-textMuted');
-                fileNameDisplay.classList.add('font-semibold', 'text-white');
+                updateFileNameDisplay("Pasted Configuration");
                 parseConfig(text);
                 togglePasteModal();
             }
@@ -378,10 +385,7 @@
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (file) {
-                fileNameDisplay.textContent = file.name;
-                fileNameDisplay.classList.remove('italic', 'text-obsidian-textMuted');
-                fileNameDisplay.classList.add('font-semibold', 'text-white');
-
+                updateFileNameDisplay(file.name);
                 const reader = new FileReader();
                 reader.onload = function (e) {
                     const text = e.target.result;
@@ -391,6 +395,12 @@
             } else {
                 clearInput();
             }
+        }
+
+        function updateFileNameDisplay(name) {
+            fileNameDisplay.textContent = name;
+            fileNameDisplay.classList.remove('italic', 'text-obsidian-textMuted');
+            fileNameDisplay.classList.add('font-semibold', 'text-white');
         }
 
         function clearInput() {
@@ -404,15 +414,105 @@
             PARSED_DATA = {};
         }
 
+        function copyToClipboard() {
+            if (Object.keys(PARSED_DATA).length === 0) return;
+            const json = JSON.stringify(PARSED_DATA, null, 2);
+            navigator.clipboard.writeText(json).then(() => {
+                alert('Parsed JSON copied to clipboard!');
+            });
+        }
+
+        function switchTab(tabId) {
+            // Hide all contents
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            // Deactivate all buttons
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-obsidian-accent', 'text-obsidian-accent', 'active');
+                el.classList.add('border-transparent', 'text-obsidian-textMuted');
+            });
+
+            // Show target content
+            const targetContent = document.getElementById(tabId);
+            if (targetContent) targetContent.classList.add('active');
+
+            // Activate target button(s) - handling based on text match since ID generation is simple
+            const buttons = document.querySelectorAll('.tab-btn');
+            for (const btn of buttons) {
+                if (btn.innerText.replace(/\s+/g, '-').toLowerCase() === tabId) {
+                    btn.classList.add('border-obsidian-accent', 'text-obsidian-accent', 'active');
+                    btn.classList.remove('border-transparent', 'text-obsidian-textMuted');
+                }
+            }
+        }
+
+        /* =========================================
+           4. PARSING LOGIC
+           ========================================= */
+
         function parseConfig(configText) {
+            // 1. Build lookup maps
             const interfaceMap = buildInterfaceMap(configText);
             const addressObjectMap = buildAddressObjectMap(configText);
             const groupMemberMap = buildAddressGroupMemberMap(configText);
+
+            // 2. Parse the text map
             PARSED_DATA = parseConfigText(configText, interfaceMap, addressObjectMap, groupMemberMap);
+
+            // 3. Render
             renderTabs(PARSED_DATA);
 
+            // 4. Update UI state
             document.getElementById('resultsArea').classList.remove('hidden');
             document.getElementById('emptyState').classList.add('hidden');
+        }
+
+        function parseConfigText(configText, interfaceMap, addressObjectMap, groupMemberMap) {
+            const results = {};
+            const lines = configText.split('\n');
+
+            for (const [sectionName, sectionMap] of Object.entries(CONFIG_MAP)) {
+
+                // Check if it's a nested section (e.g., Security Services) or flat
+                const firstKey = Object.keys(sectionMap)[0];
+                const isNested = (typeof sectionMap[firstKey] === 'object' && sectionMap[firstKey] !== null);
+
+                if (isNested) {
+                    results[sectionName] = {};
+                    for (const [subSectionName, subMap] of Object.entries(sectionMap)) {
+                        if (subMap._array) {
+                            results[sectionName][subSectionName] = parseGenericArray(lines, subMap, interfaceMap, addressObjectMap);
+                        } else {
+                            results[sectionName][subSectionName] = parseGenericKV(lines, subMap);
+                        }
+                    }
+                } else {
+                    if (sectionMap._array) {
+                        let parsedArray = parseGenericArray(lines, sectionMap, interfaceMap, addressObjectMap);
+
+                        // Special handling for sorting Interfaces
+                        if (sectionName === "Interfaces") {
+                            parsedArray.sort((a, b) => {
+                                const nameA = a["Name"] || "";
+                                const nameB = b["Name"] || "";
+                                return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+                            });
+                        }
+
+                        // Special handling for Address Groups enrichment
+                        if (sectionName === "Address Objects" && groupMemberMap) {
+                            parsedArray.forEach(obj => {
+                                if (obj["Name"] && groupMemberMap[obj["Name"]]) {
+                                    obj["Members"] = groupMemberMap[obj["Name"]];
+                                }
+                            });
+                        }
+                        results[sectionName] = parsedArray;
+                    } else {
+                        results[sectionName] = parseGenericKV(lines, sectionMap);
+                    }
+                }
+            }
+            return results;
         }
 
         function buildInterfaceMap(text) {
@@ -420,7 +520,6 @@
             const lines = text.split('\n');
             const ifNumRegex = /^iface_ifnum_(\d+)=(\d+)/;
             const ifNameRegex = /^iface_name_(\d+)=(.*)/;
-
             const temp = {};
 
             for (const line of lines) {
@@ -448,21 +547,19 @@
 
             map["-1"] = "Any";
             map[ANY_INTERFACE_ID] = "Any";
-
             return map;
         }
 
         function buildAddressObjectMap(text) {
+            // Returns a map of Name -> Description (IP, Range, Subnet, or FQDN)
             const map = {};
-            // Basic regex for Address Objects: addrObjId_XX (Name), addrObjIp1_XX (IP)
-            // We want to map: Name -> IP String
             const lines = text.split('\n');
+
+            // Regex definitions
             const idRegex = /^addrObjId_(\d+)=(.*)/;
             const ip1Regex = /^addrObjIp1_(\d+)=(.*)/;
             const ip2Regex = /^addrObjIp2_(\d+)=(.*)/;
             const typeRegex = /^addrObjType_(\d+)=(.*)/;
-
-            // FQDN Objects: addrObjFqdnId_XX, addrObjFqdn_XX
             const fqdnIdRegex = /^addrObjFqdnId_(\d+)=(.*)/;
             const fqdnValRegex = /^addrObjFqdn_(\d+)=(.*)/;
 
@@ -489,7 +586,7 @@
                 } else if ((match = trimmed.match(typeRegex))) {
                     const idx = match[1];
                     if (!temp[idx]) temp[idx] = {};
-                    temp[idx].type = match[2]; // 1=Host, 2=Range, 4=Network
+                    temp[idx].type = match[2]; // 1=Host, 2=Range, 4=Network, 8=Group
                 }
                 // FQDN Objects
                 else if ((match = trimmed.match(fqdnIdRegex))) {
@@ -507,23 +604,12 @@
             Object.values(temp).forEach(obj => {
                 if (obj.name) {
                     let desc = "";
-                    const typeName = ADDRESS_OBJ_TYPE_MAP[obj.type] || `Type ${obj.type}`;
-
-                    // We only use this map for the tooltip/enrichment text usually, 
-                    // but for the "Address Objects" tab we want the actual type name.
-                    // The 'map' returned here is Name -> Description (IP/subnet).
-                    // Wait, this function returns a map for ENRICHMENT (Name -> Value).
-                    // The extraction for the TABLE happens in parseGenericArray using the raw lines.
-                    // Actually, looking at CONFIG_MAP["Address Objects"], it maps "addrObjType" to "Type".
-                    // So parseGenericArray extracts the raw number.
-                    // I need to update parseGenericArray to use ADDRESS_OBJ_TYPE_MAP for 'addrObjType'.
-
                     if (obj.type === "8") {
                         desc = "Group";
                     } else if (obj.ip1) {
                         desc = obj.ip1;
                         if (obj.type === "4" && obj.ip2 && obj.ip2 !== "0.0.0.0") {
-                            desc = `${obj.ip1}/${obj.ip2}`; // Net/Mask
+                            desc = `${obj.ip1}/${obj.ip2}`; // Network/Mask
                         } else if (obj.type === "2" && obj.ip2 && obj.ip2 !== "0.0.0.0") {
                             desc = `${obj.ip1}-${obj.ip2}`; // Range
                         }
@@ -545,17 +631,13 @@
         function buildAddressGroupMemberMap(text) {
             const map = {}; // GroupName -> [MemberName1, MemberName2]
             const lines = text.split('\n');
-            // addro_atomToGrp_XX=Member
-            // addro_grpToGrp_XX=Group
             const atomRegex = /^addro_atomToGrp_(\d+)=(.*)/;
             const grpRegex = /^addro_grpToGrp_(\d+)=(.*)/;
-
             const temp = {};
 
             for (const line of lines) {
                 const trimmed = line.trim();
                 let match;
-
                 if ((match = trimmed.match(atomRegex))) {
                     const idx = match[1];
                     if (!temp[idx]) temp[idx] = {};
@@ -575,50 +657,6 @@
             });
 
             return map;
-        }
-
-        function parseConfigText(configText, interfaceMap, addressObjectMap, groupMemberMap) {
-            const results = {};
-            const lines = configText.split('\n');
-
-            for (const [sectionName, sectionMap] of Object.entries(CONFIG_MAP)) {
-
-                const firstKey = Object.keys(sectionMap)[0];
-                if (typeof sectionMap[firstKey] === 'object' && sectionMap[firstKey] !== null) {
-                    results[sectionName] = {};
-                    for (const [subSectionName, subMap] of Object.entries(sectionMap)) {
-                        if (subMap._array) {
-                            results[sectionName][subSectionName] = parseGenericArray(lines, subMap, interfaceMap, addressObjectMap);
-                        } else {
-                            results[sectionName][subSectionName] = parseGenericKV(lines, subMap);
-                        }
-                    }
-                }
-                else {
-                    if (sectionMap._array) {
-                        let parsedArray = parseGenericArray(lines, sectionMap, interfaceMap, addressObjectMap);
-                        if (sectionName === "Interfaces") {
-                            parsedArray.sort((a, b) => {
-                                const nameA = a["Name"] || "";
-                                const nameB = b["Name"] || "";
-                                return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-                            });
-                        }
-                        // Enrich Address Groups
-                        if (sectionName === "Address Objects" && groupMemberMap) {
-                            parsedArray.forEach(obj => {
-                                if (obj["Name"] && groupMemberMap[obj["Name"]]) {
-                                    obj["Members"] = groupMemberMap[obj["Name"]];
-                                }
-                            });
-                        }
-                        results[sectionName] = parsedArray;
-                    } else {
-                        results[sectionName] = parseGenericKV(lines, sectionMap);
-                    }
-                }
-            }
-            return results;
         }
 
         function parseGenericKV(lines, map) {
@@ -647,7 +685,6 @@
         }
 
         function parseGenericArray(lines, map, interfaceMap, addressObjectMap) {
-            const result = [];
             const tempMap = {};
 
             for (const line of lines) {
@@ -666,14 +703,18 @@
 
                         if (!tempMap[index]) tempMap[index] = {};
 
+                        // Enums / Maps
                         if (key === 'zoneObjZoneType') value = ZONE_TYPE_MAP[value] || value;
-                        if (key === 'addrObjType') value = ADDRESS_OBJ_TYPE_MAP[value] || value;
+                        if (key === 'addrObjType') value = ADDRESS_OBJ_TYPE_MAP[value] || value; // Raw number -> "Host"
                         if (key === 'policyAction') value = ACTION_MAP[value] || value;
+
+                        // Interface Loopup
                         if (key === 'policySrcIf' || key === 'policyDstIf' ||
                             key === 'natPolicySrcIface' || key === 'natPolicyDstIface') {
                             value = interfaceMap[value] || value;
                         }
 
+                        // "Any" handling for empty fields
                         if ((key === 'policySrcNet' || key === 'policyDstNet' ||
                             key === 'policySrcSvc' || key === 'policyDstSvc' ||
                             key === 'natPolicyOrigSrc' || key === 'natPolicyOrigDst' ||
@@ -683,7 +724,7 @@
                             value = ANY_VALUE;
                         }
 
-                        // Enrich Address Object names with IP/FQDN
+                        // Enrichment: Append (IP/Desc) to Name for clarity
                         if ((key === 'policySrcNet' || key === 'policyDstNet' ||
                             key === 'natPolicyOrigSrc' || key === 'natPolicyOrigDst' ||
                             key === 'natPolicyTransSrc' || key === 'natPolicyTransDst' ||
@@ -702,7 +743,9 @@
             return Object.values(tempMap);
         }
 
-        // --- Rendering ---
+        /* =========================================
+           5. RENDERING LOGIC
+           ========================================= */
 
         function renderTabs(data) {
             const tabsHeader = document.getElementById('tabsHeader');
@@ -719,8 +762,7 @@
 
                 // Create Button
                 const btn = document.createElement('button');
-                btn.className = `tab-btn group inline-flex items-center px-4 py-4 border-b-2 font-medium text-sm mr-4 whitespace-nowrap transition-colors ${first ? 'border-obsidian-accent text-obsidian-accent active' : 'border-transparent text-obsidian-textMuted hover:text-obsidian-text hover:border-obsidian-border'
-                    }`;
+                btn.className = `tab-btn group inline-flex items-center px-4 py-4 border-b-2 font-medium text-sm mr-4 whitespace-nowrap transition-colors ${first ? 'border-obsidian-accent text-obsidian-accent active' : 'border-transparent text-obsidian-textMuted hover:text-obsidian-text hover:border-obsidian-border'}`;
                 btn.innerText = sectionName;
                 btn.onclick = () => switchTab(tabId);
                 tabsHeader.appendChild(btn);
@@ -730,6 +772,7 @@
                 contentDiv.id = tabId;
                 contentDiv.className = `tab-content ${first ? 'active' : ''} space-y-6`;
 
+                // Sub-render dispatch
                 const isNested = !Array.isArray(sectionData) && Object.values(sectionData).some(v => typeof v === 'object');
 
                 if (isNested) {
@@ -744,101 +787,6 @@
 
                 tabsContent.appendChild(contentDiv);
                 first = false;
-            }
-        }
-
-        function renderAddressObjectsTabs(container, data) {
-            // Segregate Data
-            const hosts = [], networks = [], ranges = [], groups = [];
-
-            data.forEach(item => {
-                // Determine type based on properties or explicit type if available
-                // We mapped Type in buildAddressObjectMap, but here we have the PARSED/ENRICHED object.
-                // The 'Type' key might not be in the final array if not key-mapped.
-                // However, we can infer from keys or if we preserved 'Type'.
-                // Let's rely on our inference or the 'Members' field.
-
-                if (item.Members) {
-                    groups.push(item);
-                } else if (item["Name"] && item["Name"].includes && (item["Name"].includes("/") || item["Name"].includes("-"))) {
-                    // Weak inference if no type. 
-                    // Better: check keys. Networks have Net/Mask or similar? 
-                    // Actually, parseGenericArray uses CONFIG_MAP. 
-                    // Address Objects map has: addrObjId (Name), addrObjType (Type), addrObjIp1 (IP/Start), addrObjIp2 (End/Mask)
-                    // So 'Type' should be there if we mapped it.
-                    // I didn't verify if 'addrObjType' is in CONFIG_MAP.
-                    // It IS: "Type": "addrObjType".
-                    // So we can use item["Type"].
-                }
-
-                const type = item["Type"];
-                if (type === "Group" || item.Members) groups.push(item);
-                else if (type === "Network" || type === "4") networks.push(item);
-                else if (type === "Range" || type === "2") ranges.push(item);
-                else {
-                    if (!item["Mask/End"] || item["Mask/End"] === "0.0.0.0") item["Mask/End"] = "255.255.255.255";
-                    hosts.push(item); // Default to Host (1)
-                }
-            });
-
-            // Render Sub-Tabs Header
-            const subNav = document.createElement('div');
-            subNav.className = "flex space-x-2 mb-4 border-b border-obsidian-border";
-
-            const subContent = document.createElement('div');
-
-            const categories = [
-                { name: "Hosts", data: hosts },
-                { name: "Networks", data: networks },
-                { name: "Ranges", data: ranges },
-                { name: "Groups", data: groups }
-            ];
-
-            categories.forEach((cat, idx) => {
-                const btn = document.createElement('button');
-                btn.className = `px-3 py-2 text-sm font-medium transition-colors border-b-2 ${idx === 0 ? 'border-obsidian-accent text-obsidian-accent' : 'border-transparent text-obsidian-textMuted hover:text-obsidian-text'}`;
-                btn.innerText = `${cat.name} (${cat.data.length})`;
-                btn.onclick = (e) => {
-                    // Reset all
-                    subNav.querySelectorAll('button').forEach(b => {
-                        b.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-transparent text-obsidian-textMuted hover:text-obsidian-text";
-                    });
-                    // Active this
-                    e.target.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-obsidian-accent text-obsidian-accent";
-
-                    // Render content
-                    subContent.innerHTML = '';
-                    if (cat.name === "Groups") {
-                        renderArrayTable(subContent, cat.data, ["IP/Start", "Mask/End", "Zone", "Type"]);
-                    } else {
-                        renderArrayTable(subContent, cat.data);
-                    }
-                };
-                subNav.appendChild(btn);
-            });
-
-            container.appendChild(subNav);
-            container.appendChild(subContent);
-
-            // Initial Render (Hosts)
-            renderArrayTable(subContent, hosts);
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('border-obsidian-accent', 'text-obsidian-accent', 'active');
-                el.classList.add('border-transparent', 'text-obsidian-textMuted');
-            });
-
-            document.getElementById(tabId).classList.add('active');
-
-            const buttons = document.querySelectorAll('.tab-btn');
-            for (const btn of buttons) {
-                if (btn.innerText.replace(/\s+/g, '-').toLowerCase() === tabId) {
-                    btn.classList.add('border-obsidian-accent', 'text-obsidian-accent', 'active');
-                    btn.classList.remove('border-transparent', 'text-obsidian-textMuted');
-                }
             }
         }
 
@@ -858,6 +806,74 @@
                 }
                 container.appendChild(subContainer);
             }
+        }
+
+        function renderAddressObjectsTabs(container, data) {
+            const hosts = [], networks = [], ranges = [], groups = [];
+
+            data.forEach(item => {
+                const type = item["Type"];
+                const isGroup = type === "Group" || !!item.Members;
+                const isNetwork = type === "Network" || type === "4";
+                const isRange = type === "Range" || type === "2";
+
+                if (isGroup) {
+                    groups.push(item);
+                } else if (isNetwork) {
+                    networks.push(item);
+                } else if (isRange) {
+                    ranges.push(item);
+                } else {
+                    // Default to Hosts for type "Host", "1", or unknown/undefined
+                    if (!item["Mask/End"] || item["Mask/End"] === "0.0.0.0") {
+                        item["Mask/End"] = "255.255.255.255";
+                    }
+                    hosts.push(item);
+                }
+            });
+
+            // Sub-Tabs Header
+            const subNav = document.createElement('div');
+            subNav.className = "flex space-x-2 mb-4 border-b border-obsidian-border";
+            const subContent = document.createElement('div');
+
+            const categories = [
+                { name: "Hosts", data: hosts },
+                { name: "Networks", data: networks },
+                { name: "Ranges", data: ranges },
+                { name: "Groups", data: groups }
+            ];
+
+            categories.forEach((cat, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-2 text-sm font-medium transition-colors border-b-2 ${idx === 0 ? 'border-obsidian-accent text-obsidian-accent' : 'border-transparent text-obsidian-textMuted hover:text-obsidian-text'}`;
+                btn.innerText = `${cat.name} (${cat.data.length})`;
+
+                btn.onclick = (e) => {
+                    // Reset all
+                    subNav.querySelectorAll('button').forEach(b => {
+                        b.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-transparent text-obsidian-textMuted hover:text-obsidian-text";
+                    });
+                    // Activate this
+                    e.target.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-obsidian-accent text-obsidian-accent";
+
+                    // Render content
+                    subContent.innerHTML = '';
+                    if (cat.name === "Groups") {
+                        // For groups, we often want to show members, so columns might differ
+                        renderArrayTable(subContent, cat.data, ["IP/Start", "Mask/End", "Zone", "Type"]); // Hide IP cols for groups
+                    } else {
+                        renderArrayTable(subContent, cat.data);
+                    }
+                };
+                subNav.appendChild(btn);
+            });
+
+            container.appendChild(subNav);
+            container.appendChild(subContent);
+
+            // Initial Render
+            renderArrayTable(subContent, hosts);
         }
 
         function renderKVTable(container, data) {
@@ -892,10 +908,12 @@
                 return;
             }
 
+            // Determine all unique columns
             const columns = new Set();
             data.forEach(item => Object.keys(item).forEach(k => columns.add(k)));
             let colArray = Array.from(columns);
 
+            // Sort columns logically
             const priorityCols = ["Name", "Action", "Zone Type", "IP Address", "Source Zone"];
             colArray.sort((a, b) => {
                 const idxA = priorityCols.indexOf(a);
@@ -906,8 +924,10 @@
                 return a.localeCompare(b);
             });
 
+            // Filter columns
             colArray = colArray.filter(col => {
                 if (excludeColumns.includes(col)) return false;
+                // Only show if at least one row has data for this column
                 return data.some(row => row[col] && row[col] !== "");
             });
 
@@ -919,6 +939,7 @@
             const table = document.createElement('table');
             table.className = "min-w-full divide-y divide-obsidian-border";
 
+            // Header
             const thead = document.createElement('thead');
             thead.className = "bg-obsidian-pane";
             let thHtml = '<tr>';
@@ -929,26 +950,26 @@
             thead.innerHTML = thHtml;
             table.appendChild(thead);
 
+            // Body
             const tbody = document.createElement('tbody');
             tbody.className = "divide-y divide-obsidian-border";
 
             data.forEach((item, idx) => {
                 const tr = document.createElement('tr');
-                tr.className = idx % 2 === 0 ? 'bg-transparent' : 'bg-[#2a2a2c]'; // Subtle zebra striping
+                tr.className = idx % 2 === 0 ? 'bg-transparent' : 'bg-[#2a2a2c]';
                 tr.className += ' hover:bg-[#323234] transition-colors';
 
                 let tdHtml = '';
                 colArray.forEach(col => {
                     let val = item[col] || "";
-
-                    let cellClass = "px-4 py-3 text-sm text-obsidian-text whitespace-nowrap";
                     let content = renderValue(val);
 
+                    // Indent names that look like they have hierarchy (optional visual tweak)
                     if (col === "Name" && val.includes(":")) {
                         content = `<span class="ml-4 border-l-2 border-obsidian-border pl-2 text-obsidian-textMuted">${content}</span>`;
                     }
 
-                    tdHtml += `<td class="${cellClass}">${content}</td>`;
+                    tdHtml += `<td class="px-4 py-3 text-sm text-obsidian-text whitespace-nowrap">${content}</td>`;
                 });
                 tr.innerHTML = tdHtml;
                 tbody.appendChild(tr);
@@ -964,10 +985,10 @@
             if (Array.isArray(val)) {
                 return val.map(v => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane border border-obsidian-border text-obsidian-text mr-1 mb-1">${v}</span>`).join('');
             }
-            if (val === "1" || val.toLowerCase() === "on" || val === "True") {
+            if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
                 return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
             }
-            if (val === "0" || val.toLowerCase() === "off" || val === "False") {
+            if (val === "0" || String(val).toLowerCase() === "off" || val === "False") {
                 return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
             }
             if (val === "ALLOW") {
@@ -983,15 +1004,6 @@
                 return '<span class="italic text-obsidian-textMuted">Any</span>';
             }
             return val;
-        }
-
-        function copyToClipboard() {
-            if (Object.keys(PARSED_DATA).length === 0) return;
-            const json = JSON.stringify(PARSED_DATA, null, 2);
-            navigator.clipboard.writeText(json).then(() => {
-                // Could be replaced with a nicer toast if desired, but alert is fine for now
-                alert('Parsed JSON copied to clipboard!');
-            });
         }
     </script>
 </body>
