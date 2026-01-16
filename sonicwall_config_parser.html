@@ -210,6 +210,13 @@
 
         // CONFIG_MAP defines the structure and mapping of the SonicWall config
         const CONFIG_MAP = {
+            "Summary": {
+                "firewallName": "Hostname",
+                "shortProdName": "Model",
+                "buildNum": "Firmware Version",
+                "serialNum": "Serial Number",
+                "localeVersionStr": "Language"
+            },
             "Zones": {
                 "_array": "zoneObjId",
                 "zoneObjId": "Name",
@@ -347,7 +354,10 @@
                 "dns_server_one": "DNS Server 1",
                 "dns_server_two": "DNS Server 2",
                 "dns_server_three": "DNS Server 3",
-                "dns_use_static_servers": "Use Static DNS"
+                "dnsProxyEnable": "Enable Proxy",
+                "enforceDnsProxy_enable": "Enforce All",
+                "dnsCache_enable": "Enable Cache",
+                "dnsProxySplit_enable": "Enable Split DNS"
             },
             "DHCP": {
                 "Settings": {
@@ -806,6 +816,9 @@
 
         function parseGenericKV(lines, map) {
             const result = {};
+            // Pre-seed with all known keys
+            Object.values(map).forEach(label => result[label] = "");
+
             for (const line of lines) {
                 const trimmed = line.trim();
                 if (!trimmed) continue;
@@ -964,13 +977,14 @@
                 "Service Group Mappings": "fa-layer-group",
                 "Security Services": "fa-user-shield",
                 "DNS": "fa-server",
-                "DHCP": "fa-sitemap"
+                "DHCP": "fa-sitemap",
+                "Summary": "fa-info-circle"
             };
 
             let firstTabId = null;
 
             // Sort sections: Critical ones first
-            const sectionOrder = ["Interfaces", "Zones", "Address Objects", "Service Objects", "Access Rules", "NAT Rules", "Routing Policies", "DHCP", "DNS"];
+            const sectionOrder = ["Summary", "Interfaces", "Zones", "Address Objects", "Service Objects", "Access Rules", "NAT Rules", "Routing Policies", "DHCP", "DNS"];
             const sortedKeys = Object.keys(data).sort((a, b) => {
                 const idxA = sectionOrder.indexOf(a);
                 const idxB = sectionOrder.indexOf(b);
@@ -1236,11 +1250,11 @@
                 return '<span class="italic text-obsidian-textMuted">Any</span>';
             }
 
-            // Boolean/Icon Columns for Zones
-            const booleanCols = ["Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled"];
+            // Boolean/Icon Columns for Zones, DHCP, & DNS
+            const booleanCols = ["Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled", "Enable DHCP Server", "Enabled", "Enable Proxy", "Enforce All", "Enable Cache", "Enable Split DNS"];
             if (booleanCols.includes(key)) {
                 // Check common truthy values
-                const isTrue = val === "1" || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "enabled";
+                const isTrue = val === "1" || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "enabled" || String(val).toLowerCase() === "on";
                 if (isTrue) {
                     return '<div class="text-center"><i class="fa-solid fa-check text-obsidian-success"></i></div>';
                 } else {
