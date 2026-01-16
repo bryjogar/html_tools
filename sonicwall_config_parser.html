@@ -248,6 +248,7 @@
                 "iface_static_gateway": "Gateway",
                 "iface_lan_default_gw": "Gateway",
                 "iface_wan_default_gw": "Gateway",
+                "iface_http_mgmt": "HTTP Mgmt",
                 "iface_https_mgmt": "HTTPS Mgmt",
                 "iface_ping_mgmt": "Ping Mgmt",
                 "iface_ssh_mgmt": "SSH Mgmt",
@@ -457,7 +458,7 @@
         };
 
         const COLUMN_ORDER = {
-            "Interfaces": ["Name", "Zone", "IP Address", "Subnet Mask", "Enabled", "Comment"],
+            "Interfaces": ["Name", "Zone", "IP Address", "Subnet Mask", "Gateway", "Comment", "HTTP Mgmt", "HTTPS Mgmt", "Ping Mgmt", "SNMP Mgmt", "SSH Mgmt", "Enabled"],
             "Zones": ["Name", "Zone Type", "Member Interfaces", "Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled"],
             "Access Rules": ["Name", "Action", "Source Zone", "Dest Zone", "Source Address", "Destination Address", "Service", "Comment"],
             "Address Objects": ["Name", "IP/Start", "Mask/End", "Type", "Zone", "Custom/Default"],
