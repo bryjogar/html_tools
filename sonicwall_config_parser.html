@@ -210,15 +210,91 @@
 
         // CONFIG_MAP defines the structure and mapping of the SonicWall config
         const CONFIG_MAP = {
-            "Summary": {
-                "firewallName": "Hostname",
-                "shortProdName": "Model",
-                "buildNum": "Firmware Version",
-                "serialNum": "Serial Number",
-                "localeVersionStr": "Language",
-                "cloudBkupEnable": "Cloud Backup Enabled",
-                "enableTLS12": "TLS 1.1 or Greater Enabled",
-                "adminLoginTimeout": "Admin Login Timeout"
+            "System": {
+                "General": {
+                    "firewallName": "Hostname",
+                    "shortProdName": "Model",
+                    "buildNum": "Firmware Version",
+                    "serial": "Serial Number",
+                    "localeVersionStr": "Language",
+                    "timezone": "Time Zone (ID)",
+                    "cloudBkupEnable": "Cloud Backup Enabled",
+                    "enableTLS12": "TLS 1.1 or Greater Enabled",
+                    "adminLoginTimeout": "Admin Login Timeout",
+                    "adminAuthMethod": "Administrator Auth Method"
+                },
+                "SNMP Settings": {
+                    "snmp_Enable": "SNMP Enabled",
+                    "snmp_Mib2SysName": "System Name",
+                    "snmp_Mib2SysContact": "System Contact",
+                    "snmp_Mib2SysLocation": "System Location",
+                    "snmp_GetCommunity": "Get Community",
+                    "snmp_TrapCommunity": "Trap Community"
+                },
+                "SNMP Views": {
+                    "_array": "Snmp3_View_Name",
+                    "Snmp3_View_Name": "View Name",
+                    "Snmp3_OID": "OID",
+                    "Snmp3_isDefOID": "Default OID"
+                }
+            },
+            "Network": {
+                "WAN Load Balancing": {
+                    "wlb_Enable": "Enable",
+                    "wlb_IsResponder": "Responder Enabled",
+                    "wlb_AnyTcpSyn": "Any TCP SYN",
+                    "wlb_PriWanIf": "Primary Interface",
+                    "wlb_SecWanIf": "Secondary Interface",
+                    "wlb_PriProbeMethod1": "Primary Probe Method",
+                    "wlb_PriWanProbeHost1": "Probe Target"
+                }
+            },
+            "DNS": {
+                "dns_server_one": "DNS Server 1",
+                "dns_server_two": "DNS Server 2",
+                "dns_server_three": "DNS Server 3",
+                "dnsRebind_enable": "DNS Rebinding Attack Prevention",
+                "dnsRebind_action": "DNS Rebinding Action",
+                "dnsProxySplit_enable": "Split DNS Enabled",
+                "dnsOverTCP_enable": "DNS over TCP Enabled"
+            },
+            "DHCP": {
+                "Settings": {
+                    "enableDHCP": "Enable DHCP Server",
+                    "dhcpPersEnable": "Persistence",
+                    "dhcpPersMonitorTime": "Persistence Monitoring Interval (min)",
+                    "DHCP_CONFLICT_DETECT": "Conflict Detection"
+                },
+                "Static Scopes": {
+                    "_array": "prefs_dhstaticname",
+                    "prefs_dhstaticscopeactive": "Enabled",
+                    "prefs_dhstaticname": "Name",
+                    "prefs_dhstaticip": "IP Address",
+                    "prefs_dhstaticsubnetmask": "Subnet Mask",
+                    "prefs_dhstaticrouter": "Gateway",
+                    "prefs_dhstaticdns0": "DNS 1",
+                    "prefs_dhstaticdns1": "DNS 2"
+                },
+                "Dynamic Scopes": {
+                    "_array": "prefs_dhdynstart",
+                    "prefs_dhdynscopeactive": "Enabled",
+                    "prefs_dhdynstart": "Range Start",
+                    "prefs_dhdynend": "Range End",
+                    "prefs_dhdynrouter": "Gateway",
+                    "prefs_dhdynsubnetmask": "Subnet Mask",
+                    "prefs_dhdynlease": "Lease (min)",
+                    "prefs_dhdyndns0": "DNS 1",
+                    "prefs_dhdyndns1": "DNS 2",
+                    "prefs_dhdynComment": "Comment"
+                }
+            },
+            "IP Helper": {
+                "_array": "iphAppName",
+                "iphAppName": "Application",
+                "iphAppUdp1": "Port 1",
+                "iphAppUdp2": "Port 2",
+                "iphAppTimeout": "Timeout",
+                "iphAppEnabled": "Enabled"
             },
             "Zones": {
                 "_array": "zoneObjId",
@@ -232,22 +308,21 @@
                 "zoneObjDPISSLSProfile": "DPI SSL Server Enabled",
                 "zoneObjDPISSLCProfile": "DPI Client Enabled",
                 "zoneObjEnableContentFiltering": "CFS Enabled",
-                // Computed fields
                 "computed_MemberInterfaces": "Member Interfaces"
             },
             "Interfaces": {
                 "_array": "iface_ifnum",
                 "iface_name": "Name",
                 "interface_Zone": "Zone",
-                "iface_comment": "Comment",
                 "iface_lan_ip": "IP Address",
                 "iface_wan_ip": "IP Address",
                 "iface_static_ip": "IP Address",
                 "iface_lan_mask": "Subnet Mask",
                 "iface_static_mask": "Subnet Mask",
-                "iface_static_gateway": "Gateway",
                 "iface_lan_default_gw": "Gateway",
                 "iface_wan_default_gw": "Gateway",
+                "iface_static_gateway": "Gateway",
+                "iface_comment": "Comment",
                 "iface_http_mgmt": "HTTP Mgmt",
                 "iface_https_mgmt": "HTTPS Mgmt",
                 "iface_ping_mgmt": "Ping Mgmt",
@@ -264,84 +339,96 @@
                 "policySrcNet": "Source Address",
                 "policyDstNet": "Destination Address",
                 "policyDstSvc": "Service",
+                "policyGeoIpBlock": "Geo-IP Filter",
                 "policyComment": "Comment"
             },
             "NAT Rules": {
                 "_array": "natPolicyOrigSrc",
                 "natPolicyName": "Name",
-                "natPolicyOrigSrc": "Original Source",
-                "natPolicyOrigDst": "Original Dest",
-                "natPolicyOrigSvc": "Original Service",
-                "natPolicyTransSrc": "Translated Source",
-                "natPolicyTransDst": "Translated Dest",
-                "natPolicyTransSvc": "Translated Service",
-                "natPolicySrcIface": "Ingress Interface",
-                "natPolicyDstIface": "Egress Interface",
-                "natPolicyComment": "Comment",
-                "natPolicyEnabled": "Status",
-                "natPolicyReflexive": "Reflexive",
-                "natPolicyDnsDoctorEnable": "DNS Doctoring"
+                "natPolicyEnabled": "Enabled",
+                "natPolicyOrigSrc": "Orig Source",
+                "natPolicyTransSrc": "Trans Source",
+                "natPolicyOrigDst": "Orig Dest",
+                "natPolicyTransDst": "Trans Dest",
+                "natPolicyOrigSvc": "Orig Service",
+                "natPolicyTransSvc": "Trans Service",
+                "natPolicySrcIface": "Inbound If",
+                "natPolicyDstIface": "Outbound If",
+                "natPolicyComment": "Comment"
             },
-            "Routing Policies": {
+            "Content Filter": {
                 "Settings": {
-                    "useAdvancedRouting": "Advanced Routing Enabled"
+                    "cfsEnabled": "Content Filter Enabled",
+                    "cfsEnableHttpsFlting": "HTTPS Filtering Enabled"
                 },
-                "Policies": {
-                    "_array": "pbrObjId",
-                    "pbrPolicyName": "Name",
-                    "pbrObjSrc": "Source",
-                    "pbrObjDst": "Destination",
-                    "pbrObjSvc": "Service",
-                    "pbrObjIface": "Interface",
-                    "pbrObjGw": "Gateway",
-                    "pbrObjMetric": "Metric",
-                    "pbrObjType": "Class",
-                    "pbrObjPriority": "Priority",
-                    "pbrObjProbe": "Probe",
-                    "pbrObjDisableOnProbeFail": "Disable on Fail"
+                "Profiles": {
+                    "_array": "cfsProfileObjId",
+                    "cfsProfileObjId": "Profile Name",
+                    "cfsProfileEnableSafeSearch": "Safe Search"
                 }
             },
-            "Address Objects": {
-                "_array": "addrObjId",
-                "addrObjId": "ID",
-                "addrObjIdDisp": "Name",
-                "addrObjType": "Type",
-                "addrObjIp1": "IP/Start",
-                "addrObjIp2": "Mask/End",
-                "addrObjZone": "Zone",
-                "addrObjProperties": "Properties",
-                // Computed/Enriched
-                "Members": "Group Members",
-                "addrObjCustom": "Custom/Default"
-            },
-            "Service Objects": {
-                "_array": "svcObjId",
-                "svcObjId": "Name",
-                "svcObjIpType": "Protocol",
-                "svcObjType": "Protocol",
-                "svcObjPort1": "Port Start",
-                "svcObjPort2": "Port End",
-                "svcObjProperties": "Properties",
-                "svcObjGuiClass": "Custom/Default",
-                "Members": "Group Members"
-            },
-            "Service Group Mappings": {
-                "_array": "so_atomToGrp",
-                "so_atomToGrp": "Member",
-                "so_grpToGrp": "Group"
-            },
-            "Security Services": {
-                "Summary": {
-                    "secServicesDPISetting": "Security Services Setting",
+            "Firewall": {
+                "Settings": {
                     "enableStealthMode": "Stealth Mode Enabled",
                     "randomizeIds": "Randomize IP ID Enabled",
-                    "dpiConnections": "Default connections"
+                    "secServicesDPISetting": "Enhanced Security (DPI)",
+                    "activeDpiCpuThresh": "DPI CPU Threshold"
+                }
+            },
+            "VPN": {
+                "Settings": {
+                    "ipsecEnable": "Global VPN Enabled",
+                    "vpnPolicyGroup": "Default Group"
                 },
-                "Content Filter Service": {
-                    "cfsEnabled": "Enable Content Filtering Service",
-                    "cfsProfileEnableHttpsFlting_0": "Enable HTTPS Content Filtering",
-                    "cfsExcludeAdminEnabled": "Exclude Administrator",
-                    "cfsPolicySrcZone_0": "Source Zone"
+                "Policies": {
+                    "_array": "vpnPolicyName",
+                    "vpnPolicyName": "Name",
+                    "vpnPolicyIkeIpAddr": "Gateway",
+                    "vpnPolicyIkePresharedKey": "Shared Secret",
+                    "vpnPolicyEnabled": "Enabled"
+                }
+            },
+            "SSLVPN": {
+                "Settings": {
+                    "bandOptSslVpnEnable": "SSLVPN Enabled",
+                    "sslvpn_server_gateway": "Server Gateway",
+                    "sslvpnIp": "SSLVPN IP",
+                    "sslvpnPort": "SSLVPN Port",
+                    "sslvpnPubInterface": "Public Interface"
+                }
+            },
+            "Users": {
+                "Local Users": {
+                    "_array": "userObjId",
+                    "userObjId": "Username",
+                    "userObjType": "Type",
+                    "userObjPrune": "Prune Settings"
+                },
+                "Local Groups": {
+                    "_array": "userGroupObjId",
+                    "userGroupObjId": "Group Name"
+                },
+                "Settings": {
+                    "userAuthMethod": "Auth Method",
+                    "userSsoEnable": "SSO Enabled"
+                }
+            },
+            "Security Services": {
+                "Geo-IP Filter": {
+                    "geoEnforcement": "Enable Geo-IP Filter",
+                    "geoIpBlkMode": "Block Mode",
+                    "geoIpLoggingEnabled": "Enable Logging",
+                    "geoIpExcludeObjectName": "Exclusion Object"
+                },
+                "Botnet Filter": {
+                    "botnetBlock": "Enable Botnet Filter",
+                    "botnetLoggingEnabled": "Enable Logging",
+                    "botnetBlkMode": "Block Mode",
+                    "botnetExcludeObjectName": "Exclusion Object"
+                },
+                "Botnet Exclusions": {
+                    "_array": "botnetFilterExcludeObj",
+                    "botnetFilterExcludeObj": "Exclusion Object (List)"
                 },
                 "Gateway Anti-Virus": {
                     "gavCloudEnableScanning": "Enable Cloud Anti-Virus Database",
@@ -409,65 +496,70 @@
                     }
                 }
             },
-            "DNS": {
-                "dns_server_one": "DNS Server 1",
-                "dns_server_two": "DNS Server 2",
-                "dns_server_three": "DNS Server 3",
-                "dnsProxyEnable": "Enable Proxy",
-                "enforceDnsProxy_enable": "Enforce All",
-                "dnsCache_enable": "Enable Cache",
-                "dnsProxySplit_enable": "Enable Split DNS"
-            },
-            "DHCP": {
+            "Appflow": {
                 "Settings": {
-                    "enableDHCP": "Enable DHCP Server",
-                    "dhcpPersEnable": "Persistence",
-                    "DHCP_CONFLICT_DETECT": "Conflict Detection"
+                    "appflowToCollector": "Send to Collector",
+                    "appflowToLocal": "Log to Local",
+                    "appflowMonitor": "Real-time Data Collection"
                 },
-                "Static Scopes": {
-                    "_array": "prefs_dhstaticip",
-                    "prefs_dhstaticscopeactive": "Enabled",
-                    "prefs_dhstaticname": "Name",
-                    "prefs_dhstaticip": "IP Address",
-                    "prefs_dhstatichw": "MAC Address",
-                    "prefs_dhstaticsubnetmask": "Subnet Mask",
-                    "prefs_dhstaticrouter": "Gateway",
-                    "prefs_dhstaticdns0": "DNS 1"
-                },
-                "Dynamic Scopes": {
-                    "_array": "prefs_dhdynstart",
-                    "prefs_dhdynscopeactive": "Enabled",
-                    "prefs_dhdynstart": "Range Start",
-                    "prefs_dhdynend": "Range End",
-                    "prefs_dhdynrouter": "Gateway",
-                    "prefs_dhdynsubnetmask": "Subnet Mask",
-                    "prefs_dhdynlease": "Lease (min)",
-                    "prefs_dhdyndns0": "DNS 1",
-                    "prefs_dhdyndns1": "DNS 2",
-                    "prefs_dhdynComment": "Comment"
+                "Flow Reporting": {
+                    "_array": "appflowServerAddress",
+                    "appflowServerAddress": "Collector IP",
+                    "appflowServerPort": "Collector Port"
                 }
             },
-            "IP Helper": {
-                "_array": "iphAppName",
-                "iphAppName": "Application",
-                "iphAppUdp1": "Port 1",
-                "iphAppUdp2": "Port 2",
-                "iphAppTimeout": "Timeout",
-                "iphAppEnabled": "Enabled"
+            "Log": {
+                "Settings": {
+                    "logNameResolution": "Name Resolution Method"
+                }
+            },
+            "Address Objects": {
+                "_array": "addrObjId",
+                "addrObjId": "ID",
+                "addrObjIdDisp": "Name",
+                "addrObjType": "Type",
+                "addrObjIp1": "IP/Start",
+                "addrObjIp2": "Mask/End",
+                "addrObjZone": "Zone",
+                "addrObjProperties": "Properties",
+                "Members": "Group Members",
+                "addrObjCustom": "Custom/Default"
+            },
+            "Service Objects": {
+                "_array": "svcObjId",
+                "svcObjId": "Name",
+                "svcObjIpType": "Protocol",
+                "svcObjType": "Protocol",
+                "svcObjPort1": "Port Start",
+                "svcObjPort2": "Port End",
+                "svcObjProperties": "Properties",
+                "svcObjGuiClass": "Custom/Default",
+                "Members": "Group Members"
+            },
+            "Service Group Mappings": {
+                "_array": "so_atomToGrp",
+                "so_atomToGrp": "Member",
+                "so_grpToGrp": "Group"
             }
         };
 
         const COLUMN_ORDER = {
             "Interfaces": ["Name", "Zone", "IP Address", "Subnet Mask", "Gateway", "Comment", "HTTP Mgmt", "HTTPS Mgmt", "Ping Mgmt", "SNMP Mgmt", "SSH Mgmt", "Enabled"],
-            "Zones": ["Name", "Zone Type", "Member Interfaces", "Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled"],
-            "Access Rules": ["Name", "Action", "Source Zone", "Dest Zone", "Source Address", "Destination Address", "Service", "Comment"],
+            "Zones": ["Name", "Zone Type", "Member Interfaces", "Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled", "CFS Enabled"],
+            "Access Rules": ["Name", "Action", "Source Zone", "Dest Zone", "Source Address", "Destination Address", "Service", "Geo-IP Filter", "Comment"],
+            "NAT Rules": ["Name", "Enabled", "Inbound If", "Outbound If", "Orig Source", "Orig Dest", "Orig Service", "Trans Source", "Trans Dest", "Trans Service", "Comment"],
             "Address Objects": ["Name", "IP/Start", "Mask/End", "Type", "Zone", "Custom/Default"],
-            "Address Groups": ["Name", "Group Members", "Custom/Default"],
             "Service Objects": ["Name", "Protocol", "Port Start", "Port End", "Custom/Default"],
-            "Service Groups": ["Name", "Group Members", "Custom/Default"],
-            "Routing Policies": ["Name", "Source", "Destination", "Service", "Interface", "Gateway", "Metric", "Class"],
-            "NAT Rules": ["Name", "Status", "Ingress Interface", "Egress Interface", "Original Source", "Original Dest", "Original Service", "Translated Source", "Translated Dest", "Translated Service"],
-            "IP Helper": ["Application", "Port 1", "Port 2", "Timeout", "Enabled"]
+            "SNMP Views": ["View Name", "OID", "Default OID"],
+            "DNS": ["DNS Server 1", "DNS Server 2", "DNS Rebinding Attack Prevention", "Split DNS Enabled"],
+            "DHCP Dynamic Scopes": ["Enabled", "Range Start", "Range End", "Gateway", "DNS 1", "Lease (min)", "Comment"],
+            "DHCP Static Scopes": ["Enabled", "Name", "IP Address", "Subnet Mask", "Gateway", "DNS 1"],
+            "IP Helper": ["Application", "Port 1", "Port 2", "Timeout", "Enabled"],
+            "VPN Policies": ["Name", "Gateway", "Shared Secret", "Enabled"],
+            "Local Users": ["Username", "Type"],
+            "Local Groups": ["Group Name"],
+            "Appflow Reporting": ["Collector IP", "Collector Port"],
+            "WAN Load Balancing": ["Enable", "Responder Enabled", "Any TCP SYN", "Primary Interface", "Secondary Interface", "Probe Target"]
         };
 
         const ZONE_TYPE_MAP = {
@@ -1065,7 +1157,7 @@
             let firstTabId = null;
 
             // Sort sections: Critical ones first
-            const sectionOrder = ["Summary", "Interfaces", "Zones", "Address Objects", "Service Objects", "Access Rules", "NAT Rules", "Routing Policies", "DHCP", "DNS"];
+            const sectionOrder = ["System", "Summary", "Interfaces", "Zones", "Address Objects", "Service Objects", "Access Rules", "NAT Rules", "Routing Policies", "DHCP", "DNS"];
             const sortedKeys = Object.keys(data).sort((a, b) => {
                 const idxA = sectionOrder.indexOf(a);
                 const idxB = sectionOrder.indexOf(b);
@@ -1132,23 +1224,8 @@
             }
         }
 
-        function renderNestedSection(container, data) {
-            for (const [subTitle, subData] of Object.entries(data)) {
-                const h3 = document.createElement('h3');
-                h3.className = "text-lg font-medium leading-6 text-white mb-2 pb-1 border-b border-obsidian-border";
-                h3.innerText = subTitle;
-                container.appendChild(h3);
+        // Removed duplicate renderNestedSection
 
-                const subContainer = document.createElement('div');
-                subContainer.className = "mb-8";
-                if (Array.isArray(subData)) {
-                    renderArrayTableSorted(subContainer, subData, subTitle);
-                } else {
-                    renderKVTable(subContainer, subData);
-                }
-                container.appendChild(subContainer);
-            }
-        }
 
         function renderAddressObjectsTabs(container, data) {
             const groups = [], custom = [], checkDefault = [], all = [];
@@ -1349,10 +1426,43 @@
 
                 const subContainer = document.createElement('div');
                 subContainer.className = "mb-8";
+
                 if (Array.isArray(subData)) {
+                    // Pure Array
                     renderArrayTableSorted(subContainer, subData, subTitle);
                 } else if (typeof subData === 'object' && subData !== null) {
-                    renderKVTable(subContainer, subData);
+                    // Check for Mixed Content (Scalars + Arrays)
+                    const scalars = {};
+                    const arrays = {};
+                    let hasArrays = false;
+
+                    for (const [k, v] of Object.entries(subData)) {
+                        if (Array.isArray(v)) {
+                            arrays[k] = v;
+                            hasArrays = true;
+                        } else {
+                            scalars[k] = v;
+                        }
+                    }
+
+                    // Render Scalars first
+                    if (Object.keys(scalars).length > 0) {
+                        const scalarContainer = document.createElement('div');
+                        scalarContainer.className = "mb-4";
+                        renderKVTable(scalarContainer, scalars);
+                        subContainer.appendChild(scalarContainer);
+                    }
+
+                    // Render Arrays
+                    if (hasArrays) {
+                        for (const [arrName, arrData] of Object.entries(arrays)) {
+                            // Use key as section name for column lookup if needed
+                            const arrContainer = document.createElement('div');
+                            arrContainer.className = "mt-4";
+                            renderArrayTableSorted(arrContainer, arrData, arrName);
+                            subContainer.appendChild(arrContainer);
+                        }
+                    }
                 }
                 container.appendChild(subContainer);
             }
@@ -1612,14 +1722,59 @@
         }
 
 
+        const TIMEZONE_MAP = {
+            "827": "Central Time (US & Canada)",
+        };
+
+        const LOG_RES_MAP = {
+            "0": "None",
+            "1": "DNS",
+            "2": "NetBIOS",
+            "3": "DNS then NetBIOS"
+        };
+
+        const DNS_REBIND_ACTION_MAP = {
+            "0": "Log Attack",
+            "1": "Log Attack & Return Query Refused",
+            "2": "Log Attack & Drop DNS Reply"
+        };
+
+        const BLOCK_MODE_MAP = {
+            "0": "All Connections",
+            "1": "Firewall Rule-Based",
+            "2": "High Assurance"
+        };
+
         function renderValue(val, key = "") {
             if (Array.isArray(val)) {
                 return val.map(v => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane border border-obsidian-border text-obsidian-text mr-1 mb-1">${v}</span>`).join('');
             }
-            if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
+
+            // Map Lookups
+            const keyLower = key.toLowerCase();
+            if (key === "Time Zone (ID)") {
+                if (TIMEZONE_MAP[val]) return `${TIMEZONE_MAP[val]} (${val})`;
+                return val;
+            }
+            if (key === "Name Resolution Method" && LOG_RES_MAP[val]) return LOG_RES_MAP[val];
+            if (key === "DNS Rebinding Action" && DNS_REBIND_ACTION_MAP[val]) return DNS_REBIND_ACTION_MAP[val];
+            if ((key === "Block Mode" || key === "Block Connections (All/Rule)") && BLOCK_MODE_MAP[val]) return BLOCK_MODE_MAP[val];
+
+            // Boolean Flags - Enhanced Logic
+            const isTrue = val === "1" || String(val).toLowerCase() === "on" || val === "True";
+            const isFalse = val === "0" || String(val).toLowerCase() === "off" || val === "False";
+
+            // Heuristics for when to apply Boolean logic
+            const boolKeyKeywords = ["enable", "active", "block", "check", "allow", "log", "stealth", "random", "bit", "auth", "persisten", "detect", "prevent", "responder", "syn", "mgmt"];
+            const numberKeyKeywords = ["port", "count", "time", "level", "id", "value", "number", "metric", "interval", "timeout", "lease"];
+
+            const isLikelyBool = boolKeyKeywords.some(k => keyLower.includes(k));
+            const isLikelyNumber = numberKeyKeywords.some(k => keyLower.includes(k));
+
+            if (isTrue && (!isLikelyNumber || isLikelyBool)) {
                 return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
             }
-            if (val === "0" || String(val).toLowerCase() === "off" || val === "False") {
+            if (isFalse && (!isLikelyNumber || isLikelyBool)) {
                 return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
             }
             if (val === "ALLOW") {
