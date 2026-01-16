@@ -249,7 +249,7 @@
                 "iface_ping_mgmt": "Ping Mgmt",
                 "iface_ssh_mgmt": "SSH Mgmt",
                 "iface_snmp_mgmt": "SNMP Mgmt",
-                "iface_enabled": "Enabled"
+                "iface_port_disabled": "Enabled"
             },
             "Access Rules": {
                 "_array": "policyAction",
@@ -361,7 +361,9 @@
             },
             "DHCP": {
                 "Settings": {
-                    "enableDHCP": "Enable DHCP Server"
+                    "enableDHCP": "Enable DHCP Server",
+                    "dhcpPersEnable": "Persistence",
+                    "DHCP_CONFLICT_DETECT": "Conflict Detection"
                 },
                 "Static Scopes": {
                     "_array": "prefs_dhstaticip",
@@ -385,6 +387,14 @@
                     "prefs_dhdyndns1": "DNS 2",
                     "prefs_dhdynComment": "Comment"
                 }
+            },
+            "IP Helper": {
+                "_array": "iphAppName",
+                "iphAppName": "Application",
+                "iphAppUdp1": "Port 1",
+                "iphAppUdp2": "Port 2",
+                "iphAppTimeout": "Timeout",
+                "iphAppEnabled": "Enabled"
             }
         };
 
@@ -392,11 +402,13 @@
             "Interfaces": ["Name", "Zone", "IP Address", "Subnet Mask", "Enabled", "Comment"],
             "Zones": ["Name", "Zone Type", "Member Interfaces", "Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled"],
             "Access Rules": ["Name", "Action", "Source Zone", "Dest Zone", "Source Address", "Destination Address", "Service", "Comment"],
-            "Address Objects": ["Name", "IP/Start", "Mask/End", "Type", "Zone", "Group Members", "Custom/Default"],
+            "Address Objects": ["Name", "IP/Start", "Mask/End", "Type", "Zone", "Custom/Default"],
+            "Address Groups": ["Name", "Group Members", "Custom/Default"],
             "Service Objects": ["Name", "Protocol", "Port Start", "Port End", "Custom/Default"],
             "Service Groups": ["Name", "Group Members", "Custom/Default"],
             "Routing Policies": ["Name", "Source", "Destination", "Service", "Interface", "Gateway", "Metric", "Class"],
-            "NAT Rules": ["Name", "Status", "Ingress Interface", "Egress Interface", "Original Source", "Original Dest", "Original Service", "Translated Source", "Translated Dest", "Translated Service"]
+            "NAT Rules": ["Name", "Status", "Ingress Interface", "Egress Interface", "Original Source", "Original Dest", "Original Service", "Translated Source", "Translated Dest", "Translated Service"],
+            "IP Helper": ["Application", "Port 1", "Port 2", "Timeout", "Enabled"]
         };
 
         const ZONE_TYPE_MAP = {
@@ -867,6 +879,16 @@
                         if (key === 'svcObjType' || key === 'svcObjIpType') value = SERVICE_PROTOCOL_MAP[value] || value;
                         if (key === 'pbrObjType') value = ROUTING_TYPE_MAP[value] || "Default";
 
+                        if (key === 'iface_port_disabled') {
+                            // Invert: port_disabled=off means Enabled=true
+                            // AND must have a Zone assigned (otherwise it's Unassigned/Disabled)
+                            const isPortDisabled = value === "1" || value.toLowerCase() === "on" || value.toLowerCase() === "true";
+                            const zone = tempMap[index]["Zone"];
+                            const hasZone = zone && zone.trim() !== "";
+
+                            value = (!isPortDisabled && hasZone) ? "Enabled" : "Disabled";
+                        }
+
                         if (key === 'policySrcIf' || key === 'policyDstIf' ||
                             key === 'natPolicySrcIface' || key === 'natPolicyDstIface' ||
                             key === 'pbrObjIface') {
@@ -1070,25 +1092,33 @@
         }
 
         function renderAddressObjectsTabs(container, data) {
-            const hosts = [], networks = [], ranges = [], groups = [];
+            const groups = [], custom = [], checkDefault = [], all = [];
 
             data.forEach(item => {
                 const type = item["Type"];
-                const isGroup = type === "Group" || !!item["Group Members"];
-                const isNetwork = type === "Network" || type === "4";
-                const isRange = type === "Range" || type === "2";
+                // Check if it's a group: explicit Type "Group", numerical "8", or has Group Members populated
+                const isGroup = type === "Group" || type === "8" || (item["Group Members"] && item["Group Members"].length > 0);
 
                 if (isGroup) {
                     groups.push(item);
-                } else if (isNetwork) {
-                    networks.push(item);
-                } else if (isRange) {
-                    ranges.push(item);
                 } else {
+                    // Normalize Mask/End for display consistency
                     if (!item["Mask/End"] || item["Mask/End"] === "0.0.0.0") {
-                        item["Mask/End"] = "255.255.255.255";
+                        // For hosts (Type 1), mask is usually implied 32 or 255.255.255.255, 
+                        // but 0.0.0.0 in dump usually means single IP if it's a Host.
+                        // Let's leave it blank or strict checked if needed.
+                        // Actually existing logic set it to 255.255.255.255 if missing.
+                        if (type === "Host" || type === "1") {
+                            item["Mask/End"] = "255.255.255.255";
+                        }
                     }
-                    hosts.push(item);
+                    all.push(item);
+
+                    if (item["Custom/Default"] === "Custom") {
+                        custom.push(item);
+                    } else {
+                        checkDefault.push(item);
+                    }
                 }
             });
 
@@ -1097,11 +1127,12 @@
             subNav.className = "flex space-x-2 mb-4 border-b border-obsidian-border";
             const subContent = document.createElement('div');
 
+            // Categories matching Service Objects style
             const categories = [
-                { name: "Hosts", data: hosts },
-                { name: "Networks", data: networks },
-                { name: "Ranges", data: ranges },
-                { name: "Groups", data: groups }
+                { name: "Address Objects", data: all, section: "Address Objects" },
+                { name: "Address Groups", data: groups, section: "Address Groups" }, // Use specific col order for groups
+                { name: "Custom", data: custom, section: "Address Objects" }, // Fallback to generic cols? Or maybe we need dynamic cols?
+                { name: "Default", data: checkDefault, section: "Address Objects" }
             ];
 
             categories.forEach((cat, idx) => {
@@ -1116,7 +1147,16 @@
                     e.target.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-obsidian-accent text-obsidian-accent";
 
                     subContent.innerHTML = '';
-                    renderArrayTableSorted(subContent, cat.data, "Address Objects");
+                    // For "Groups" tab, verify if we should use "Address Groups" column order (less cols) or standard.
+                    // For "Custom" and "Default", items are mixed. 
+                    // renderArrayTableSorted uses the passed sectionName to look up COLUMN_ORDER.
+                    // If we pass "Address Objects", it uses that order. 
+                    // If "Address Groups", it uses that order.
+
+                    // Ideally, Custom/Default views might need a union of columns or just standard "Address Objects" columns.
+                    // "Address Groups" col order excludes IP/Start, Mask/End usually.
+
+                    renderArrayTableSorted(subContent, cat.data, cat.section);
                 };
                 subNav.appendChild(btn);
             });
@@ -1124,7 +1164,8 @@
             container.appendChild(subNav);
             container.appendChild(subContent);
 
-            renderArrayTableSorted(subContent, hosts, "Address Objects");
+            // Default render first tab
+            renderArrayTableSorted(subContent, all, "Address Objects");
         }
 
         function renderServiceObjectsTabs(container, data) {
@@ -1215,15 +1256,38 @@
 
 
         function renderValue(val, key = "") {
+            // Priority: Boolean/Icon Columns for Zones, DHCP, & DNS
+            // This must come first to override generic "Enabled" text matching
+            const booleanCols = ["Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled", "CFS Enabled", "Enable DHCP Server", "Enabled", "Enable Proxy", "Enforce All", "Enable Cache", "Enable Split DNS", "Persistence", "Conflict Detection"];
+            if (booleanCols.includes(key)) {
+                // Check common truthy values
+                const isTrue = val === "1" || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "enabled" || String(val).toLowerCase() === "on";
+                if (isTrue) {
+                    return '<div class="text-center"><i class="fa-solid fa-check text-obsidian-success"></i></div>';
+                } else {
+                    return '<div class="text-center"><i class="fa-solid fa-xmark text-obsidian-danger"></i></div>';
+                }
+            }
+
             if (Array.isArray(val)) {
                 return val.map(v => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane border border-obsidian-border text-obsidian-text mr-1 mb-1">${v}</span>`).join('');
             }
 
-            // Only convert 0/1 to boolean for specific keys
+            // Generic "Yes/No" Text Logic for other boolean-like keys
             const booleanKeys = ["Enabled", "Status", "Ready", "Active", "IPS", "GAV", "Anti-Spyware", "App Control", "Botnet", "Geo-IP", "DPI-SSL", "DPI-SSL Client", "DPI-SSL Server", "Multicast"];
             const isBooleanKey = booleanKeys.some(k => key.includes(k) || key === k);
 
             if (isBooleanKey) {
+                // Special case for "Status" -> Enabled/Disabled
+                if (key === "Status" || key.includes("Status")) {
+                    if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
+                        return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Enabled</span>';
+                    }
+                    if (val === "0" || String(val).toLowerCase() === "off" || val === "False") {
+                        return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane text-obsidian-textMuted border border-obsidian-border">Disabled</span>';
+                    }
+                }
+
                 if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
                     return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
                 }
@@ -1232,7 +1296,6 @@
                 }
             } else {
                 // For non-boolean keys, if value is explicitly "True"/"False" string (Python bools), render them.
-                // But strictly avoid 0/1 conversion.
                 if (String(val).toLowerCase() === "true") return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
                 if (String(val).toLowerCase() === "false") return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
             }
@@ -1248,18 +1311,6 @@
             }
             if (val === ANY_VALUE) {
                 return '<span class="italic text-obsidian-textMuted">Any</span>';
-            }
-
-            // Boolean/Icon Columns for Zones, DHCP, & DNS
-            const booleanCols = ["Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled", "Enable DHCP Server", "Enabled", "Enable Proxy", "Enforce All", "Enable Cache", "Enable Split DNS"];
-            if (booleanCols.includes(key)) {
-                // Check common truthy values
-                const isTrue = val === "1" || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "enabled" || String(val).toLowerCase() === "on";
-                if (isTrue) {
-                    return '<div class="text-center"><i class="fa-solid fa-check text-obsidian-success"></i></div>';
-                } else {
-                    return '<div class="text-center"><i class="fa-solid fa-xmark text-obsidian-danger"></i></div>';
-                }
             }
 
             return val;
