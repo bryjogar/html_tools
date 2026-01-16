@@ -215,7 +215,10 @@
                 "shortProdName": "Model",
                 "buildNum": "Firmware Version",
                 "serialNum": "Serial Number",
-                "localeVersionStr": "Language"
+                "localeVersionStr": "Language",
+                "cloudBkupEnable": "Cloud Backup Enabled",
+                "enableTLS12": "TLS 1.1 or Greater Enabled",
+                "adminLoginTimeout": "Admin Login Timeout"
             },
             "Zones": {
                 "_array": "zoneObjId",
@@ -279,18 +282,23 @@
                 "natPolicyDnsDoctorEnable": "DNS Doctoring"
             },
             "Routing Policies": {
-                "_array": "pbrObjId",
-                "pbrPolicyName": "Name",
-                "pbrObjSrc": "Source",
-                "pbrObjDst": "Destination",
-                "pbrObjSvc": "Service",
-                "pbrObjIface": "Interface",
-                "pbrObjGw": "Gateway",
-                "pbrObjMetric": "Metric",
-                "pbrObjType": "Class",
-                "pbrObjPriority": "Priority",
-                "pbrObjProbe": "Probe",
-                "pbrObjDisableOnProbeFail": "Disable on Fail"
+                "Settings": {
+                    "useAdvancedRouting": "Advanced Routing Enabled"
+                },
+                "Policies": {
+                    "_array": "pbrObjId",
+                    "pbrPolicyName": "Name",
+                    "pbrObjSrc": "Source",
+                    "pbrObjDst": "Destination",
+                    "pbrObjSvc": "Service",
+                    "pbrObjIface": "Interface",
+                    "pbrObjGw": "Gateway",
+                    "pbrObjMetric": "Metric",
+                    "pbrObjType": "Class",
+                    "pbrObjPriority": "Priority",
+                    "pbrObjProbe": "Probe",
+                    "pbrObjDisableOnProbeFail": "Disable on Fail"
+                }
             },
             "Address Objects": {
                 "_array": "addrObjId",
@@ -322,32 +330,82 @@
                 "so_grpToGrp": "Group"
             },
             "Security Services": {
-                "GAV": {
-                    "gavEnableScanning": "Enable GAV Scanning",
-                    "gavEnableInbound": "Enable Inbound",
-                    "gavEnableOutbound": "Enable Outbound"
+                "Summary": {
+                    "secServicesDPISetting": "Security Services Setting",
+                    "enableStealthMode": "Stealth Mode Enabled",
+                    "randomizeIds": "Randomize IP ID Enabled",
+                    "dpiConnections": "Default connections"
                 },
-                "IPS": {
-                    "isIDPEnabled": "Enable IPS",
-                    "idpPreventHighPriority": "Prevent High Pri",
-                    "idpDetectHighPriority": "Detect High Pri",
-                    "idpPreventMediumPriority": "Prevent Med Pri",
-                    "idpDetectMediumPriority": "Detect Med Pri"
+                "Content Filter Service": {
+                    "cfsEnabled": "Enable Content Filtering Service",
+                    "cfsProfileEnableHttpsFlting_0": "Enable HTTPS Content Filtering",
+                    "cfsExcludeAdminEnabled": "Exclude Administrator",
+                    "cfsPolicySrcZone_0": "Source Zone"
                 },
-                "Geo-IP": {
-                    "geoIpBlkMode": "Block Mode",
-                    "geoIpLoggingEnabled": "Logging Enabled",
-                    "geoEnforcement": "Enable Enforcement",
-                    "blockUnknownGeo": "Block Unknown"
+                "Gateway Anti-Virus": {
+                    "gavCloudEnableScanning": "Enable Cloud Anti-Virus Database",
+                    "gavEnableExcludeList": "Enable Gateway AV Exclusion List",
+                    "gavExclusionObj": "Exclusion List Address Object",
+                    "Settings": {
+                        "gavSuppressSMTPResponse": "Disable SMTP Responses",
+                        "gavDisableEicarTest": "Disable detection of EICAR test virus",
+                        "gavHTTPAcceptRangeBytesKeep": "Enable HTTP Byte-Range requests",
+                        "gavFTPPartDownEnable": "Enable FTP REST request"
+                    },
+                    "Inbound Inspection Protocols": {
+                        "gavEnableHTTP": "HTTP",
+                        "gavEnableFTP": "FTP",
+                        "gavEnableIMAP": "IMAP",
+                        "gavEnableSMTP": "SMTP",
+                        "gavEnablePOP3": "POP3",
+                        "gavEnableTCPStream": "TCP Stream"
+                    },
+                    "Outbound Inspection Protocols": {
+                        "gavEnableOutboundSMTP": "SMTP",
+                        "gavEnableOutboundHTTP": "HTTP",
+                        "gavEnableOutboundFTP": "FTP",
+                        "gavEnableOutTCPStream": "TCP Stream"
+                    }
                 },
-                "Botnet": {
-                    "botnetBlock": "Block Botnet",
-                    "botnetLoggingEnabled": "Logging Enabled"
+                "Intrusion Prevention": {
+                    "idpEnableExcludeList": "Enable IPS Exclusion List",
+                    "idpExclusionObj": "Exclusion List Address Object",
+                    "isIDPBidirectional": "Apply IPS Signatures Bidirectionally",
+                    "High Priority": {
+                        "idpPreventHighPriority": "Prevent",
+                        "idpDetectHighPriority": "Detect",
+                        "idpLRTHigh": "Log Redundancy"
+                    },
+                    "Medium Priority": {
+                        "idpPreventMediumPriority": "Prevent",
+                        "idpDetectMediumPriority": "Detect",
+                        "idpLRTMedium": "Log Redundancy"
+                    },
+                    "Low Priority": {
+                        "idpPreventLowPriority": "Prevent",
+                        "idpDetectLowPriority": "Detect",
+                        "idpLRTLow": "Log Redundancy"
+                    }
                 },
-                "AS": {
-                    "asEnableScanning": "Enable Anti-Spyware",
-                    "asEnableInbound": "Enable Inbound",
-                    "asEnableOutbound": "Enable Outbound"
+                "Anti-Spyware": {
+                    "asEnableExcludeList": "Enable Anti-Spyware Exclusion List",
+                    "asExclusionObj": "Exclusion List Address Object",
+                    "asSuppressSMTPResponse": "Disable SMTP Responses",
+                    "High Priority": {
+                        "asPreventHighPriority": "Prevent",
+                        "asDetectHighPriority": "Detect",
+                        "asLRTHigh": "Log Redundancy"
+                    },
+                    "Medium Priority": {
+                        "asPreventMediumPriority": "Prevent",
+                        "asDetectMediumPriority": "Detect",
+                        "asLRTMedium": "Log Redundancy"
+                    },
+                    "Low Priority": {
+                        "asPreventLowPriority": "Prevent",
+                        "asDetectLowPriority": "Detect",
+                        "asLRTLow": "Log Redundancy"
+                    }
                 }
             },
             "DNS": {
@@ -1227,93 +1285,153 @@
         }
 
 
-        function renderKVTable(container, data) {
+        function parseGenericKV(lines, map) {
+            // Build a flat lookup of file_key -> { path: [keys...], label: "Label" }
+            const keyLookup = {};
+            const resultStructure = {};
+
+            function traverseMap(currentMap, pathStack, resultRef) {
+                for (const [key, val] of Object.entries(currentMap)) {
+                    if (typeof val === 'object' && val !== null) {
+                        // Nested section (grouping)
+                        resultRef[key] = {};
+                        traverseMap(val, [...pathStack, key], resultRef[key]);
+                    } else {
+                        // Leaf node
+                        keyLookup[key] = { path: [...pathStack, val], label: val };
+                        resultRef[val] = ""; // Pre-seed
+                    }
+                }
+            }
+
+            traverseMap(map, [], resultStructure);
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+
+                // Optimization: Iterate through known keys or regex? 
+                // Since this is generic KV, we checking if line starts with any key in map.
+                // We can iterate the lookup.
+                for (const [key, info] of Object.entries(keyLookup)) {
+                    if (trimmed.startsWith(key + '=')) {
+                        let value = trimmed.substring(key.length + 1);
+                        try { value = decodeURIComponent(value); } catch (e) { }
+                        value = value.trim();
+
+                        if (key === 'dns_use_static_servers') {
+                            if (value === '1' || value.toLowerCase() === 'on') value = 'True';
+                            else if (value === '0' || value.toLowerCase() === 'off') value = 'False';
+                        }
+
+                        // Set value at path
+                        let current = resultStructure;
+                        for (let i = 0; i < info.path.length - 1; i++) {
+                            current = current[info.path[i]];
+                        }
+                        current[info.label] = value;
+                        break;
+                    }
+                }
+            }
+            return resultStructure;
+        }
+
+        // ... (parseGenericArray kept as is) ...
+
+        function renderNestedSection(container, data) {
+            for (const [subTitle, subData] of Object.entries(data)) {
+                const h3 = document.createElement('h3');
+                h3.className = "text-lg font-medium leading-6 text-white mb-2 pb-1 border-b border-obsidian-border mt-6 first:mt-0";
+                h3.innerText = subTitle;
+                container.appendChild(h3);
+
+                const subContainer = document.createElement('div');
+                subContainer.className = "mb-8";
+                if (Array.isArray(subData)) {
+                    renderArrayTableSorted(subContainer, subData, subTitle);
+                } else if (typeof subData === 'object' && subData !== null) {
+                    renderKVTable(subContainer, subData);
+                }
+                container.appendChild(subContainer);
+            }
+        }
+
+        function renderKVTable(container, data, isRecursive = false) {
             if (Object.keys(data).length === 0) {
-                container.innerHTML += '<p class="text-obsidian-textMuted text-sm italic">No data found.</p>';
+                if (!isRecursive) container.innerHTML += '<p class="text-obsidian-textMuted text-sm italic">No data found.</p>';
                 return;
             }
+
             const table = document.createElement('table');
             table.className = "min-w-full divide-y divide-obsidian-border";
             const tbody = document.createElement('tbody');
             tbody.className = "divide-y divide-obsidian-border";
 
+            let hasRows = false;
+
             for (const [key, value] of Object.entries(data)) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-obsidian-text w-1/3 border-r border-obsidian-border bg-obsidian-pane/50">${key}</td>
-                    <td class="px-6 py-3 text-sm text-obsidian-textMuted font-mono break-all">${renderValue(value, key)}</td>
-                `;
-                tbody.appendChild(tr);
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                    // Recursive Nesting (e.g. Settings -> { ... })
+                    // Render a row with a mini-header or nested table?
+                    // Better: nested table in a cell, or just rows with indentation?
+                    // Let's use a sub-header row.
+
+                    const trHeader = document.createElement('tr');
+                    trHeader.className = "bg-obsidian-pane/30";
+                    trHeader.innerHTML = `
+                        <td colspan="2" class="px-6 py-2 text-xs font-bold text-obsidian-accent uppercase tracking-wider border-l-4 border-obsidian-accent">${key}</td>
+                    `;
+                    tbody.appendChild(trHeader);
+
+                    // Render children flattened or recursively?
+                    // Let's recurse but extract rows. 
+                    // Actually, if we use recursion, we need to append TRs to THIS tbody.
+                    // We can't use renderKVTable easily unless we refactor to return TRs.
+                    // Simpler: Just recursively iterate here.
+
+                    const entries = Object.entries(value);
+                    if (entries.length === 0) {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td colspan="2" class="px-6 py-2 text-sm text-obsidian-textMuted italic pl-8">No properties</td>`;
+                        tbody.appendChild(tr);
+                    } else {
+                        // We can abuse renderKVTable nicely if we modify it to accept a tbody?
+                        // Or just loop.
+                        // Let's loop to keep the parent context's table structure (aligned columns).
+                        for (const [subKey, subVal] of entries) {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-obsidian-text w-1/3 border-r border-obsidian-border bg-obsidian-pane/50 pl-10"><i class="fa-solid fa-angle-right text-xs text-obsidian-textMuted mr-2"></i>${subKey}</td>
+                                <td class="px-6 py-3 text-sm text-obsidian-textMuted font-mono break-all">${renderValue(subVal, subKey)}</td>
+                            `;
+                            tbody.appendChild(tr);
+                        }
+                    }
+                    hasRows = true;
+
+                } else {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-obsidian-text w-1/3 border-r border-obsidian-border bg-obsidian-pane/50">${key}</td>
+                        <td class="px-6 py-3 text-sm text-obsidian-textMuted font-mono break-all">${renderValue(value, key)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                    hasRows = true;
+                }
             }
+
+            if (!hasRows && !isRecursive) {
+                container.innerHTML += '<p class="text-obsidian-textMuted text-sm italic">No data found.</p>';
+                return;
+            }
+
             table.appendChild(tbody);
 
             const shadowWrapper = document.createElement('div');
             shadowWrapper.className = "shadow ring-1 ring-obsidian-border rounded-lg overflow-hidden bg-obsidian-bg overflow-x-auto";
             shadowWrapper.appendChild(table);
             container.appendChild(shadowWrapper);
-        }
-
-
-
-        function renderValue(val, key = "") {
-            // Priority: Boolean/Icon Columns for Zones, DHCP, & DNS
-            // This must come first to override generic "Enabled" text matching
-            const booleanCols = ["Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled", "CFS Enabled", "Enable DHCP Server", "Enabled", "Enable Proxy", "Enforce All", "Enable Cache", "Enable Split DNS", "Persistence", "Conflict Detection"];
-            if (booleanCols.includes(key)) {
-                // Check common truthy values
-                const isTrue = val === "1" || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "enabled" || String(val).toLowerCase() === "on";
-                if (isTrue) {
-                    return '<div class="text-center"><i class="fa-solid fa-check text-obsidian-success"></i></div>';
-                } else {
-                    return '<div class="text-center"><i class="fa-solid fa-xmark text-obsidian-danger"></i></div>';
-                }
-            }
-
-            if (Array.isArray(val)) {
-                return val.map(v => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane border border-obsidian-border text-obsidian-text mr-1 mb-1">${v}</span>`).join('');
-            }
-
-            // Generic "Yes/No" Text Logic for other boolean-like keys
-            const booleanKeys = ["Enabled", "Status", "Ready", "Active", "IPS", "GAV", "Anti-Spyware", "App Control", "Botnet", "Geo-IP", "DPI-SSL", "DPI-SSL Client", "DPI-SSL Server", "Multicast"];
-            const isBooleanKey = booleanKeys.some(k => key.includes(k) || key === k);
-
-            if (isBooleanKey) {
-                // Special case for "Status" -> Enabled/Disabled
-                if (key === "Status" || key.includes("Status")) {
-                    if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
-                        return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Enabled</span>';
-                    }
-                    if (val === "0" || String(val).toLowerCase() === "off" || val === "False") {
-                        return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane text-obsidian-textMuted border border-obsidian-border">Disabled</span>';
-                    }
-                }
-
-                if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
-                    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
-                }
-                if (val === "0" || String(val).toLowerCase() === "off" || val === "False") {
-                    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
-                }
-            } else {
-                // For non-boolean keys, if value is explicitly "True"/"False" string (Python bools), render them.
-                if (String(val).toLowerCase() === "true") return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
-                if (String(val).toLowerCase() === "false") return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
-            }
-
-            if (val === "ALLOW") {
-                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">ALLOW</span>';
-            }
-            if (val === "DENY") {
-                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">DENY</span>';
-            }
-            if (val === "DISCARD" || val === "DROP") {
-                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-900/30 text-orange-400 border border-orange-800">DISCARD</span>';
-            }
-            if (val === ANY_VALUE) {
-                return '<span class="italic text-obsidian-textMuted">Any</span>';
-            }
-
-            return val;
         }
         function renderArrayTableSorted(container, data, sectionIdentifier = "") {
             if (!data || data.length === 0) {
@@ -1490,6 +1608,41 @@
                 filterTerm = e.target.value.toLowerCase();
                 render();
             });
+        }
+
+
+        function renderValue(val, key = "") {
+            if (Array.isArray(val)) {
+                return val.map(v => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane border border-obsidian-border text-obsidian-text mr-1 mb-1">${v}</span>`).join('');
+            }
+            if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
+            }
+            if (val === "0" || String(val).toLowerCase() === "off" || val === "False") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
+            }
+            if (val === "ALLOW") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">ALLOW</span>';
+            }
+            if (val === "DENY") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">DENY</span>';
+            }
+            if (val === "DISCARD" || val === "DROP") {
+                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-900/30 text-orange-400 border border-orange-800">DISCARD</span>';
+            }
+            if (key === "Source Zone" && (val === "" || val === undefined)) {
+                return '<span class="italic text-obsidian-textMuted">ALL</span>';
+            }
+            if (key === "Security Services Setting" && val === "1") {
+                return "Enhanced";
+            }
+            if (key === "Default connections") {
+                return "Max DPI Connections (DPI Services Enabled)";
+            }
+            if (val === "Any" || val === "Any (0)") {
+                return '<span class="italic text-obsidian-textMuted">Any</span>';
+            }
+            return val;
         }
     </script>
 </body>

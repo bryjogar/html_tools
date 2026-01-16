@@ -1,0 +1,4 @@
+secServicesDPISetting=1
+enableStealthMode=on
+randomizeIds=on
+dpiConnections=15000

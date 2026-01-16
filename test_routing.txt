@@ -1,0 +1,8 @@
+useAdvancedRouting=on
+pbrObjId_0=1
+pbrPolicyName_0=Test Route
+pbrObjSrc_0=Any
+pbrObjDst_0=Any
+pbrObjSvc_0=Any
+pbrObjIface_0=X1
+pbrObjGw_0=1.1.1.1

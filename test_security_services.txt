@@ -1,0 +1,66 @@
+# Security Services
+securityServicesEnable=on
+
+# Content Filter
+cfsEnabled=on
+cfsHttpsEnabled=off
+cfsExcludeAdminEnabled=on
+
+# Gateway Anti-Virus
+gavCloudEnableScanning=on
+gavEnableExcludeList=off
+gavExclusionObj=One
+gavDisableSmtpResponses=on
+gavDisableEicarTest=on
+gavEnableHttpByteRange=off
+gavEnableFtpRest=off
+gavEnableHTTP=on
+gavEnableFTP=on
+gavEnableIMAP=on
+gavEnableSMTP=on
+gavEnablePOP3=on
+gavEnableTCPStream=on
+gavEnableOutboundSMTP=off
+gavEnableOutboundHTTP=off
+gavEnableOutboundFTP=off
+gavEnableOutTCPStream=off
+
+# IPS
+idpEnableExcludeList=off
+idpExclusionObj=
+isIDPBidirectional=on
+
+# IPS High
+idpPreventHighPriority=on
+idpDetectHighPriority=on
+idpLogRedundancyHigh=0
+
+# IPS Medium
+idpPreventMediumPriority=on
+idpDetectMediumPriority=on
+idpLogRedundancyMedium=10
+
+# IPS Low
+idpPreventLowPriority=off
+idpDetectLowPriority=off
+idpLogRedundancyLow=60
+
+# Anti-Spyware
+asEnableExcludeList=off
+asExclusionObj=
+asDisableSmtpResponses=on
+
+# AS High
+asPreventHighPriority=on
+asDetectHighPriority=on
+asLogRedundancyHigh=0
+
+# AS Medium
+asPreventMediumPriority=on
+asDetectMediumPriority=on
+asLogRedundancyMedium=0
+
+# AS Low
+asPreventLowPriority=off
+asDetectLowPriority=off
+asLogRedundancyLow=0

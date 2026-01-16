@@ -1,0 +1,4 @@
+firewallName=TestFirewall
+cloudBkupEnable=on
+enableTLS12=on
+adminLoginTimeout=15
