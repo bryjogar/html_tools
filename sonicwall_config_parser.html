@@ -143,34 +143,57 @@
     </div>
 
 
-    <!-- Main Content -->
-    <main class="flex-1 overflow-auto p-4 md:p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar"
+            class="w-64 bg-obsidian-pane border-r border-obsidian-border flex flex-col shrink-0 transition-all duration-300 transform">
+            <div class="p-4 border-b border-obsidian-border">
+                <div class="relative">
+                    <i
+                        class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-obsidian-textMuted text-xs"></i>
+                    <input type="text" id="navSearch" placeholder="Search sections..."
+                        class="w-full bg-obsidian-bg border border-obsidian-border rounded-md py-1.5 pl-8 pr-3 text-xs text-obsidian-text focus:outline-none focus:border-obsidian-accent transition-colors">
+                </div>
+            </div>
+            <nav id="sidebarNav" class="flex-1 overflow-y-auto py-2 space-y-0.5 px-2">
+                <!-- Nav items injected by JS -->
+            </nav>
+        </aside>
 
-        <!-- Results Section -->
-        <div id="resultsArea"
-            class="hidden bg-obsidian-pane shadow-lg border border-obsidian-border rounded-xl overflow-hidden min-h-[600px] flex flex-col">
-            <!-- Tabs Header -->
-            <div class="border-b border-obsidian-border overflow-x-auto bg-obsidian-pane shrink-0">
-                <nav class="flex px-4" aria-label="Tabs" id="tabsHeader">
-                    <!-- Tabs injected by JS -->
-                </nav>
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto bg-obsidian-bg relative flex flex-col" id="mainContent">
+
+            <!-- Empty State -->
+            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center opacity-60 z-0">
+                <i class="fa-solid fa-file-code text-7xl text-obsidian-border mb-6"></i>
+                <h3 class="mt-2 text-xl font-medium text-white">No configuration parsed</h3>
+                <p class="mt-2 text-sm text-obsidian-textMuted max-w-sm text-center">Upload a SonicWall configuration
+                    file (.txt or .exp) to view the parsed details organized by section.</p>
+                <button onclick="document.getElementById('fileInput').click()"
+                    class="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-obsidian-accent hover:bg-obsidian-accentHover focus:outline-none transition-colors">
+                    <i class="fa-solid fa-upload mr-2"></i> Upload File
+                </button>
             </div>
 
-            <!-- Tab Contents -->
-            <div id="tabsContent" class="p-6 flex-1 overflow-auto">
-                <!-- Tab panes injected by JS -->
+            <!-- Content Area -->
+            <div id="resultsArea" class="hidden relative z-10 min-h-full flex flex-col">
+                <header id="contentHeader"
+                    class="bg-obsidian-bg border-b border-obsidian-border px-8 py-5 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+                    <div>
+                        <h2 id="currentSectionTitle" class="text-2xl font-semibold text-white tracking-tight">Overview
+                        </h2>
+                        <p id="currentSectionCount" class="text-sm text-obsidian-textMuted mt-1 hidden">0 items</p>
+                    </div>
+                </header>
+
+                <div id="tabsContent" class="p-8 flex-1">
+                    <!-- Tab panes injected by JS -->
+                </div>
             </div>
-        </div>
 
-        <!-- Empty State -->
-        <div id="emptyState" class="text-center py-20 flex flex-col items-center justify-center opacity-60">
-            <i class="fa-solid fa-file-code text-6xl text-obsidian-border mb-4"></i>
-            <h3 class="mt-2 text-lg font-medium text-white">No configuration parsed</h3>
-            <p class="mt-1 text-sm text-obsidian-textMuted">Upload a SonicWall configuration file (.txt or .exp) to view
-                the parsed details.</p>
-        </div>
-
-    </main>
+        </main>
+    </div>
 
     <!-- Footer -->
     <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0">
@@ -192,12 +215,12 @@
                 "zoneObjId": "Name",
                 "zoneObjZoneType": "Zone Type",
                 "zoneObjIntraZoneCom": "Interface Trust",
-                "zoneObjAvProfile": "Gateway AV Profile",
-                "zoneObjACProfile": "App Control Profile",
-                "zoneObjASProfile": "Anti-Spyware Profile",
-                "zoneObjGavProfile": "GAV Profile",
-                "zoneObjDPISSLSProfile": "DPI-SSL Server",
-                "zoneObjDPISSLCProfile": "DPI-SSL Client",
+                "zoneObjGavProfile": "GAV Enabled",
+                "zoneObjASProfile": "AS Enabled",
+                "zoneObjMyIDPProfile": "IPS Enabled",
+                "zoneObjACProfile": "App Control Enabled",
+                "zoneObjDPISSLSProfile": "DPI SSL Server Enabled",
+                "zoneObjDPISSLCProfile": "DPI Client Enabled",
                 "zoneObjEnableContentFiltering": "CFS Enabled",
                 // Computed fields
                 "computed_MemberInterfaces": "Member Interfaces"
@@ -357,7 +380,7 @@
 
         const COLUMN_ORDER = {
             "Interfaces": ["Name", "Zone", "IP Address", "Subnet Mask", "Enabled", "Comment"],
-            "Zones": ["Name", "Zone Type", "Member Interfaces", "Interface Trust", "GAV Profile", "Anti-Spyware Profile", "IPS", "App Control Profile", "DPI-SSL Client", "DPI-SSL Server"],
+            "Zones": ["Name", "Zone Type", "Member Interfaces", "Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled"],
             "Access Rules": ["Name", "Action", "Source Zone", "Dest Zone", "Source Address", "Destination Address", "Service", "Comment"],
             "Address Objects": ["Name", "IP/Start", "Mask/End", "Type", "Zone", "Group Members", "Custom/Default"],
             "Service Objects": ["Name", "Protocol", "Port Start", "Port End", "Custom/Default"],
@@ -470,24 +493,47 @@
         function switchTab(tabId) {
             // Hide all contents
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            // Deactivate all buttons
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('border-obsidian-accent', 'text-obsidian-accent', 'active');
-                el.classList.add('border-transparent', 'text-obsidian-textMuted');
+            // Deactivate all nav items
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('bg-obsidian-accent/10', 'text-obsidian-accent', 'border-r-2', 'border-obsidian-accent');
+                el.classList.add('text-obsidian-textMuted', 'hover:bg-obsidian-border/50', 'hover:text-obsidian-text');
+
+                // Reset icons
+                const icon = el.querySelector('i');
+                if (icon) icon.className = icon.dataset.originalClass || icon.className;
             });
 
             // Show target content
             const targetContent = document.getElementById(tabId);
-            if (targetContent) targetContent.classList.add('active');
+            if (targetContent) {
+                targetContent.classList.add('active');
 
-            // Activate target button(s)
-            const buttons = document.querySelectorAll('.tab-btn');
-            for (const btn of buttons) {
-                if (btn.innerText.replace(/\s+/g, '-').toLowerCase() === tabId) {
-                    btn.classList.add('border-obsidian-accent', 'text-obsidian-accent', 'active');
-                    btn.classList.remove('border-transparent', 'text-obsidian-textMuted');
-                }
+                // Update Header Title
+                const titleEl = document.getElementById('currentSectionTitle');
+                if (titleEl) titleEl.textContent = targetContent.dataset.title || "Section";
+
+                // Scroll top
+                document.getElementById('mainContent').scrollTop = 0;
             }
+
+            // Activate target nav item
+            const activeLink = document.querySelector(`.nav-item[data-target="${tabId}"]`);
+            if (activeLink) {
+                activeLink.classList.remove('text-obsidian-textMuted', 'hover:bg-obsidian-border/50', 'hover:text-obsidian-text');
+                activeLink.classList.add('bg-obsidian-accent/10', 'text-obsidian-accent', 'border-r-2', 'border-obsidian-accent');
+            }
+        }
+
+        // Search Filter for Sidebar
+        const navSearch = document.getElementById('navSearch');
+        if (navSearch) {
+            navSearch.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                document.querySelectorAll('.nav-item').forEach(el => {
+                    const text = el.innerText.toLowerCase();
+                    el.style.display = text.includes(term) ? 'flex' : 'none';
+                });
+            });
         }
 
         /* =========================================
@@ -504,7 +550,7 @@
             PARSED_DATA = parseConfigText(configText, interfaceMap, addressObjectMap, groupMemberMap);
 
             // 3. Render
-            renderTabs(PARSED_DATA);
+            renderView(PARSED_DATA);
 
             // 4. Update UI state
             document.getElementById('resultsArea').classList.remove('hidden');
@@ -899,30 +945,74 @@
            5. RENDERING LOGIC
            ========================================= */
 
-        function renderTabs(data) {
-            const tabsHeader = document.getElementById('tabsHeader');
+        function renderView(data) {
+            const sidebarNav = document.getElementById('sidebarNav');
             const tabsContent = document.getElementById('tabsContent');
 
-            tabsHeader.innerHTML = '';
+            sidebarNav.innerHTML = '';
             tabsContent.innerHTML = '';
 
-            let first = true;
-            for (const [sectionName, sectionData] of Object.entries(data)) {
+            // Define icons for known sections
+            const sectionIcons = {
+                "Zones": "fa-vector-square",
+                "Interfaces": "fa-network-wired",
+                "Access Rules": "fa-shield-alt",
+                "NAT Rules": "fa-exchange-alt",
+                "Routing Policies": "fa-route",
+                "Address Objects": "fa-map-marker-alt",
+                "Service Objects": "fa-cube",
+                "Service Group Mappings": "fa-layer-group",
+                "Security Services": "fa-user-shield",
+                "DNS": "fa-server",
+                "DHCP": "fa-sitemap"
+            };
+
+            let firstTabId = null;
+
+            // Sort sections: Critical ones first
+            const sectionOrder = ["Interfaces", "Zones", "Address Objects", "Service Objects", "Access Rules", "NAT Rules", "Routing Policies", "DHCP", "DNS"];
+            const sortedKeys = Object.keys(data).sort((a, b) => {
+                const idxA = sectionOrder.indexOf(a);
+                const idxB = sectionOrder.indexOf(b);
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return a.localeCompare(b);
+            });
+
+            for (const sectionName of sortedKeys) {
+                const sectionData = data[sectionName];
                 if (sectionName === 'CLI' || sectionName === 'Service Group Mappings') continue;
 
                 const tabId = sectionName.replace(/\s+/g, '-').toLowerCase();
+                if (!firstTabId) firstTabId = tabId;
 
-                // Create Button
+                // Create Sidebar Item
                 const btn = document.createElement('button');
-                btn.className = `tab-btn group inline-flex items-center px-4 py-4 border-b-2 font-medium text-sm mr-4 whitespace-nowrap transition-colors ${first ? 'border-obsidian-accent text-obsidian-accent active' : 'border-transparent text-obsidian-textMuted hover:text-obsidian-text hover:border-obsidian-border'}`;
-                btn.innerText = sectionName;
+                btn.className = `nav-item w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 group text-obsidian-textMuted hover:bg-obsidian-border/50 hover:text-obsidian-text mb-1`;
+                btn.dataset.target = tabId;
                 btn.onclick = () => switchTab(tabId);
-                tabsHeader.appendChild(btn);
 
-                // Create Content
+                const iconClass = sectionIcons[sectionName] || "fa-circle";
+
+                // Count items if array
+                let countBadge = '';
+                if (Array.isArray(sectionData)) {
+                    countBadge = `<span class="ml-auto bg-obsidian-border text-obsidian-textMuted text-xs py-0.5 px-2 rounded-full group-hover:bg-obsidian-bg group-hover:text-white transition-colors">${sectionData.length}</span>`;
+                }
+
+                btn.innerHTML = `
+                    <i class="fa-solid ${iconClass} w-5 text-center mr-3 text-obsidian-textMuted group-hover:text-obsidian-accent transition-colors" data-original-class="fa-solid ${iconClass}"></i>
+                    <span class="truncate">${sectionName}</span>
+                    ${countBadge}
+                `;
+                sidebarNav.appendChild(btn);
+
+                // Create Content Pane
                 const contentDiv = document.createElement('div');
                 contentDiv.id = tabId;
-                contentDiv.className = `tab-content ${first ? 'active' : ''} space-y-6`;
+                contentDiv.dataset.title = sectionName;
+                contentDiv.className = `tab-content hidden space-y-6 animate-fade-in`; // Add animation class if available, or straight standard
 
                 const isNested = !Array.isArray(sectionData) && Object.values(sectionData).some(v => typeof v === 'object');
 
@@ -933,13 +1023,17 @@
                 } else if (sectionName === "Service Objects" && Array.isArray(sectionData)) {
                     renderServiceObjectsTabs(contentDiv, sectionData);
                 } else if (Array.isArray(sectionData)) {
-                    renderArrayTable(contentDiv, sectionData, sectionName); // Pass section name for sorting
+                    renderArrayTableSorted(contentDiv, sectionData, sectionName);
                 } else {
                     renderKVTable(contentDiv, sectionData);
                 }
 
                 tabsContent.appendChild(contentDiv);
-                first = false;
+            }
+
+            // Select first tab
+            if (firstTabId) {
+                switchTab(firstTabId);
             }
         }
 
@@ -953,7 +1047,7 @@
                 const subContainer = document.createElement('div');
                 subContainer.className = "mb-8";
                 if (Array.isArray(subData)) {
-                    renderArrayTable(subContainer, subData, subTitle);
+                    renderArrayTableSorted(subContainer, subData, subTitle);
                 } else {
                     renderKVTable(subContainer, subData);
                 }
@@ -1008,7 +1102,7 @@
                     e.target.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-obsidian-accent text-obsidian-accent";
 
                     subContent.innerHTML = '';
-                    renderArrayTable(subContent, cat.data, "Address Objects");
+                    renderArrayTableSorted(subContent, cat.data, "Address Objects");
                 };
                 subNav.appendChild(btn);
             });
@@ -1016,7 +1110,7 @@
             container.appendChild(subNav);
             container.appendChild(subContent);
 
-            renderArrayTable(subContent, hosts, "Address Objects");
+            renderArrayTableSorted(subContent, hosts, "Address Objects");
         }
 
         function renderServiceObjectsTabs(container, data) {
@@ -1065,7 +1159,7 @@
                     e.target.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-obsidian-accent text-obsidian-accent";
 
                     subContent.innerHTML = '';
-                    renderArrayTable(subContent, cat.data, cat.section);
+                    renderArrayTableSorted(subContent, cat.data, cat.section);
                 };
                 subNav.appendChild(btn);
             });
@@ -1074,7 +1168,7 @@
             container.appendChild(subContent);
 
             // Default view: Services (Individual Objects)
-            renderArrayTable(subContent, all, "Service Objects");
+            renderArrayTableSorted(subContent, all, "Service Objects");
         }
 
 
@@ -1091,122 +1185,20 @@
             for (const [key, value] of Object.entries(data)) {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-obsidian-text w-1/3">${key}</td>
-                    <td class="px-6 py-3 whitespace-nowrap text-sm text-obsidian-textMuted font-mono">${renderValue(value, key)}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-obsidian-text w-1/3 border-r border-obsidian-border bg-obsidian-pane/50">${key}</td>
+                    <td class="px-6 py-3 text-sm text-obsidian-textMuted font-mono break-all">${renderValue(value, key)}</td>
                 `;
                 tbody.appendChild(tr);
             }
             table.appendChild(tbody);
 
             const shadowWrapper = document.createElement('div');
-            shadowWrapper.className = "shadow ring-1 ring-obsidian-border rounded-lg overflow-hidden bg-obsidian-bg";
+            shadowWrapper.className = "shadow ring-1 ring-obsidian-border rounded-lg overflow-hidden bg-obsidian-bg overflow-x-auto";
             shadowWrapper.appendChild(table);
             container.appendChild(shadowWrapper);
         }
 
-        function renderArrayTable(container, data, sectionIdentifier = "") {
-            if (!data || data.length === 0) {
-                container.innerHTML = '<p class="text-obsidian-textMuted text-sm italic">No items found.</p>';
-                return;
-            }
 
-            // Determine columns to display
-            const customOrder = COLUMN_ORDER[sectionIdentifier];
-            let colArray = [];
-
-            if (customOrder) {
-                // Strict mode: Use exactly the columns defined in COLUMN_ORDER
-                colArray = [...customOrder];
-            } else {
-                // Auto-detect mode: Collect all keys from data
-                const columns = new Set();
-                data.forEach(item => Object.keys(item).forEach(k => columns.add(k)));
-                colArray = Array.from(columns);
-
-                // Fallback default sort for auto-detected columns
-                const priorityCols = ["Name", "Action", "Zone Type", "IP Address", "Source Zone"];
-                colArray.sort((a, b) => {
-                    const idxA = priorityCols.indexOf(a);
-                    const idxB = priorityCols.indexOf(b);
-                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                    if (idxA !== -1) return -1;
-                    if (idxB !== -1) return 1;
-                    return a.localeCompare(b);
-                });
-
-                // Filter out empty columns in auto-detect mode
-                colArray = colArray.filter(col => data.some(row => row[col] && row[col] !== ""));
-            }
-
-            // Filter Logic
-            const searchContainer = document.createElement('div');
-            searchContainer.className = "mb-4 sticky left-0";
-            const searchInput = document.createElement('input');
-            searchInput.type = "text";
-            searchInput.placeholder = `Filter ${sectionIdentifier}...`;
-            searchInput.className = "w-full max-w-sm px-4 py-2 bg-obsidian-pane border border-obsidian-border rounded-md text-sm text-obsidian-text focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent placeholder-obsidian-textMuted transition-colors";
-
-            searchContainer.appendChild(searchInput);
-            container.appendChild(searchContainer);
-
-            const wrapper = document.createElement('div');
-            wrapper.className = "shadow ring-1 ring-obsidian-border rounded-lg overflow-hidden bg-obsidian-bg";
-            const scrollContainer = document.createElement('div');
-            scrollContainer.className = "overflow-x-auto table-container";
-
-            const table = document.createElement('table');
-            table.className = "min-w-full divide-y divide-obsidian-border";
-
-            // Wire up filter
-            searchInput.addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                const rows = table.querySelectorAll('tbody tr');
-                rows.forEach(row => {
-                    const text = Array.from(row.children).map(c => c.textContent).join(' ').toLowerCase();
-                    row.style.display = text.includes(term) ? '' : 'none';
-                });
-            });
-
-            // Header
-            const thead = document.createElement('thead');
-            thead.className = "bg-obsidian-pane";
-            let thHtml = '<tr>';
-            colArray.forEach(col => {
-                thHtml += `<th scope="col" class="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider whitespace-nowrap">${col}</th>`;
-            });
-            thHtml += '</tr>';
-            thead.innerHTML = thHtml;
-            table.appendChild(thead);
-
-            // Body
-            const tbody = document.createElement('tbody');
-            tbody.className = "divide-y divide-obsidian-border";
-
-            data.forEach((item, idx) => {
-                const tr = document.createElement('tr');
-                tr.className = idx % 2 === 0 ? 'bg-transparent' : 'bg-[#2a2a2c]';
-                tr.className += ' hover:bg-[#323234] transition-colors';
-
-                let tdHtml = '';
-                colArray.forEach(col => {
-                    let val = item[col] || "";
-                    let content = renderValue(val, col); // Pass column name to renderValue
-
-                    if (col === "Name" && val.includes && val.includes(":")) {
-                        content = `<span class="ml-4 border-l-2 border-obsidian-border pl-2 text-obsidian-textMuted">${content}</span>`;
-                    }
-
-                    tdHtml += `<td class="px-4 py-3 text-sm text-obsidian-text whitespace-nowrap">${content}</td>`;
-                });
-                tr.innerHTML = tdHtml;
-                tbody.appendChild(tr);
-            });
-            table.appendChild(tbody);
-
-            scrollContainer.appendChild(table);
-            wrapper.appendChild(scrollContainer);
-            container.appendChild(wrapper);
-        }
 
         function renderValue(val, key = "") {
             if (Array.isArray(val)) {
@@ -1243,7 +1235,196 @@
             if (val === ANY_VALUE) {
                 return '<span class="italic text-obsidian-textMuted">Any</span>';
             }
+
+            // Boolean/Icon Columns for Zones
+            const booleanCols = ["Interface Trust", "GAV Enabled", "AS Enabled", "IPS Enabled", "App Control Enabled", "DPI SSL Server Enabled", "DPI Client Enabled"];
+            if (booleanCols.includes(key)) {
+                // Check common truthy values
+                const isTrue = val === "1" || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "enabled";
+                if (isTrue) {
+                    return '<div class="text-center"><i class="fa-solid fa-check text-obsidian-success"></i></div>';
+                } else {
+                    return '<div class="text-center"><i class="fa-solid fa-xmark text-obsidian-danger"></i></div>';
+                }
+            }
+
             return val;
+        }
+        function renderArrayTableSorted(container, data, sectionIdentifier = "") {
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p class="text-obsidian-textMuted text-sm italic">No items found.</p>';
+                return;
+            }
+
+            // Determine columns
+            const customOrder = COLUMN_ORDER[sectionIdentifier];
+            let colArray = [];
+            if (customOrder) {
+                colArray = [...customOrder];
+            } else {
+                const columns = new Set();
+                data.forEach(item => Object.keys(item).forEach(k => columns.add(k)));
+                colArray = Array.from(columns);
+                const priorityCols = ["Name", "Action", "Zone Type", "IP Address", "Source Zone"];
+                colArray.sort((a, b) => {
+                    const idxA = priorityCols.indexOf(a);
+                    const idxB = priorityCols.indexOf(b);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return a.localeCompare(b);
+                });
+                colArray = colArray.filter(col => data.some(row => row[col] && row[col] !== ""));
+            }
+
+            // State for sorting and filtering
+            let currentData = [...data];
+            let sortCol = null;
+            let sortAsc = true;
+            let filterTerm = "";
+
+            // Filter UI
+            const searchContainer = document.createElement('div');
+            searchContainer.className = "mb-4 sticky left-0";
+            const searchInput = document.createElement('input');
+            searchInput.type = "text";
+            searchInput.placeholder = `Filter ${sectionIdentifier}...`;
+            searchInput.className = "w-full max-w-sm px-4 py-2 bg-obsidian-pane border border-obsidian-border rounded-md text-sm text-obsidian-text focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent placeholder-obsidian-textMuted transition-colors";
+
+            searchContainer.appendChild(searchInput);
+            container.appendChild(searchContainer);
+
+            // Container Wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = "shadow ring-1 ring-obsidian-border rounded-lg overflow-hidden bg-obsidian-bg flex flex-col max-h-[calc(100vh-12rem)]"; // Max height
+            const scrollContainer = document.createElement('div');
+            scrollContainer.className = "overflow-auto table-container flex-1";
+
+            const table = document.createElement('table');
+            table.className = "min-w-full divide-y divide-obsidian-border relative";
+            const thead = document.createElement('thead');
+            thead.className = "bg-obsidian-pane";
+            const tbody = document.createElement('tbody');
+            tbody.className = "divide-y divide-obsidian-border";
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            scrollContainer.appendChild(table);
+            wrapper.appendChild(scrollContainer);
+            container.appendChild(wrapper);
+
+            // Render Function
+            const render = () => {
+                // 1. Filter
+                let filtered = currentData;
+                if (filterTerm) {
+                    filtered = currentData.filter(item => {
+                        return colArray.some(col => {
+                            const val = item[col] || "";
+                            return String(val).toLowerCase().includes(filterTerm);
+                        });
+                    });
+                }
+
+                // 2. Sort
+                if (sortCol) {
+                    filtered.sort((a, b) => {
+                        let valA = a[sortCol] || "";
+                        let valB = b[sortCol] || "";
+
+                        // Numeric Sort Attempt
+                        const numA = parseFloat(valA);
+                        const numB = parseFloat(valB);
+                        if (!isNaN(numA) && !isNaN(numB) &&
+                            String(numA) === String(valA) && String(numB) === String(valB)) { // strict numeric check
+                            return sortAsc ? numA - numB : numB - numA;
+                        }
+
+                        // IP Address Sort
+                        if (sortCol.includes("IP") || sortCol.includes("Address")) {
+                            const ipA = valA.split('.').map(Number);
+                            const ipB = valB.split('.').map(Number);
+                            if (ipA.length === 4 && ipB.length === 4) {
+                                for (let i = 0; i < 4; i++) {
+                                    if (ipA[i] !== ipB[i]) return sortAsc ? ipA[i] - ipB[i] : ipB[i] - ipA[i];
+                                }
+                                return 0;
+                            }
+                        }
+
+                        // String Sort
+                        return sortAsc
+                            ? String(valA).localeCompare(String(valB))
+                            : String(valB).localeCompare(String(valA));
+                    });
+                }
+
+                // 3. Render Header
+                let thHtml = '<tr>';
+                colArray.forEach(col => {
+                    let sortIcon = 'fa-sort text-obsidian-border';
+                    if (col === sortCol) {
+                        sortIcon = sortAsc ? 'fa-sort-up text-obsidian-accent' : 'fa-sort-down text-obsidian-accent';
+                    }
+                    thHtml += `
+                        <th scope="col" data-col="${col}" class="cursor-pointer group hover:bg-obsidian-pane/80 sticky top-0 z-10 bg-obsidian-pane px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider whitespace-nowrap border-b border-obsidian-border shadow-sm select-none">
+                            <div class="flex items-center gap-2">
+                                ${col}
+                                <i class="fa-solid ${sortIcon} text-[10px] transition-colors"></i>
+                            </div>
+                        </th>`;
+                });
+                thHtml += '</tr>';
+                thead.innerHTML = thHtml;
+
+                // Bind Header Click
+                thead.querySelectorAll('th').forEach(th => {
+                    th.addEventListener('click', () => {
+                        const col = th.dataset.col;
+                        if (sortCol === col) {
+                            sortAsc = !sortAsc;
+                        } else {
+                            sortCol = col;
+                            sortAsc = true;
+                        }
+                        render();
+                    });
+                });
+
+                // 4. Render Body
+                tbody.innerHTML = '';
+                if (filtered.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="' + colArray.length + '" class="px-6 py-4 text-center text-sm text-obsidian-textMuted italic">No matches found.</td></tr>';
+                    return;
+                }
+
+                filtered.forEach((item, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.className = idx % 2 === 0 ? 'bg-transparent' : 'bg-[#2a2a2c]';
+                    tr.className += ' hover:bg-[#323234] transition-colors';
+
+                    let tdHtml = '';
+                    colArray.forEach(col => {
+                        let val = item[col] || "";
+                        let content = renderValue(val, col);
+                        if (col === "Name" && val.includes && val.includes(":")) {
+                            content = `<span class="ml-4 border-l-2 border-obsidian-border pl-2 text-obsidian-textMuted">${content}</span>`;
+                        }
+                        tdHtml += `<td class="px-4 py-3 text-sm text-obsidian-text whitespace-nowrap">${content}</td>`;
+                    });
+                    tr.innerHTML = tdHtml;
+                    tbody.appendChild(tr);
+                });
+            };
+
+            // Initial Render
+            render();
+
+            // Filter Event
+            searchInput.addEventListener('input', (e) => {
+                filterTerm = e.target.value.toLowerCase();
+                render();
+            });
         }
     </script>
 </body>
