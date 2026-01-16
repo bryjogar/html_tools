@@ -191,30 +191,35 @@
                 "_array": "zoneObjId",
                 "zoneObjId": "Name",
                 "zoneObjZoneType": "Zone Type",
-                "zoneObjIntraZoneCom": "Allow Interface Trust",
+                "zoneObjIntraZoneCom": "Interface Trust",
                 "zoneObjAvProfile": "Gateway AV Profile",
                 "zoneObjACProfile": "App Control Profile",
                 "zoneObjASProfile": "Anti-Spyware Profile",
                 "zoneObjGavProfile": "GAV Profile",
                 "zoneObjDPISSLSProfile": "DPI-SSL Server",
                 "zoneObjDPISSLCProfile": "DPI-SSL Client",
-                "zoneObjEnableContentFiltering": "CFS Enabled"
+                "zoneObjEnableContentFiltering": "CFS Enabled",
+                // Computed fields
+                "computed_MemberInterfaces": "Member Interfaces"
             },
             "Interfaces": {
                 "_array": "iface_ifnum",
-                "iface_name": "Name", // This is often overridden by enrichment, but good to have
+                "iface_name": "Name",
                 "interface_Zone": "Zone",
                 "iface_comment": "Comment",
                 "iface_lan_ip": "IP Address",
+                "iface_wan_ip": "IP Address",
                 "iface_static_ip": "IP Address",
                 "iface_lan_mask": "Subnet Mask",
                 "iface_static_mask": "Subnet Mask",
                 "iface_static_gateway": "Gateway",
                 "iface_lan_default_gw": "Gateway",
+                "iface_wan_default_gw": "Gateway",
                 "iface_https_mgmt": "HTTPS Mgmt",
                 "iface_ping_mgmt": "Ping Mgmt",
                 "iface_ssh_mgmt": "SSH Mgmt",
-                "iface_snmp_mgmt": "SNMP Mgmt"
+                "iface_snmp_mgmt": "SNMP Mgmt",
+                "iface_enabled": "Enabled"
             },
             "Access Rules": {
                 "_array": "policyAction",
@@ -222,15 +227,10 @@
                 "policyAction": "Action",
                 "policySrcZone": "Source Zone",
                 "policyDstZone": "Dest Zone",
-                "policySrcNet": "Source Network",
-                "policyDstNet": "Dest Network",
-                "policySrcSvc": "Source Service",
-                "policyDstSvc": "Dest Service",
-                "policySrcIf": "Source Interface",
-                "policyDstIf": "Dest Interface",
-                "policyComment": "Comment",
-                "policyEnabled": "Enabled",
-                "policyLog": "Logging"
+                "policySrcNet": "Source Address",
+                "policyDstNet": "Destination Address",
+                "policyDstSvc": "Service",
+                "policyComment": "Comment"
             },
             "NAT Rules": {
                 "_array": "natPolicyOrigSrc",
@@ -241,10 +241,10 @@
                 "natPolicyTransSrc": "Translated Source",
                 "natPolicyTransDst": "Translated Dest",
                 "natPolicyTransSvc": "Translated Service",
-                "natPolicySrcIface": "Source Interface",
-                "natPolicyDstIface": "Dest Interface",
+                "natPolicySrcIface": "Ingress Interface",
+                "natPolicyDstIface": "Egress Interface",
                 "natPolicyComment": "Comment",
-                "natPolicyEnabled": "Enabled",
+                "natPolicyEnabled": "Status",
                 "natPolicyReflexive": "Reflexive",
                 "natPolicyDnsDoctorEnable": "DNS Doctoring"
             },
@@ -254,12 +254,42 @@
                 "pbrObjSrc": "Source",
                 "pbrObjDst": "Destination",
                 "pbrObjSvc": "Service",
+                "pbrObjIface": "Interface",
                 "pbrObjGw": "Gateway",
-                "pbrObjIfaceName": "Interface",
                 "pbrObjMetric": "Metric",
+                "pbrObjType": "Class",
                 "pbrObjPriority": "Priority",
                 "pbrObjProbe": "Probe",
                 "pbrObjDisableOnProbeFail": "Disable on Fail"
+            },
+            "Address Objects": {
+                "_array": "addrObjId",
+                "addrObjId": "ID",
+                "addrObjIdDisp": "Name",
+                "addrObjType": "Type",
+                "addrObjIp1": "IP/Start",
+                "addrObjIp2": "Mask/End",
+                "addrObjZone": "Zone",
+                "addrObjProperties": "Properties",
+                // Computed/Enriched
+                "Members": "Group Members",
+                "addrObjCustom": "Custom/Default"
+            },
+            "Service Objects": {
+                "_array": "svcObjId",
+                "svcObjId": "Name",
+                "svcObjIpType": "Protocol",
+                "svcObjType": "Protocol",
+                "svcObjPort1": "Port Start",
+                "svcObjPort2": "Port End",
+                "svcObjProperties": "Properties",
+                "svcObjGuiClass": "Custom/Default",
+                "Members": "Group Members"
+            },
+            "Service Group Mappings": {
+                "_array": "so_atomToGrp",
+                "so_atomToGrp": "Member",
+                "so_grpToGrp": "Group"
             },
             "Security Services": {
                 "GAV": {
@@ -296,15 +326,6 @@
                 "dns_server_three": "DNS Server 3",
                 "dns_use_static_servers": "Use Static DNS"
             },
-            "Address Objects": {
-                "_array": "addrObjId",
-                "addrObjId": "Name",
-                "addrObjIdDisp": "Display Name",
-                "addrObjType": "Type",
-                "addrObjIp1": "IP/Start",
-                "addrObjIp2": "Mask/End",
-                "addrObjZone": "Zone"
-            },
             "DHCP": {
                 "Settings": {
                     "enableDHCP": "Enable DHCP Server"
@@ -334,14 +355,38 @@
             }
         };
 
+        const COLUMN_ORDER = {
+            "Interfaces": ["Name", "Zone", "IP Address", "Subnet Mask", "Enabled", "Comment"],
+            "Zones": ["Name", "Zone Type", "Member Interfaces", "Interface Trust", "GAV Profile", "Anti-Spyware Profile", "IPS", "App Control Profile", "DPI-SSL Client", "DPI-SSL Server"],
+            "Access Rules": ["Name", "Action", "Source Zone", "Dest Zone", "Source Address", "Destination Address", "Service", "Comment"],
+            "Address Objects": ["Name", "IP/Start", "Mask/End", "Type", "Zone", "Group Members", "Custom/Default"],
+            "Service Objects": ["Name", "Protocol", "Port Start", "Port End", "Custom/Default"],
+            "Service Groups": ["Name", "Group Members", "Custom/Default"],
+            "Routing Policies": ["Name", "Source", "Destination", "Service", "Interface", "Gateway", "Metric", "Class"],
+            "NAT Rules": ["Name", "Status", "Ingress Interface", "Egress Interface", "Original Source", "Original Dest", "Original Service", "Translated Source", "Translated Dest", "Translated Service"]
+        };
+
         const ZONE_TYPE_MAP = {
             "1": "Trusted", "0": "Untrusted", "2": "Public", "5": "Encrypted", "8": "SSL VPN", "4": "Wireless", "6": "Untrusted"
         };
+        // ... (skip lines 363-1017, using separate chunks or assuming I must replace contiguous block?
+        // I will just replace COLUMN_ORDER and renderServiceObjectsTabs separately.
+        // This replacement only covers COLUMN_ORDER. I'll use multi check below.)
         const ACTION_MAP = {
             "2": "ALLOW", "0": "DENY", "1": "DISCARD"
         };
         const ADDRESS_OBJ_TYPE_MAP = {
             "1": "Host", "2": "Range", "4": "Network", "8": "Group", "9": "MAC", "10": "FQDN", "0": "Host"
+        };
+        const SERVICE_PROTOCOL_MAP = {
+            "1": "TCP",
+            "0": "UDP",
+            "6": "TCP",
+            "17": "UDP",
+            "2": "Group"
+        };
+        const ROUTING_TYPE_MAP = {
+            "1": "Custom", "0": "Default"
         };
 
         const ANY_INTERFACE_ID = "4294967295";
@@ -368,7 +413,7 @@
             modal.classList.toggle('hidden');
             if (!modal.classList.contains('hidden')) {
                 const area = document.getElementById('pasteArea');
-                area.value = ''; // Clear previous content? User might want to keep it if they cancelled. Let's keep it as is.
+                area.value = '';
                 area.focus();
             }
         }
@@ -410,7 +455,7 @@
             fileNameDisplay.classList.remove('font-semibold', 'text-white');
 
             document.getElementById('resultsArea').classList.add('hidden');
-            document.getElementById('emptyState').classList.remove('hidden');
+            document.getElementById('emptyState').classList.add('hidden'); // Ensure empty state is hidden when clearing
             PARSED_DATA = {};
         }
 
@@ -435,7 +480,7 @@
             const targetContent = document.getElementById(tabId);
             if (targetContent) targetContent.classList.add('active');
 
-            // Activate target button(s) - handling based on text match since ID generation is simple
+            // Activate target button(s)
             const buttons = document.querySelectorAll('.tab-btn');
             for (const btn of buttons) {
                 if (btn.innerText.replace(/\s+/g, '-').toLowerCase() === tabId) {
@@ -470,9 +515,11 @@
             const results = {};
             const lines = configText.split('\n');
 
+            // Helper to collect Interfaces for Zone calculation
+            let allInterfaces = [];
+
             for (const [sectionName, sectionMap] of Object.entries(CONFIG_MAP)) {
 
-                // Check if it's a nested section (e.g., Security Services) or flat
                 const firstKey = Object.keys(sectionMap)[0];
                 const isNested = (typeof sectionMap[firstKey] === 'object' && sectionMap[firstKey] !== null);
 
@@ -489,20 +536,48 @@
                     if (sectionMap._array) {
                         let parsedArray = parseGenericArray(lines, sectionMap, interfaceMap, addressObjectMap);
 
-                        // Special handling for sorting Interfaces
                         if (sectionName === "Interfaces") {
                             parsedArray.sort((a, b) => {
                                 const nameA = a["Name"] || "";
                                 const nameB = b["Name"] || "";
                                 return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
                             });
+
+                            // Fix WAN IP or missing IP by looking up Address Object "Xn IP"
+                            const addressObjects = results["Address Objects"] || [];
+                            parsedArray.forEach(iface => {
+                                // 1. Check for 0.0.0.0 or missing IP
+                                const currentIP = iface["IP Address"];
+                                if (!currentIP || currentIP === "0.0.0.0" || currentIP === "(DHCP)") {
+                                    const ifaceName = iface["Name"];
+                                    // Try to find Address Object "Xn IP"
+                                    const targetName = `${ifaceName} IP`;
+
+                                    const addrObj = addressObjects.find(obj =>
+                                        obj["Display Name"] === targetName || obj["Name"] === targetName
+                                    );
+
+                                    if (addrObj && addrObj["IP/Start"] && addrObj["IP/Start"] !== "0.0.0.0") {
+                                        iface["IP Address"] = addrObj["IP/Start"];
+                                        // Optional: Update mask if available and missing
+                                        if (addrObj["Mask/End"] && (!iface["Subnet Mask"] || iface["Subnet Mask"] === "0.0.0.0")) {
+                                            iface["Subnet Mask"] = addrObj["Mask/End"];
+                                        }
+                                    } else {
+                                        // If still not found and valid WAN/X1, mark as DHCP
+                                        if ((iface["Zone"] === "WAN" || (ifaceName && ifaceName.startsWith("X1"))) && (currentIP === "0.0.0.0" || !currentIP)) {
+                                            iface["IP Address"] = "(DHCP)";
+                                        }
+                                    }
+                                }
+                            });
+                            allInterfaces = parsedArray;
                         }
 
-                        // Special handling for Address Groups enrichment
                         if (sectionName === "Address Objects" && groupMemberMap) {
                             parsedArray.forEach(obj => {
                                 if (obj["Name"] && groupMemberMap[obj["Name"]]) {
-                                    obj["Members"] = groupMemberMap[obj["Name"]];
+                                    obj["Group Members"] = groupMemberMap[obj["Name"]];
                                 }
                             });
                         }
@@ -512,6 +587,39 @@
                     }
                 }
             }
+
+            // Post-Process: Calculate Member Interfaces for Zones
+            if (results["Zones"] && Array.isArray(results["Zones"])) {
+                results["Zones"].forEach(zone => {
+                    const zoneName = zone["Name"];
+                    if (zoneName) {
+                        const members = allInterfaces.filter(iface => iface["Zone"] === zoneName).map(iface => iface["Name"]);
+                        if (members.length > 0) {
+                            zone["Member Interfaces"] = members;
+                        }
+                    }
+                });
+            }
+
+            // Post-Process: Service Groups Enrichment
+            if (results["Service Group Mappings"] && results["Service Objects"]) {
+                const serviceGroupMap = {};
+                results["Service Group Mappings"].forEach(mapping => {
+                    const group = mapping["Group"];
+                    const member = mapping["Member"];
+                    if (group && member) {
+                        if (!serviceGroupMap[group]) serviceGroupMap[group] = [];
+                        serviceGroupMap[group].push(member);
+                    }
+                });
+
+                results["Service Objects"].forEach(obj => {
+                    if (obj["Name"] && serviceGroupMap[obj["Name"]]) {
+                        obj["Group Members"] = serviceGroupMap[obj["Name"]];
+                    }
+                });
+            }
+
             return results;
         }
 
@@ -551,11 +659,8 @@
         }
 
         function buildAddressObjectMap(text) {
-            // Returns a map of Name -> Description (IP, Range, Subnet, or FQDN)
             const map = {};
             const lines = text.split('\n');
-
-            // Regex definitions
             const idRegex = /^addrObjId_(\d+)=(.*)/;
             const ip1Regex = /^addrObjIp1_(\d+)=(.*)/;
             const ip2Regex = /^addrObjIp2_(\d+)=(.*)/;
@@ -569,8 +674,6 @@
             for (const line of lines) {
                 const trimmed = line.trim();
                 let match;
-
-                // Standard Address Objects
                 if ((match = trimmed.match(idRegex))) {
                     const idx = match[1];
                     if (!temp[idx]) temp[idx] = {};
@@ -586,10 +689,8 @@
                 } else if ((match = trimmed.match(typeRegex))) {
                     const idx = match[1];
                     if (!temp[idx]) temp[idx] = {};
-                    temp[idx].type = match[2]; // 1=Host, 2=Range, 4=Network, 8=Group
-                }
-                // FQDN Objects
-                else if ((match = trimmed.match(fqdnIdRegex))) {
+                    temp[idx].type = match[2];
+                } else if ((match = trimmed.match(fqdnIdRegex))) {
                     const idx = match[1];
                     if (!tempFqdn[idx]) tempFqdn[idx] = {};
                     tempFqdn[idx].name = decodeURIComponent(match[2]);
@@ -600,7 +701,6 @@
                 }
             }
 
-            // Process Standard Objects
             Object.values(temp).forEach(obj => {
                 if (obj.name) {
                     let desc = "";
@@ -609,16 +709,15 @@
                     } else if (obj.ip1) {
                         desc = obj.ip1;
                         if (obj.type === "4" && obj.ip2 && obj.ip2 !== "0.0.0.0") {
-                            desc = `${obj.ip1}/${obj.ip2}`; // Network/Mask
+                            desc = `${obj.ip1}/${obj.ip2}`;
                         } else if (obj.type === "2" && obj.ip2 && obj.ip2 !== "0.0.0.0") {
-                            desc = `${obj.ip1}-${obj.ip2}`; // Range
+                            desc = `${obj.ip1}-${obj.ip2}`;
                         }
                     }
                     if (desc) map[obj.name] = desc;
                 }
             });
 
-            // Process FQDN Objects
             Object.values(tempFqdn).forEach(obj => {
                 if (obj.name && obj.fqdn) {
                     map[obj.name] = obj.fqdn;
@@ -629,7 +728,7 @@
         }
 
         function buildAddressGroupMemberMap(text) {
-            const map = {}; // GroupName -> [MemberName1, MemberName2]
+            const map = {};
             const lines = text.split('\n');
             const atomRegex = /^addro_atomToGrp_(\d+)=(.*)/;
             const grpRegex = /^addro_grpToGrp_(\d+)=(.*)/;
@@ -703,43 +802,96 @@
 
                         if (!tempMap[index]) tempMap[index] = {};
 
-                        // Enums / Maps
                         if (key === 'zoneObjZoneType') value = ZONE_TYPE_MAP[value] || value;
-                        if (key === 'addrObjType') value = ADDRESS_OBJ_TYPE_MAP[value] || value; // Raw number -> "Host"
+                        if (key === 'addrObjType') value = ADDRESS_OBJ_TYPE_MAP[value] || value;
                         if (key === 'policyAction') value = ACTION_MAP[value] || value;
+                        if (key === 'svcObjType' || key === 'svcObjIpType') value = SERVICE_PROTOCOL_MAP[value] || value;
+                        if (key === 'pbrObjType') value = ROUTING_TYPE_MAP[value] || "Default";
 
-                        // Interface Loopup
                         if (key === 'policySrcIf' || key === 'policyDstIf' ||
-                            key === 'natPolicySrcIface' || key === 'natPolicyDstIface') {
+                            key === 'natPolicySrcIface' || key === 'natPolicyDstIface' ||
+                            key === 'pbrObjIface') {
                             value = interfaceMap[value] || value;
                         }
 
-                        // "Any" handling for empty fields
                         if ((key === 'policySrcNet' || key === 'policyDstNet' ||
                             key === 'policySrcSvc' || key === 'policyDstSvc' ||
                             key === 'natPolicyOrigSrc' || key === 'natPolicyOrigDst' ||
-                            key === 'natPolicyOrigSvc' || key === 'natPolicyTransSrc' ||
-                            key === 'natPolicyTransDst' || key === 'natPolicyTransSvc'
+                            key === 'natPolicyOrigSvc' ||
+                            key === 'pbrObjSrc' || key === 'pbrObjDst' ||
+                            key === 'pbrObjSvc' || key === 'pbrObjGw' || key === 'pbrObjIface'
                         ) && value === "") {
                             value = ANY_VALUE;
                         }
 
-                        // Enrichment: Append (IP/Desc) to Name for clarity
+                        if ((key === 'natPolicyTransSrc' || key === 'natPolicyTransDst' || key === 'natPolicyTransSvc') && value === "") {
+                            value = "Original";
+                        }
+
                         if ((key === 'policySrcNet' || key === 'policyDstNet' ||
                             key === 'natPolicyOrigSrc' || key === 'natPolicyOrigDst' ||
                             key === 'natPolicyTransSrc' || key === 'natPolicyTransDst' ||
-                            key === 'pbrObjSrc' || key === 'pbrObjDst'
+                            key === 'pbrObjSrc' || key === 'pbrObjDst' || key === 'pbrObjGw'
                         ) && value !== ANY_VALUE) {
                             if (addressObjectMap && addressObjectMap[value]) {
                                 value = `${value} <span class="text-obsidian-textMuted text-xs">(${addressObjectMap[value]})</span>`;
                             }
                         }
 
-                        tempMap[index][label] = value;
+                        // Prevent overwriting valid IP with 0.0.0.0 or empty
+                        const currentValue = tempMap[index][label];
+                        const isZeroIP = (value === "0.0.0.0" || value === "");
+
+                        if ((label === "IP Address" || label === "Gateway") && currentValue && currentValue !== "0.0.0.0" && currentValue !== "(DHCP)" && isZeroIP) {
+                            // Skip overwriting a valid IP or Gateway with 0.0.0.0
+                        } else {
+                            tempMap[index][label] = value;
+                        }
                         break;
                     }
                 }
             }
+            // Post-process for missing default values (specifically for Routing Class)
+            Object.values(tempMap).forEach(obj => {
+                if (obj.hasOwnProperty("Gateway") && obj.hasOwnProperty("Metric")) {
+                    // User feedback indicates "Auto-named" policies without type are considered "Custom"
+                    // and "Default" policies (standard routing table) are not in this file.
+                    // So default to "Custom" if missing.
+                    if (!obj["Class"]) obj["Class"] = "Custom";
+                }
+
+                // Address Object Logic: Fallback Name & Custom/Default Detection
+                if (obj.hasOwnProperty("ID") && obj.hasOwnProperty("Type") && obj.hasOwnProperty("Zone")) {
+                    // Fallback Name
+                    if (!obj["Name"] || obj["Name"] === "") {
+                        obj["Name"] = obj["ID"];
+                    }
+
+                    // Custom/Default Logic based on Properties (793 = Default/System Objects, 29 = Default/System Groups)
+                    // If properties are missing, fallback to heuristic or default to Custom.
+                    if (obj.hasOwnProperty("Properties")) {
+                        obj["Custom/Default"] = (obj["Properties"] === "793" || obj["Properties"] === "29") ? "Default" : "Custom";
+                    } else {
+                        // Heuristic Fallback (legacy/safety)
+                        const name = obj["Name"] || "";
+                        const id = obj["ID"] || "";
+                        const isDefault = /^(X\d+\s+(IP|Subnet)|All\s+|WAN\s+|LAN\s+|DMZ\s+)/i.test(name) ||
+                            /^(X\d+\s+(IP|Subnet)|All\s+|WAN\s+|LAN\s+|DMZ\s+)/i.test(id);
+                        obj["Custom/Default"] = isDefault ? "Default" : "Custom";
+                    }
+                }
+
+                // Service Object Logic: Custom/Default
+                if (obj.hasOwnProperty("Properties") && obj.hasOwnProperty("Protocol")) {
+                    // 14 = Custom, others (e.g. 11293) = Default
+                    if (obj["Properties"] === "14") {
+                        obj["Custom/Default"] = "Custom";
+                    } else {
+                        obj["Custom/Default"] = "Default";
+                    }
+                }
+            });
+
             return Object.values(tempMap);
         }
 
@@ -756,7 +908,7 @@
 
             let first = true;
             for (const [sectionName, sectionData] of Object.entries(data)) {
-                if (sectionName === 'CLI') continue;
+                if (sectionName === 'CLI' || sectionName === 'Service Group Mappings') continue;
 
                 const tabId = sectionName.replace(/\s+/g, '-').toLowerCase();
 
@@ -772,15 +924,16 @@
                 contentDiv.id = tabId;
                 contentDiv.className = `tab-content ${first ? 'active' : ''} space-y-6`;
 
-                // Sub-render dispatch
                 const isNested = !Array.isArray(sectionData) && Object.values(sectionData).some(v => typeof v === 'object');
 
                 if (isNested) {
                     renderNestedSection(contentDiv, sectionData);
                 } else if (sectionName === "Address Objects" && Array.isArray(sectionData)) {
                     renderAddressObjectsTabs(contentDiv, sectionData);
+                } else if (sectionName === "Service Objects" && Array.isArray(sectionData)) {
+                    renderServiceObjectsTabs(contentDiv, sectionData);
                 } else if (Array.isArray(sectionData)) {
-                    renderArrayTable(contentDiv, sectionData);
+                    renderArrayTable(contentDiv, sectionData, sectionName); // Pass section name for sorting
                 } else {
                     renderKVTable(contentDiv, sectionData);
                 }
@@ -800,7 +953,7 @@
                 const subContainer = document.createElement('div');
                 subContainer.className = "mb-8";
                 if (Array.isArray(subData)) {
-                    renderArrayTable(subContainer, subData);
+                    renderArrayTable(subContainer, subData, subTitle);
                 } else {
                     renderKVTable(subContainer, subData);
                 }
@@ -813,7 +966,7 @@
 
             data.forEach(item => {
                 const type = item["Type"];
-                const isGroup = type === "Group" || !!item.Members;
+                const isGroup = type === "Group" || !!item["Group Members"];
                 const isNetwork = type === "Network" || type === "4";
                 const isRange = type === "Range" || type === "2";
 
@@ -824,7 +977,6 @@
                 } else if (isRange) {
                     ranges.push(item);
                 } else {
-                    // Default to Hosts for type "Host", "1", or unknown/undefined
                     if (!item["Mask/End"] || item["Mask/End"] === "0.0.0.0") {
                         item["Mask/End"] = "255.255.255.255";
                     }
@@ -850,21 +1002,13 @@
                 btn.innerText = `${cat.name} (${cat.data.length})`;
 
                 btn.onclick = (e) => {
-                    // Reset all
                     subNav.querySelectorAll('button').forEach(b => {
                         b.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-transparent text-obsidian-textMuted hover:text-obsidian-text";
                     });
-                    // Activate this
                     e.target.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-obsidian-accent text-obsidian-accent";
 
-                    // Render content
                     subContent.innerHTML = '';
-                    if (cat.name === "Groups") {
-                        // For groups, we often want to show members, so columns might differ
-                        renderArrayTable(subContent, cat.data, ["IP/Start", "Mask/End", "Zone", "Type"]); // Hide IP cols for groups
-                    } else {
-                        renderArrayTable(subContent, cat.data);
-                    }
+                    renderArrayTable(subContent, cat.data, "Address Objects");
                 };
                 subNav.appendChild(btn);
             });
@@ -872,9 +1016,67 @@
             container.appendChild(subNav);
             container.appendChild(subContent);
 
-            // Initial Render
-            renderArrayTable(subContent, hosts);
+            renderArrayTable(subContent, hosts, "Address Objects");
         }
+
+        function renderServiceObjectsTabs(container, data) {
+            const groups = [], custom = [], checkDefault = [], all = [];
+
+            data.forEach(item => {
+                // Determine if item is a group: Protocol is Group OR it has populated members
+                const isGroup = (item["Protocol"] === "Group") || (item["Group Members"] && item["Group Members"].length > 0);
+
+                if (isGroup) {
+                    groups.push(item);
+                } else {
+                    // Only add non-groups to the main list (or should main list show all? Usually Objects only)
+                    // Let's keep "Services" as "All Individual Objects"
+                    all.push(item);
+
+                    if (item["Custom/Default"] === "Custom") {
+                        custom.push(item);
+                    } else {
+                        checkDefault.push(item);
+                    }
+                }
+            });
+
+            // Sub-Tabs Header
+            const subNav = document.createElement('div');
+            subNav.className = "flex space-x-2 mb-4 border-b border-obsidian-border";
+            const subContent = document.createElement('div');
+
+            const categories = [
+                { name: "Services", data: all, section: "Service Objects" },
+                { name: "Groups", data: groups, section: "Service Groups" },
+                { name: "Custom", data: custom, section: "Service Objects" },
+                { name: "Default", data: checkDefault, section: "Service Objects" }
+            ];
+
+            categories.forEach((cat, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-2 text-sm font-medium transition-colors border-b-2 ${idx === 0 ? 'border-obsidian-accent text-obsidian-accent' : 'border-transparent text-obsidian-textMuted hover:text-obsidian-text'}`;
+                btn.innerText = `${cat.name} (${cat.data.length})`;
+
+                btn.onclick = (e) => {
+                    subNav.querySelectorAll('button').forEach(b => {
+                        b.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-transparent text-obsidian-textMuted hover:text-obsidian-text";
+                    });
+                    e.target.className = "px-3 py-2 text-sm font-medium transition-colors border-b-2 border-obsidian-accent text-obsidian-accent";
+
+                    subContent.innerHTML = '';
+                    renderArrayTable(subContent, cat.data, cat.section);
+                };
+                subNav.appendChild(btn);
+            });
+
+            container.appendChild(subNav);
+            container.appendChild(subContent);
+
+            // Default view: Services (Individual Objects)
+            renderArrayTable(subContent, all, "Service Objects");
+        }
+
 
         function renderKVTable(container, data) {
             if (Object.keys(data).length === 0) {
@@ -890,7 +1092,7 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-obsidian-text w-1/3">${key}</td>
-                    <td class="px-6 py-3 whitespace-nowrap text-sm text-obsidian-textMuted font-mono">${renderValue(value)}</td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm text-obsidian-textMuted font-mono">${renderValue(value, key)}</td>
                 `;
                 tbody.appendChild(tr);
             }
@@ -902,34 +1104,50 @@
             container.appendChild(shadowWrapper);
         }
 
-        function renderArrayTable(container, data, excludeColumns = []) {
+        function renderArrayTable(container, data, sectionIdentifier = "") {
             if (!data || data.length === 0) {
                 container.innerHTML = '<p class="text-obsidian-textMuted text-sm italic">No items found.</p>';
                 return;
             }
 
-            // Determine all unique columns
-            const columns = new Set();
-            data.forEach(item => Object.keys(item).forEach(k => columns.add(k)));
-            let colArray = Array.from(columns);
+            // Determine columns to display
+            const customOrder = COLUMN_ORDER[sectionIdentifier];
+            let colArray = [];
 
-            // Sort columns logically
-            const priorityCols = ["Name", "Action", "Zone Type", "IP Address", "Source Zone"];
-            colArray.sort((a, b) => {
-                const idxA = priorityCols.indexOf(a);
-                const idxB = priorityCols.indexOf(b);
-                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                if (idxA !== -1) return -1;
-                if (idxB !== -1) return 1;
-                return a.localeCompare(b);
-            });
+            if (customOrder) {
+                // Strict mode: Use exactly the columns defined in COLUMN_ORDER
+                colArray = [...customOrder];
+            } else {
+                // Auto-detect mode: Collect all keys from data
+                const columns = new Set();
+                data.forEach(item => Object.keys(item).forEach(k => columns.add(k)));
+                colArray = Array.from(columns);
 
-            // Filter columns
-            colArray = colArray.filter(col => {
-                if (excludeColumns.includes(col)) return false;
-                // Only show if at least one row has data for this column
-                return data.some(row => row[col] && row[col] !== "");
-            });
+                // Fallback default sort for auto-detected columns
+                const priorityCols = ["Name", "Action", "Zone Type", "IP Address", "Source Zone"];
+                colArray.sort((a, b) => {
+                    const idxA = priorityCols.indexOf(a);
+                    const idxB = priorityCols.indexOf(b);
+                    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                    if (idxA !== -1) return -1;
+                    if (idxB !== -1) return 1;
+                    return a.localeCompare(b);
+                });
+
+                // Filter out empty columns in auto-detect mode
+                colArray = colArray.filter(col => data.some(row => row[col] && row[col] !== ""));
+            }
+
+            // Filter Logic
+            const searchContainer = document.createElement('div');
+            searchContainer.className = "mb-4 sticky left-0";
+            const searchInput = document.createElement('input');
+            searchInput.type = "text";
+            searchInput.placeholder = `Filter ${sectionIdentifier}...`;
+            searchInput.className = "w-full max-w-sm px-4 py-2 bg-obsidian-pane border border-obsidian-border rounded-md text-sm text-obsidian-text focus:outline-none focus:border-obsidian-accent focus:ring-1 focus:ring-obsidian-accent placeholder-obsidian-textMuted transition-colors";
+
+            searchContainer.appendChild(searchInput);
+            container.appendChild(searchContainer);
 
             const wrapper = document.createElement('div');
             wrapper.className = "shadow ring-1 ring-obsidian-border rounded-lg overflow-hidden bg-obsidian-bg";
@@ -938,6 +1156,16 @@
 
             const table = document.createElement('table');
             table.className = "min-w-full divide-y divide-obsidian-border";
+
+            // Wire up filter
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const text = Array.from(row.children).map(c => c.textContent).join(' ').toLowerCase();
+                    row.style.display = text.includes(term) ? '' : 'none';
+                });
+            });
 
             // Header
             const thead = document.createElement('thead');
@@ -962,10 +1190,9 @@
                 let tdHtml = '';
                 colArray.forEach(col => {
                     let val = item[col] || "";
-                    let content = renderValue(val);
+                    let content = renderValue(val, col); // Pass column name to renderValue
 
-                    // Indent names that look like they have hierarchy (optional visual tweak)
-                    if (col === "Name" && val.includes(":")) {
+                    if (col === "Name" && val.includes && val.includes(":")) {
                         content = `<span class="ml-4 border-l-2 border-obsidian-border pl-2 text-obsidian-textMuted">${content}</span>`;
                     }
 
@@ -981,16 +1208,29 @@
             container.appendChild(wrapper);
         }
 
-        function renderValue(val) {
+        function renderValue(val, key = "") {
             if (Array.isArray(val)) {
                 return val.map(v => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-obsidian-pane border border-obsidian-border text-obsidian-text mr-1 mb-1">${v}</span>`).join('');
             }
-            if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
-                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
+
+            // Only convert 0/1 to boolean for specific keys
+            const booleanKeys = ["Enabled", "Status", "Ready", "Active", "IPS", "GAV", "Anti-Spyware", "App Control", "Botnet", "Geo-IP", "DPI-SSL", "DPI-SSL Client", "DPI-SSL Server", "Multicast"];
+            const isBooleanKey = booleanKeys.some(k => key.includes(k) || key === k);
+
+            if (isBooleanKey) {
+                if (val === "1" || String(val).toLowerCase() === "on" || val === "True") {
+                    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
+                }
+                if (val === "0" || String(val).toLowerCase() === "off" || val === "False") {
+                    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
+                }
+            } else {
+                // For non-boolean keys, if value is explicitly "True"/"False" string (Python bools), render them.
+                // But strictly avoid 0/1 conversion.
+                if (String(val).toLowerCase() === "true") return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">Yes</span>';
+                if (String(val).toLowerCase() === "false") return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
             }
-            if (val === "0" || String(val).toLowerCase() === "off" || val === "False") {
-                return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/30 text-red-400 border border-red-800">No</span>';
-            }
+
             if (val === "ALLOW") {
                 return '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">ALLOW</span>';
             }
