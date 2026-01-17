@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Homelab OPDS Reader</title>
     
+    <meta name="description" content="Offline-first OPDS Ebook Reader">
     <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/opendyslexic@2.1.0/open-dyslexic.min.css">
@@ -32,15 +34,17 @@
     </script>
 
     <style>
+        /* Custom Scrollbars */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1e1e1e; }
         ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
         
+        /* Reader Overrides */
         #viewer { background-color: #ffffff; height: 100%; width: 100%; }
-        /* V28 Fix: Ensure iframe takes full height for scroll mode */
         #viewer iframe { background-color: #ffffff !important; width: 100%; height: 100%; }
         
+        /* UI Utilities */
         .toggle-checkbox:checked { right: 0; border-color: #7c3aed; }
         .toggle-checkbox:checked + .toggle-label { background-color: #7c3aed; }
         .settings-group { transition: all 0.3s ease-in-out; overflow: hidden; }
@@ -92,6 +96,7 @@
         </aside>
 
         <section class="flex-1 flex flex-col relative overflow-hidden bg-obsidian-bg w-full">
+            
             <div id="view-browser" class="flex-1 flex flex-col hidden h-full">
                 <div class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0">
                     <div class="flex items-center gap-3 overflow-hidden">
@@ -231,11 +236,38 @@
         };
 
         function checkDependencies() { if (typeof window.ePub === 'undefined') { document.getElementById('system-error').classList.remove('hidden'); return false; } return true; }
-        function getProxiedUrl(targetUrl, config) { if (!config || !config.proxy) return targetUrl; let proxyBase = config.proxyUrl || 'https://corsproxy.io/?'; return proxyBase + encodeURIComponent(targetUrl); }
-        function getAuthHeaders(config) { const headers = {}; if(config && config.auth && config.user && config.pass) { headers['Authorization'] = 'Basic ' + btoa(unescape(encodeURIComponent(config.user + ':' + config.pass))); } return headers; }
-        function initImageObserver() { imageObserver = new IntersectionObserver((entries, observer) => { entries.forEach(entry => { if (entry.isIntersecting) { const img = entry.target; const src = img.dataset.src; if (src) { fetchImageForCard(src, img); observer.unobserve(img); } } }); }, { root: els.feedResults.parentElement, rootMargin: "100px" }); }
-        async function fetchImageForCard(url, imgElement) { try { const headers = getAuthHeaders(activeFeedConfig); const resp = await fetch(url, { headers }); if (!resp.ok) throw new Error("Status " + resp.status); const blob = await resp.blob(); imgElement.src = URL.createObjectURL(blob); imgElement.classList.remove('opacity-50'); } catch (e) { imgElement.parentElement.innerHTML = '<i class="fa-solid fa-book-open text-3xl text-gray-600"></i>'; } }
-        
+        function getProxiedUrl(targetUrl, config) { 
+            if (!config || !config.proxy) return targetUrl; 
+            let proxyBase = config.proxyUrl || 'https://corsproxy.io/?'; 
+            return proxyBase + encodeURIComponent(targetUrl); 
+        }
+        function getAuthHeaders(config) { 
+            const headers = {}; 
+            if(config && config.auth && config.user && config.pass) { 
+                headers['Authorization'] = 'Basic ' + btoa(unescape(encodeURIComponent(config.user + ':' + config.pass))); 
+            } 
+            return headers; 
+        }
+        function initImageObserver() {
+            imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target; const src = img.dataset.src;
+                        if (src) { fetchImageForCard(src, img); observer.unobserve(img); }
+                    }
+                });
+            }, { root: els.feedResults.parentElement, rootMargin: "100px" });
+        }
+        async function fetchImageForCard(url, imgElement) {
+            try {
+                const headers = getAuthHeaders(activeFeedConfig);
+                const resp = await fetch(url, { headers });
+                if (!resp.ok) throw new Error("Status " + resp.status);
+                const blob = await resp.blob();
+                imgElement.src = URL.createObjectURL(blob);
+                imgElement.classList.remove('opacity-50');
+            } catch (e) { imgElement.parentElement.innerHTML = '<i class="fa-solid fa-book-open text-3xl text-gray-600"></i>'; }
+        }
         function switchView(mode) { 
             if (mode === 'reader') { 
                 els.viewBrowser.classList.add('hidden'); els.viewReader.classList.remove('hidden'); 
@@ -250,7 +282,10 @@
             setTimeout(() => { if(currentRendition) currentRendition.resize(); }, 350);
         };
         window.addEventListener('resize', () => { if(currentRendition) { clearTimeout(window.resizeTimer); window.resizeTimer = setTimeout(() => currentRendition.resize(), 100); } });
-        async function loadSettings() { const saved = await get('reader_settings'); if(saved) readerSettings = saved; applySettingsUI(); const sidebarState = localStorage.getItem('sidebarState'); if(sidebarState === 'closed') { els.sidebar.classList.add('force-collapse'); els.sidebar.classList.add('-ml-80'); } }
+        async function loadSettings() { 
+            const saved = await get('reader_settings'); if(saved) readerSettings = saved; applySettingsUI();
+            const sidebarState = localStorage.getItem('sidebarState'); if(sidebarState === 'closed') { els.sidebar.classList.add('force-collapse'); els.sidebar.classList.add('-ml-80'); }
+        }
         async function saveSettings() { await set('reader_settings', readerSettings); }
         function applySettingsUI() {
             document.getElementById('btn-layout-paged').className = `flex-1 py-1 text-xs rounded transition-colors ${readerSettings.flow === 'paginated' ? 'bg-obsidian-accent text-white' : 'hover:bg-white/10'}`;
@@ -263,7 +298,6 @@
         document.getElementById('btn-layout-paged').onclick = () => changeFlow('paginated');
         document.getElementById('btn-layout-scroll').onclick = () => changeFlow('scrolled-doc');
         async function changeFlow(flow) { if(readerSettings.flow === flow) return; readerSettings.flow = flow; saveSettings(); applySettingsUI(); if(activeBookId) openBook(activeBookId); }
-        
         function applyRenditionSettings() {
             if(!currentRendition) return;
             const font = readerSettings.fontFamily;
@@ -281,10 +315,8 @@
             els.readerSpinner.style.backgroundColor = colors[readerSettings.theme];
             if(readerSettings.flow === 'scrolled-doc') { els.viewer.classList.add('scrolled'); } else { els.viewer.classList.remove('scrolled'); }
         }
-
         els.btnAppearance.onclick = () => { els.appearancePopover.classList.toggle('hidden'); };
         document.addEventListener('click', (e) => { if (!els.btnAppearance.contains(e.target) && !els.appearancePopover.contains(e.target)) { els.appearancePopover.classList.add('hidden'); } });
-
         async function loadLibrary() {
             const allData = await entries();
             const books = allData.filter(([key]) => key.startsWith('meta-')).map(([key, val]) => val);
@@ -293,28 +325,16 @@
                 const item = document.createElement('div'); item.className = 'sidebar-item group flex gap-2 p-2 rounded cursor-pointer hover:bg-white/5 transition-colors border border-transparent'; let coverHtml = '<div class="w-full h-full bg-gray-700 flex items-center justify-center"><i class="fa-solid fa-book text-gray-500 text-xs"></i></div>'; if (book.coverBlob) { const url = URL.createObjectURL(book.coverBlob); coverHtml = `<img src="${url}" class="w-full h-full object-cover">`; } item.innerHTML = `<div class="w-8 h-12 shrink-0 rounded overflow-hidden shadow-sm border border-obsidian-border/50">${coverHtml}</div><div class="flex-1 min-w-0 flex flex-col justify-center"><h4 class="text-xs font-bold text-gray-300 truncate group-hover:text-white">${book.title}</h4><p class="text-[10px] text-gray-500 truncate">${book.author || 'Unknown'}</p></div><button class="delete-book-btn opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 px-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`; item.onclick = (e) => { if(!e.target.closest('.delete-book-btn')) { document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active')); item.classList.add('active'); openBook(book.id); }}; item.querySelector('.delete-book-btn').onclick = async (e) => { e.stopPropagation(); if(confirm(`Delete "${book.title}"?`)) { await del(`meta-${book.id}`); await del(`blob-${book.id}`); loadLibrary(); }}; els.libraryList.appendChild(item);
             });
         }
-
         async function openBook(id) {
             if(!checkDependencies()) return; switchView('reader'); activeBookId = id; els.readerSpinner.classList.remove('hidden'); els.viewerPlaceholder.style.display = 'none';
             try {
                 if (bookObj) bookObj.destroy(); els.viewer.innerHTML = ''; els.viewer.appendChild(els.readerSpinner); els.viewer.appendChild(els.viewerPlaceholder); els.readerToolbar.classList.remove('hidden');
                 const blob = await get(`blob-${id}`); const meta = await get(`meta-${id}`); if (!blob || blob.size === 0) throw new Error("Book file is empty."); els.bookTitle.innerText = meta.title; const buffer = await blob.arrayBuffer(); bookObj = window.ePub(buffer); await new Promise(r => requestAnimationFrame(r));
-                
-                // V28 FIX: Use scrolled-doc manager for stable scrolling
-                const options = { 
-                    width: "100%", height: "100%", 
-                    manager: readerSettings.flow === 'scrolled-doc' ? "default" : "default", 
-                    flow: readerSettings.flow === 'scrolled-doc' ? "scrolled-doc" : "paginated" 
-                };
-                currentRendition = bookObj.renderTo("viewer", options);
-                
+                const options = { width: "100%", height: "100%", manager: readerSettings.flow === 'scrolled-doc' ? "default" : "default", flow: readerSettings.flow === 'scrolled-doc' ? "scrolled-doc" : "paginated" }; currentRendition = bookObj.renderTo("viewer", options);
                 currentRendition.hooks.content.register((contents) => { const style = contents.document.createElement('style'); style.innerHTML = `@font-face { font-family: 'OpenDyslexic'; src: url('https://unpkg.com/opendyslexic@2.1.0/open-dyslexic-regular.woff') format('woff'); font-weight: normal; font-style: normal; }`; contents.document.head.appendChild(style); });
-                applyRenditionSettings(); await currentRendition.display(); els.readerSpinner.classList.add('hidden'); 
-                currentRendition.on("keyup", (e) => { if (e.keyCode === 37) currentRendition.prev(); if (e.keyCode === 39) currentRendition.next(); });
+                applyRenditionSettings(); await currentRendition.display(); els.readerSpinner.classList.add('hidden'); currentRendition.on("keyup", (e) => { if (e.keyCode === 37) currentRendition.prev(); if (e.keyCode === 39) currentRendition.next(); });
             } catch (err) { logger.error("Open Error: " + err.message); els.readerSpinner.classList.add('hidden'); els.viewerPlaceholder.style.display = 'flex'; els.viewerPlaceholder.innerHTML = `<div class="text-center p-8 text-red-400">Error opening book.<br><span class="text-xs text-gray-500">${err.message}</span></div>`; }
         }
-        
-        // ... (Feed/Import/Proxy Logic) ...
         document.getElementById('btn-open-add-modal').onclick = () => els.modal.classList.remove('hidden'); document.getElementById('btn-close-modal').onclick = () => els.modal.classList.add('hidden'); document.getElementById('btn-save-feed').onclick = saveFeed; document.getElementById('btn-refresh-lib').onclick = loadLibrary; document.getElementById('btn-import-file').onclick = () => els.fileInput.click(); document.getElementById('prev-page').onclick = () => currentRendition?.prev(); document.getElementById('next-page').onclick = () => currentRendition?.next(); document.getElementById('btn-toggle-logs').onclick = () => els.consolePane.classList.toggle('hidden'); els.authToggle.addEventListener('change', (e) => { if(e.target.checked) { els.authFields.classList.remove('collapsed'); els.authFields.classList.add('expanded'); } else { els.authFields.classList.remove('expanded'); els.authFields.classList.add('collapsed'); } }); els.corsToggle.addEventListener('change', (e) => { if(e.target.checked) { els.proxyFields.classList.remove('collapsed'); els.proxyFields.classList.add('expanded'); } else { els.proxyFields.classList.remove('expanded'); els.proxyFields.classList.add('collapsed'); } }); els.proxySelect.addEventListener('change', (e) => { if(e.target.value === 'custom') els.proxyCustom.classList.remove('hidden'); else els.proxyCustom.classList.add('hidden'); });
         async function saveFeed() { let proxyUrl = els.proxySelect.value === 'custom' ? els.proxyCustom.value : els.proxySelect.value; const feed = { id: Date.now().toString(), name: els.feedName.value || 'Untitled', url: els.feedUrl.value, user: els.feedUser.value, pass: els.feedPass.value, proxy: els.corsToggle.checked, proxyUrl, auth: els.authToggle.checked }; if(!feed.url) return alert("URL is required"); await update('saved_feeds', (val) => (val || []).concat(feed)); els.modal.classList.add('hidden'); renderFeedsList(); }
         async function renderFeedsList() { const feeds = await get('saved_feeds') || []; els.feedsList.innerHTML = ''; feeds.forEach(feed => { const item = document.createElement('div'); item.className = 'sidebar-item group flex items-center justify-between p-2 rounded cursor-pointer hover:bg-white/5 transition-colors border border-transparent'; item.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i class="fa-solid fa-rss text-gray-500 group-hover:text-white text-xs"></i><span class="text-sm font-medium truncate text-gray-300 group-hover:text-white">${feed.name}</span></div><button class="delete-btn opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 px-2"><i class="fa-solid fa-trash text-xs"></i></button>`; item.onclick = (e) => { if(!e.target.closest('.delete-btn')) initFeedBrowser(feed); }; item.querySelector('.delete-btn').onclick = async (e) => { e.stopPropagation(); if(confirm(`Remove?`)) { await update('saved_feeds', l => l.filter(f => f.id !== feed.id)); renderFeedsList(); }}; els.feedsList.appendChild(item); }); }
