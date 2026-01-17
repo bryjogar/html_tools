@@ -53,6 +53,7 @@
         .book-card-cover { aspect-ratio: 2 / 3; }
         .sidebar-item.active { background-color: #7c3aed; color: white; border-color: #7c3aed; }
         .sidebar-item.active .text-gray-500 { color: rgba(255,255,255,0.7); }
+        .sidebar-item.active .text-xs.text-gray-500 { color: rgba(255,255,255,0.8); } /* Progress text fix */
         #sidebar-pane { transition: margin-left 0.3s ease, transform 0.3s ease; }
         .force-collapse { margin-left: -20rem !important; }
     </style>
@@ -317,25 +318,51 @@
         }
         els.btnAppearance.onclick = () => { els.appearancePopover.classList.toggle('hidden'); };
         document.addEventListener('click', (e) => { if (!els.btnAppearance.contains(e.target) && !els.appearancePopover.contains(e.target)) { els.appearancePopover.classList.add('hidden'); } });
+        
         async function loadLibrary() {
             const allData = await entries();
             const books = allData.filter(([key]) => key.startsWith('meta-')).map(([key, val]) => val);
             els.libraryList.innerHTML = '';
             books.sort((a,b) => b.added - a.added).forEach(book => {
-                const item = document.createElement('div'); item.className = 'sidebar-item group flex gap-2 p-2 rounded cursor-pointer hover:bg-white/5 transition-colors border border-transparent'; let coverHtml = '<div class="w-full h-full bg-gray-700 flex items-center justify-center"><i class="fa-solid fa-book text-gray-500 text-xs"></i></div>'; if (book.coverBlob) { const url = URL.createObjectURL(book.coverBlob); coverHtml = `<img src="${url}" class="w-full h-full object-cover">`; } item.innerHTML = `<div class="w-8 h-12 shrink-0 rounded overflow-hidden shadow-sm border border-obsidian-border/50">${coverHtml}</div><div class="flex-1 min-w-0 flex flex-col justify-center"><h4 class="text-xs font-bold text-gray-300 truncate group-hover:text-white">${book.title}</h4><p class="text-[10px] text-gray-500 truncate">${book.author || 'Unknown'}</p></div><button class="delete-book-btn opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 px-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`; item.onclick = (e) => { if(!e.target.closest('.delete-book-btn')) { document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active')); item.classList.add('active'); openBook(book.id); }}; item.querySelector('.delete-book-btn').onclick = async (e) => { e.stopPropagation(); if(confirm(`Delete "${book.title}"?`)) { await del(`meta-${book.id}`); await del(`blob-${book.id}`); loadLibrary(); }}; els.libraryList.appendChild(item);
+                const item = document.createElement('div'); item.className = 'sidebar-item group flex gap-2 p-2 rounded cursor-pointer hover:bg-white/5 transition-colors border border-transparent'; 
+                let coverHtml = '<div class="w-full h-full bg-gray-700 flex items-center justify-center"><i class="fa-solid fa-book text-gray-500 text-xs"></i></div>'; 
+                if (book.coverBlob) { const url = URL.createObjectURL(book.coverBlob); coverHtml = `<img src="${url}" class="w-full h-full object-cover">`; } 
+                
+                // Show Progress Percentage if available
+                const progressText = book.percentage ? `${Math.round(book.percentage * 100)}% Read` : 'Unread';
+                
+                item.innerHTML = `<div class="w-8 h-12 shrink-0 rounded overflow-hidden shadow-sm border border-obsidian-border/50">${coverHtml}</div><div class="flex-1 min-w-0 flex flex-col justify-center"><h4 class="text-xs font-bold text-gray-300 truncate group-hover:text-white">${book.title}</h4><p class="text-[10px] text-gray-500 truncate">${book.author || 'Unknown'}</p><p class="text-[9px] text-gray-500 mt-0.5">${progressText}</p></div><button class="delete-book-btn opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 px-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`; 
+                item.onclick = (e) => { if(!e.target.closest('.delete-book-btn')) { document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active')); item.classList.add('active'); openBook(book.id); }}; 
+                item.querySelector('.delete-book-btn').onclick = async (e) => { e.stopPropagation(); if(confirm(`Delete "${book.title}"?`)) { await del(`meta-${book.id}`); await del(`blob-${book.id}`); loadLibrary(); }}; els.libraryList.appendChild(item);
             });
         }
+
         async function openBook(id) {
             if(!checkDependencies()) return; switchView('reader'); activeBookId = id; els.readerSpinner.classList.remove('hidden'); els.viewerPlaceholder.style.display = 'none';
             try {
                 if (bookObj) bookObj.destroy(); els.viewer.innerHTML = ''; els.viewer.appendChild(els.readerSpinner); els.viewer.appendChild(els.viewerPlaceholder); els.readerToolbar.classList.remove('hidden');
                 const blob = await get(`blob-${id}`); const meta = await get(`meta-${id}`); if (!blob || blob.size === 0) throw new Error("Book file is empty."); els.bookTitle.innerText = meta.title; const buffer = await blob.arrayBuffer(); bookObj = window.ePub(buffer); await new Promise(r => requestAnimationFrame(r));
-                const options = { width: "100%", height: "100%", manager: readerSettings.flow === 'scrolled-doc' ? "default" : "default", flow: readerSettings.flow === 'scrolled-doc' ? "scrolled-doc" : "paginated" }; currentRendition = bookObj.renderTo("viewer", options);
+                const options = { width: "100%", height: "100%", manager: readerSettings.flow === 'scrolled-doc' ? "default" : "default", flow: readerSettings.flow === 'scrolled-doc' ? "scrolled-doc" : "paginated" }; 
+                currentRendition = bookObj.renderTo("viewer", options);
+                
                 currentRendition.hooks.content.register((contents) => { const style = contents.document.createElement('style'); style.innerHTML = `@font-face { font-family: 'OpenDyslexic'; src: url('https://unpkg.com/opendyslexic@2.1.0/open-dyslexic-regular.woff') format('woff'); font-weight: normal; font-style: normal; }`; contents.document.head.appendChild(style); });
-                applyRenditionSettings(); await currentRendition.display(); els.readerSpinner.classList.add('hidden'); currentRendition.on("keyup", (e) => { if (e.keyCode === 37) currentRendition.prev(); if (e.keyCode === 39) currentRendition.next(); });
+                applyRenditionSettings(); 
+                
+                // --- V29: RESTORE PROGRESS ---
+                await currentRendition.display(meta.progress || undefined);
+                // -----------------------------
+                
+                els.readerSpinner.classList.add('hidden'); 
+                currentRendition.on("keyup", (e) => { if (e.keyCode === 37) currentRendition.prev(); if (e.keyCode === 39) currentRendition.next(); });
+                
+                // --- V29: SAVE PROGRESS ---
+                currentRendition.on("relocated", (location) => {
+                    update(`meta-${id}`, (val) => ({ ...val, progress: location.start.cfi, percentage: location.start.percentage }));
+                });
+                // --------------------------
             } catch (err) { logger.error("Open Error: " + err.message); els.readerSpinner.classList.add('hidden'); els.viewerPlaceholder.style.display = 'flex'; els.viewerPlaceholder.innerHTML = `<div class="text-center p-8 text-red-400">Error opening book.<br><span class="text-xs text-gray-500">${err.message}</span></div>`; }
         }
-        document.getElementById('btn-open-add-modal').onclick = () => els.modal.classList.remove('hidden'); document.getElementById('btn-close-modal').onclick = () => els.modal.classList.add('hidden'); document.getElementById('btn-save-feed').onclick = saveFeed; document.getElementById('btn-refresh-lib').onclick = loadLibrary; document.getElementById('btn-import-file').onclick = () => els.fileInput.click(); document.getElementById('prev-page').onclick = () => currentRendition?.prev(); document.getElementById('next-page').onclick = () => currentRendition?.next(); document.getElementById('btn-toggle-logs').onclick = () => els.consolePane.classList.toggle('hidden'); els.authToggle.addEventListener('change', (e) => { if(e.target.checked) { els.authFields.classList.remove('collapsed'); els.authFields.classList.add('expanded'); } else { els.authFields.classList.remove('expanded'); els.authFields.classList.add('collapsed'); } }); els.corsToggle.addEventListener('change', (e) => { if(e.target.checked) { els.proxyFields.classList.remove('collapsed'); els.proxyFields.classList.add('expanded'); } else { els.proxyFields.classList.remove('expanded'); els.proxyFields.classList.add('collapsed'); } }); els.proxySelect.addEventListener('change', (e) => { if(e.target.value === 'custom') els.proxyCustom.classList.remove('hidden'); else els.proxyCustom.classList.add('hidden'); });
+        document.getElementById('btn-open-add-modal').onclick = () => els.modal.classList.remove('hidden'); document.getElementById('btn-close-modal').onclick = () => els.modal.classList.add('hidden'); document.getElementById('btn-save-feed').onclick = saveFeed; document.getElementById('btn-refresh-lib').onclick = loadLibrary; document.getElementById('btn-import-file').onclick = () => els.fileInput.click(); document.getElementById('prev-page').onclick = () => { if(currentRendition) { currentRendition.prev(); loadLibrary(); }}; document.getElementById('next-page').onclick = () => { if(currentRendition) { currentRendition.next(); loadLibrary(); }}; document.getElementById('btn-toggle-logs').onclick = () => els.consolePane.classList.toggle('hidden'); els.authToggle.addEventListener('change', (e) => { if(e.target.checked) { els.authFields.classList.remove('collapsed'); els.authFields.classList.add('expanded'); } else { els.authFields.classList.remove('expanded'); els.authFields.classList.add('collapsed'); } }); els.corsToggle.addEventListener('change', (e) => { if(e.target.checked) { els.proxyFields.classList.remove('collapsed'); els.proxyFields.classList.add('expanded'); } else { els.proxyFields.classList.remove('expanded'); els.proxyFields.classList.add('collapsed'); } }); els.proxySelect.addEventListener('change', (e) => { if(e.target.value === 'custom') els.proxyCustom.classList.remove('hidden'); else els.proxyCustom.classList.add('hidden'); });
         async function saveFeed() { let proxyUrl = els.proxySelect.value === 'custom' ? els.proxyCustom.value : els.proxySelect.value; const feed = { id: Date.now().toString(), name: els.feedName.value || 'Untitled', url: els.feedUrl.value, user: els.feedUser.value, pass: els.feedPass.value, proxy: els.corsToggle.checked, proxyUrl, auth: els.authToggle.checked }; if(!feed.url) return alert("URL is required"); await update('saved_feeds', (val) => (val || []).concat(feed)); els.modal.classList.add('hidden'); renderFeedsList(); }
         async function renderFeedsList() { const feeds = await get('saved_feeds') || []; els.feedsList.innerHTML = ''; feeds.forEach(feed => { const item = document.createElement('div'); item.className = 'sidebar-item group flex items-center justify-between p-2 rounded cursor-pointer hover:bg-white/5 transition-colors border border-transparent'; item.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i class="fa-solid fa-rss text-gray-500 group-hover:text-white text-xs"></i><span class="text-sm font-medium truncate text-gray-300 group-hover:text-white">${feed.name}</span></div><button class="delete-btn opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 px-2"><i class="fa-solid fa-trash text-xs"></i></button>`; item.onclick = (e) => { if(!e.target.closest('.delete-btn')) initFeedBrowser(feed); }; item.querySelector('.delete-btn').onclick = async (e) => { e.stopPropagation(); if(confirm(`Remove?`)) { await update('saved_feeds', l => l.filter(f => f.id !== feed.id)); renderFeedsList(); }}; els.feedsList.appendChild(item); }); }
         function initFeedBrowser(feed) { switchView('browser'); activeFeedConfig = feed; browserStack = []; els.browserTitle.innerText = feed.name; updateBrowserUI(); fetchOpds(feed.url, true); }
@@ -352,7 +379,7 @@
                  const fileSize = epubLink ? parseInt(links.find(l => l.getAttribute('href') === epubLink).getAttribute('length') || 0) : 0; const sizeMB = fileSize > 0 ? (fileSize / (1024*1024)).toFixed(1) + ' MB' : '';
                  if(!epubLink && !navLink) return; validItems++;
                  const card = document.createElement('div'); card.className = 'group flex flex-col bg-obsidian-card rounded-lg overflow-hidden border border-obsidian-border/50 hover:border-obsidian-accent cursor-pointer shadow-md';
-                 if(epubLink) { const absEpub = new URL(epubLink, baseUrl).href; const imgHtml = absCover ? `<img data-src="${coverSrc}" class="w-full h-full object-cover opacity-50 transition-opacity duration-500 book-cover-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">` : '<i class="fa-solid fa-book-open text-3xl text-gray-600"></i>'; card.innerHTML = `<div class="relative w-full book-card-cover bg-gray-800 flex items-center justify-center overflow-hidden">${imgHtml}<div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><i class="fa-solid fa-download text-white text-xl"></i></div></div><div class="p-2"><h4 class="text-xs font-bold text-gray-200 line-clamp-2">${title}</h4><div class="flex justify-between mt-1"><span class="text-[9px] text-gray-500">EPUB</span><span class="text-[9px] ${fileSize > 5000000 ? 'text-orange-400' : 'text-gray-500'}">${sizeMB}</span></div></div>`; card.onclick = () => downloadBook(absEpub, title, "Unknown", absCover, Math.random().toString(36), card, headers, fileSize); }
+                 if(epubLink) { const absEpub = new URL(epubLink, baseUrl).href; const imgHtml = absCover ? `<img data-src="${coverSrc}" class="w-full h-full object-cover opacity-50 transition-opacity duration-500 book-cover-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">` : '<i class="fa-solid fa-book-open text-3xl text-gray-600"></i>'; card.innerHTML = `<div class="relative w-full book-card-cover bg-gray-800 flex items-center justify-center overflow-hidden">${imgHtml}<div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><i class="fa-solid fa-download text-white text-xl"></i></div></div><div class="p-2"><h4 class="text-xs font-bold text-gray-200 line-clamp-2">${title}</h4><div class="flex justify-between mt-1"><span class="text-[9px] text-gray-500">EPUB</span><span class="text-[9px] ${fileSize > 1000000 ? 'text-orange-400' : 'text-gray-500'}">${sizeMB}</span></div></div>`; card.onclick = () => downloadBook(absEpub, title, "Unknown", absCover, Math.random().toString(36), card, headers, fileSize); }
                  else if(navLink) { const absNav = new URL(navLink, baseUrl).href; card.innerHTML = `<div class="relative w-full aspect-[3/2] bg-obsidian-pane border-b border-obsidian-border/50 flex items-center justify-center"><i class="fa-solid fa-folder text-obsidian-accent/50 text-4xl"></i></div><div class="p-2"><h4 class="text-xs font-bold text-gray-200 truncate">${title}</h4></div>`; card.onclick = () => fetchOpds(absNav, true); }
                  els.feedResults.appendChild(card); if(card.querySelector('.book-cover-img')) { imageObserver.observe(card.querySelector('.book-cover-img')); }
              });
@@ -360,13 +387,34 @@
              const links = Array.from(xml.getElementsByTagName('link')); const nextLink = links.find(l => l.getAttribute('rel') === 'next');
              if (nextLink) { const nextUrl = new URL(nextLink.getAttribute('href'), baseUrl).href; const nextCard = document.createElement('div'); nextCard.className = 'group flex flex-col bg-obsidian-pane rounded-lg overflow-hidden border border-obsidian-border hover:border-obsidian-accent cursor-pointer shadow-md justify-center items-center min-h-[200px] col-span-1'; nextCard.innerHTML = `<div class="text-center"><i class="fa-solid fa-arrow-right text-4xl text-obsidian-accent mb-2"></i><h4 class="text-sm font-bold text-white">Next Page</h4></div>`; nextCard.onclick = () => fetchOpds(nextUrl, true); els.feedResults.appendChild(nextCard); }
         }
+        
+        // --- V29 FIX: 1MB LIMIT & DIRECT DL PROMPT ---
         async function downloadBook(url, title, author, coverUrl, id, card, headers, size) {
              logger.log(`Downloading ${title}`);
-             try { const resp = await fetch(getProxiedUrl(url, activeFeedConfig), { headers }); if(!resp.ok) throw new Error(resp.status); const blob = await resp.blob(); let coverBlob = null; if(coverUrl) { try { const cResp = await fetch(getProxiedUrl(coverUrl, activeFeedConfig), { headers }); if(cResp.ok) coverBlob = await cResp.blob(); } catch(e) {} } const safeId = btoa(id).substring(0,16); await set(`blob-${safeId}`, blob); await set(`meta-${safeId}`, { id: safeId, title, author, coverBlob, added: Date.now() }); logger.success("Saved!"); loadLibrary(); } catch(e) { logger.error("DL Failed: " + e.message); const isSizeIssue = size > 800000; if(isSizeIssue && confirm(`Download Failed (likely Proxy limit of 1MB).\n\nFile size is ${Math.round(size/1024/1024)}MB.\n\nClick OK to open direct link.`)) { window.open(url, '_blank'); } }
+             try { 
+                 // If > 1MB, warn user immediately to save them a failed wait time, but still attempt if they insist? 
+                 // Actually, best to try, and catch the fail. The visual indicator is orange.
+                 const resp = await fetch(getProxiedUrl(url, activeFeedConfig), { headers }); 
+                 if(!resp.ok) throw new Error(resp.status); 
+                 const blob = await resp.blob(); 
+                 
+                 let coverBlob = null;
+                 if(coverUrl) { try { const cResp = await fetch(getProxiedUrl(coverUrl, activeFeedConfig), { headers }); if(cResp.ok) coverBlob = await cResp.blob(); } catch(e) {} }
+                 const safeId = btoa(id).substring(0,16); 
+                 await set(`blob-${safeId}`, blob); 
+                 await set(`meta-${safeId}`, { id: safeId, title, author, coverBlob, added: Date.now() }); 
+                 logger.success("Saved!"); loadLibrary(); 
+             } catch(e) { 
+                 logger.error("DL Failed: " + e.message); 
+                 const isSizeIssue = size > 1000000; // 1MB Limit
+                 if(isSizeIssue && confirm(`Download Failed (likely due to Proxy 1MB Limit).\n\nFile is ${Math.round(size/1024/1024)}MB.\n\nClick OK to open the Direct Download link.\n(After downloading, use the 'Upload' button in the sidebar to add it to your library).`)) { 
+                     window.open(url, '_blank'); 
+                 } 
+             }
         }
         els.fileInput.onchange = async (e) => { const file = e.target.files[0]; if(!file) return; const id = Math.random().toString(36).substring(7); let title = file.name.replace('.epub', ''); try { const b = window.ePub(await file.arrayBuffer()); const m = await b.loaded.metadata; if(m.title) title = m.title; } catch(e){} await set(`blob-${id}`, file); await set(`meta-${id}`, {id, title, author:'Imported', added:Date.now()}); loadLibrary(); };
 
-        if(checkDependencies()) { initImageObserver(); loadSettings(); loadLibrary(); renderFeedsList(); logger.log("System Ready. V28 (Scrolled-Doc Fix)."); }
+        if(checkDependencies()) { initImageObserver(); loadSettings(); loadLibrary(); renderFeedsList(); logger.log("System Ready. V29 (Auto-Resume & 1MB Fix)."); }
     </script>
 </body>
 </html>
