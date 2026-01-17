@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homelab OPDS Reader</title>
+    
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/opendyslexic@2.1.0/open-dyslexic.min.css">
+    
+    <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://unpkg.com/epubjs@0.3.93/dist/epub.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: { bg: '#1e1e1e', pane: '#252526', border: '#3c3c3c', accent: '#7c3aed', text: '#cccccc', card: '#2d2d2d' }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        dyslexic: ['OpenDyslexic', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        #viewer { background-color: #ffffff; height: 100%; width: 100%; }
+        /* V28 Fix: Ensure iframe takes full height for scroll mode */
+        #viewer iframe { background-color: #ffffff !important; width: 100%; height: 100%; }
+        
+        .toggle-checkbox:checked { right: 0; border-color: #7c3aed; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #7c3aed; }
+        .settings-group { transition: all 0.3s ease-in-out; overflow: hidden; }
+        .collapsed { max-height: 0; opacity: 0; margin-top: 0 !important; }
+        .expanded { max-height: 200px; opacity: 1; margin-top: 0.5rem !important; }
+        .book-card-cover { aspect-ratio: 2 / 3; }
+        .sidebar-item.active { background-color: #7c3aed; color: white; border-color: #7c3aed; }
+        .sidebar-item.active .text-gray-500 { color: rgba(255,255,255,0.7); }
+        #sidebar-pane { transition: margin-left 0.3s ease, transform 0.3s ease; }
+        .force-collapse { margin-left: -20rem !important; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <div id="system-error" class="bg-red-600 text-white text-xs p-2 text-center hidden z-50">
+        <strong>CRITICAL ERROR:</strong> Library files failed to load. Check your internet connection or ad-blocker.
+    </div>
+
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-20 shadow-md">
+        <div class="flex items-center gap-3 text-obsidian-accent font-bold text-lg">
+            <button id="btn-toggle-sidebar" class="text-gray-400 hover:text-white mr-2 transition-colors"><i class="fa-solid fa-bars"></i></button>
+            <i class="fa-solid fa-book-open-reader text-2xl hidden sm:block"></i>
+            <span class="text-white hidden sm:inline tracking-wide">OPDS Reader</span>
+        </div>
+        <div class="flex gap-3">
+            <button id="btn-toggle-logs" class="bg-obsidian-border/30 hover:bg-obsidian-border/60 text-xs px-3 py-2 rounded transition-colors text-obsidian-text font-mono border border-transparent hover:border-obsidian-border"><i class="fa-solid fa-terminal mr-1"></i> Logs</button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden relative">
+        <aside id="sidebar-pane" class="w-80 bg-obsidian-pane border-r border-obsidian-border flex flex-col shrink-0 absolute md:relative z-30 h-full shadow-xl -ml-80 md:ml-0">
+            <div class="flex flex-col h-1/2 border-b border-obsidian-border">
+                <div class="p-3 border-b border-obsidian-border flex justify-between items-center bg-obsidian-pane">
+                    <h2 class="font-bold text-xs text-white uppercase tracking-wider"><i class="fa-solid fa-book-bookmark mr-2 text-obsidian-accent"></i>Offline Library</h2>
+                    <div class="flex gap-2">
+                        <button id="btn-import-file" class="text-xs bg-obsidian-border hover:bg-white hover:text-black text-gray-300 px-2 py-1 rounded transition-colors" title="Manual Import (.epub)"><i class="fa-solid fa-upload"></i></button>
+                        <button id="btn-refresh-lib" class="text-xs text-gray-400 hover:text-white transition-colors"><i class="fa-solid fa-rotate"></i></button>
+                    </div>
+                </div>
+                <div id="library-list" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+            </div>
+            <div class="flex flex-col h-1/2">
+                <div class="p-3 border-b border-obsidian-border flex justify-between items-center bg-obsidian-pane">
+                    <h2 class="font-bold text-xs text-white uppercase tracking-wider"><i class="fa-solid fa-rss mr-2 text-obsidian-accent"></i>Saved Feeds</h2>
+                    <button id="btn-open-add-modal" class="text-xs bg-obsidian-accent hover:bg-violet-600 text-white px-2 py-1 rounded transition-colors"><i class="fa-solid fa-plus"></i> Add</button>
+                </div>
+                <div id="feeds-list" class="flex-1 overflow-y-auto p-2 space-y-2 bg-obsidian-bg/50"></div>
+            </div>
+        </aside>
+
+        <section class="flex-1 flex flex-col relative overflow-hidden bg-obsidian-bg w-full">
+            <div id="view-browser" class="flex-1 flex flex-col hidden h-full">
+                <div class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <button id="btn-browser-back" class="hidden text-gray-400 hover:text-white bg-obsidian-border/50 hover:bg-obsidian-accent px-3 py-1 rounded text-xs transition-colors"><i class="fa-solid fa-arrow-left"></i> Back</button>
+                        <h3 id="browser-title" class="font-bold text-white text-lg truncate">Select a Feed</h3>
+                    </div>
+                    <div id="browser-spinner" class="hidden"><i class="fa-solid fa-circle-notch fa-spin text-obsidian-accent"></i></div>
+                </div>
+                <div id="feed-results-container" class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                     <div id="feed-results" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"></div>
+                </div>
+            </div>
+
+            <div id="view-reader" class="flex-1 flex flex-col h-full bg-white relative group/reader">
+                <div id="reader-toolbar" class="h-12 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-3 shrink-0 hidden shadow-md z-20">
+                    <span id="current-book-title" class="text-xs md:text-sm font-bold truncate max-w-[150px] md:max-w-md text-white"></span>
+                    <div class="flex items-center gap-2">
+                        <div class="relative">
+                            <button id="btn-appearance" class="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-gray-300 hover:text-white transition-colors">
+                                <i class="fa-solid fa-font"></i>
+                            </button>
+                            <div id="appearance-popover" class="absolute right-0 top-10 w-64 bg-obsidian-pane border border-obsidian-border rounded-lg shadow-2xl p-4 hidden z-50 text-white">
+                                <div class="flex bg-obsidian-bg rounded p-1 mb-4 border border-obsidian-border">
+                                    <button class="flex-1 py-1 text-xs rounded hover:bg-white/10 transition-colors bg-obsidian-accent" id="btn-layout-paged">Pages</button>
+                                    <button class="flex-1 py-1 text-xs rounded hover:bg-white/10 transition-colors" id="btn-layout-scroll">Scroll</button>
+                                </div>
+                                <div class="flex justify-between gap-2 mb-4">
+                                    <button class="w-full h-8 rounded border border-gray-300 bg-white text-black text-xs font-bold" onclick="setTheme('light')">Light</button>
+                                    <button class="w-full h-8 rounded border border-amber-200 bg-[#f5deb3] text-black text-xs font-bold" onclick="setTheme('sepia')">Sepia</button>
+                                    <button class="w-full h-8 rounded border border-gray-700 bg-[#1a1a1a] text-gray-300 text-xs font-bold" onclick="setTheme('dark')">Dark</button>
+                                </div>
+                                <div class="flex items-center justify-between mb-4 border-t border-b border-obsidian-border py-2">
+                                    <span class="text-xs text-gray-400">Size</span>
+                                    <div class="flex gap-3 items-center">
+                                        <button class="w-8 h-8 rounded bg-obsidian-bg hover:bg-white/10 border border-obsidian-border" onclick="changeFontSize(-10)">A-</button>
+                                        <button class="w-8 h-8 rounded bg-obsidian-bg hover:bg-white/10 border border-obsidian-border" onclick="changeFontSize(10)">A+</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <select id="font-family-select" class="w-full bg-obsidian-bg border border-obsidian-border text-xs p-2 rounded outline-none">
+                                        <option value="Helvetica, sans-serif">Sans-Serif</option>
+                                        <option value="Georgia, serif">Serif</option>
+                                        <option value="OpenDyslexic, sans-serif">OpenDyslexic</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="prev-page" class="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-gray-300 hover:text-white"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button id="next-page" class="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center text-gray-300 hover:text-white"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div id="viewer" class="flex-1 relative bg-white overflow-hidden">
+                    <div id="viewer-placeholder" class="absolute inset-0 flex items-center justify-center bg-obsidian-bg text-obsidian-text z-0">
+                        <div class="text-center p-8 opacity-50"><i class="fa-brands fa-readme text-8xl text-obsidian-border mb-6"></i><p class="text-xl font-light">Select a book or feed</p></div>
+                    </div>
+                    <div id="reader-spinner" class="absolute inset-0 bg-white z-50 flex items-center justify-center hidden">
+                        <div class="text-center text-obsidian-bg"><i class="fa-solid fa-circle-notch fa-spin text-4xl mb-2 text-obsidian-accent"></i><p class="text-sm">Rendering Book...</p></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <input type="file" id="file-input" accept=".epub" class="hidden">
+
+        <div id="modal-add-feed" class="absolute inset-0 bg-black/90 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-obsidian-pane border border-obsidian-border rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] overflow-y-auto">
+                <div class="p-4 border-b border-obsidian-border flex justify-between items-center sticky top-0 bg-obsidian-pane z-10">
+                    <h3 class="font-bold text-white">Add New Feed</h3>
+                    <button id="btn-close-modal" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div><label class="block text-[10px] text-gray-500 mb-1 font-bold tracking-wider">FEED NAME</label><input type="text" id="feed-name" placeholder="e.g. My Komga" class="w-full bg-obsidian-bg border border-obsidian-border text-white text-sm p-2 rounded focus:border-obsidian-accent outline-none"></div>
+                    <div><label class="block text-[10px] text-gray-500 mb-1 font-bold tracking-wider">OPDS URL</label><input type="url" id="feed-url" placeholder="https://..." class="w-full bg-obsidian-bg border border-obsidian-border text-white text-sm p-2 rounded focus:border-obsidian-accent outline-none font-mono"></div>
+                    <div class="flex gap-4 border-t border-b border-obsidian-border py-3">
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="feed-auth-toggle" class="accent-obsidian-accent"><span class="text-xs text-gray-300">Authentication</span></label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="feed-cors-toggle" class="accent-obsidian-accent"><span class="text-xs text-gray-300">CORS Proxy</span></label>
+                    </div>
+                    <div id="feed-auth-fields" class="settings-group collapsed">
+                        <label class="block text-[10px] text-obsidian-accent mb-1 font-bold">CREDENTIALS</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="feed-user" placeholder="Username" class="bg-obsidian-bg border border-obsidian-border text-white text-xs p-2 rounded outline-none">
+                            <input type="password" id="feed-pass" placeholder="Password" class="bg-obsidian-bg border border-obsidian-border text-white text-xs p-2 rounded outline-none">
+                        </div>
+                    </div>
+                    <div id="feed-proxy-fields" class="settings-group collapsed">
+                        <label class="block text-[10px] text-obsidian-accent mb-1 font-bold">PROXY SERVICE</label>
+                        <select id="feed-proxy-select" class="w-full bg-obsidian-bg border border-obsidian-border text-white text-xs p-2 rounded outline-none mb-2">
+                            <option value="https://corsproxy.io/?">CORSProxy.io (Default)</option>
+                            <option value="https://api.allorigins.win/raw?url=">AllOrigins</option>
+                            <option value="custom">Custom URL...</option>
+                        </select>
+                        <input type="text" id="feed-proxy-custom" placeholder="http://localhost:8080/" class="w-full bg-obsidian-bg border border-obsidian-border text-white text-xs p-2 rounded outline-none font-mono hidden">
+                    </div>
+                    <button id="btn-save-feed" class="w-full bg-obsidian-accent hover:bg-violet-600 text-white py-2 rounded font-bold shadow-lg transition-colors mt-2">SAVE FEED</button>
+                    <div class="text-[10px] text-center text-gray-500 pt-2 cursor-pointer hover:text-white" onclick="document.getElementById('feed-name').value='Feedbooks'; document.getElementById('feed-url').value='https://feedbooks.com/publicdomain/catalog.atom'; document.getElementById('feed-cors-toggle').click();">Click here to fill with Demo Data (Feedbooks)</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="console-pane" class="absolute bottom-0 left-0 right-0 h-48 bg-black/95 border-t border-obsidian-accent text-green-400 font-mono text-xs p-2 overflow-y-auto z-50 hidden shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+            <div class="flex justify-between items-center mb-1 sticky top-0 bg-black/95 pb-1 border-b border-gray-800">
+                <span class="font-bold">SYSTEM LOGS</span>
+                <button onclick="document.getElementById('console-pane').classList.add('hidden')" class="text-gray-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="log-content" class="space-y-1"></div>
+        </div>
+    </main>
+
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-2 text-center shrink-0 z-40 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline font-medium">HomeLab Playground</a>
+    </footer>
+
+    <script type="module">
+        import { get, set, entries, del, update } from 'https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/index.js';
+
+        let readerSettings = { theme: 'light', fontSize: 100, fontFamily: 'Helvetica, sans-serif', flow: 'paginated' };
+        const els = {
+            viewReader: document.getElementById('view-reader'), viewBrowser: document.getElementById('view-browser'), sidebar: document.getElementById('sidebar-pane'), sidebarToggle: document.getElementById('btn-toggle-sidebar'),
+            libraryList: document.getElementById('library-list'), feedsList: document.getElementById('feeds-list'),
+            viewer: document.getElementById('viewer'), viewerPlaceholder: document.getElementById('viewer-placeholder'), readerSpinner: document.getElementById('reader-spinner'), readerToolbar: document.getElementById('reader-toolbar'), bookTitle: document.getElementById('current-book-title'),
+            btnAppearance: document.getElementById('btn-appearance'), appearancePopover: document.getElementById('appearance-popover'),
+            browserTitle: document.getElementById('browser-title'), feedResults: document.getElementById('feed-results'), browserBack: document.getElementById('btn-browser-back'), browserSpinner: document.getElementById('browser-spinner'),
+            modal: document.getElementById('modal-add-feed'), feedName: document.getElementById('feed-name'), feedUrl: document.getElementById('feed-url'), feedUser: document.getElementById('feed-user'), feedPass: document.getElementById('feed-pass'), proxySelect: document.getElementById('feed-proxy-select'), proxyCustom: document.getElementById('feed-proxy-custom'), authToggle: document.getElementById('feed-auth-toggle'), corsToggle: document.getElementById('feed-cors-toggle'), authFields: document.getElementById('feed-auth-fields'), proxyFields: document.getElementById('feed-proxy-fields'),
+            logContent: document.getElementById('log-content'), consolePane: document.getElementById('console-pane'), fileInput: document.getElementById('file-input')
+        };
+
+        let currentRendition = null;
+        let bookObj = null;
+        let activeBookId = null;
+        let browserStack = [];
+        let activeFeedConfig = null;
+        let imageObserver = null;
+
+        const logger = {
+            log: (msg, type = 'info') => { const div = document.createElement('div'); div.className = type === 'error' ? 'text-red-400' : (type === 'success' ? 'text-green-400' : 'text-gray-300'); div.innerHTML = `<span class="opacity-50 select-none">[${new Date().toLocaleTimeString()}]</span> ${msg}`; els.logContent.prepend(div); if(type === 'error') els.consolePane.classList.remove('hidden'); },
+            error: (msg) => logger.log(msg, 'error'), success: (msg) => logger.log(msg, 'success'), headerDebug: (url, hasAuth) => {}
+        };
+
+        function checkDependencies() { if (typeof window.ePub === 'undefined') { document.getElementById('system-error').classList.remove('hidden'); return false; } return true; }
+        function getProxiedUrl(targetUrl, config) { if (!config || !config.proxy) return targetUrl; let proxyBase = config.proxyUrl || 'https://corsproxy.io/?'; return proxyBase + encodeURIComponent(targetUrl); }
+        function getAuthHeaders(config) { const headers = {}; if(config && config.auth && config.user && config.pass) { headers['Authorization'] = 'Basic ' + btoa(unescape(encodeURIComponent(config.user + ':' + config.pass))); } return headers; }
+        function initImageObserver() { imageObserver = new IntersectionObserver((entries, observer) => { entries.forEach(entry => { if (entry.isIntersecting) { const img = entry.target; const src = img.dataset.src; if (src) { fetchImageForCard(src, img); observer.unobserve(img); } } }); }, { root: els.feedResults.parentElement, rootMargin: "100px" }); }
+        async function fetchImageForCard(url, imgElement) { try { const headers = getAuthHeaders(activeFeedConfig); const resp = await fetch(url, { headers }); if (!resp.ok) throw new Error("Status " + resp.status); const blob = await resp.blob(); imgElement.src = URL.createObjectURL(blob); imgElement.classList.remove('opacity-50'); } catch (e) { imgElement.parentElement.innerHTML = '<i class="fa-solid fa-book-open text-3xl text-gray-600"></i>'; } }
+        
+        function switchView(mode) { 
+            if (mode === 'reader') { 
+                els.viewBrowser.classList.add('hidden'); els.viewReader.classList.remove('hidden'); 
+                if(window.innerWidth < 768) { els.sidebar.classList.add('-ml-80'); els.sidebar.classList.remove('force-collapse'); } 
+            } else if (mode === 'browser') { els.viewReader.classList.add('hidden'); els.viewBrowser.classList.remove('hidden'); } 
+        }
+        
+        els.sidebarToggle.onclick = () => { 
+            if (els.sidebar.classList.contains('force-collapse')) { els.sidebar.classList.remove('force-collapse'); localStorage.setItem('sidebarState', 'open'); } 
+            else if (els.sidebar.classList.contains('-ml-80') && window.innerWidth < 768) { els.sidebar.classList.remove('-ml-80'); } 
+            else { els.sidebar.classList.add('force-collapse'); els.sidebar.classList.add('-ml-80'); localStorage.setItem('sidebarState', 'closed'); }
+            setTimeout(() => { if(currentRendition) currentRendition.resize(); }, 350);
+        };
+        window.addEventListener('resize', () => { if(currentRendition) { clearTimeout(window.resizeTimer); window.resizeTimer = setTimeout(() => currentRendition.resize(), 100); } });
+        async function loadSettings() { const saved = await get('reader_settings'); if(saved) readerSettings = saved; applySettingsUI(); const sidebarState = localStorage.getItem('sidebarState'); if(sidebarState === 'closed') { els.sidebar.classList.add('force-collapse'); els.sidebar.classList.add('-ml-80'); } }
+        async function saveSettings() { await set('reader_settings', readerSettings); }
+        function applySettingsUI() {
+            document.getElementById('btn-layout-paged').className = `flex-1 py-1 text-xs rounded transition-colors ${readerSettings.flow === 'paginated' ? 'bg-obsidian-accent text-white' : 'hover:bg-white/10'}`;
+            document.getElementById('btn-layout-scroll').className = `flex-1 py-1 text-xs rounded transition-colors ${readerSettings.flow === 'scrolled-doc' ? 'bg-obsidian-accent text-white' : 'hover:bg-white/10'}`;
+            document.getElementById('font-family-select').value = readerSettings.fontFamily;
+        }
+        window.setTheme = (theme) => { readerSettings.theme = theme; saveSettings(); if(currentRendition) applyRenditionSettings(); };
+        window.changeFontSize = (delta) => { readerSettings.fontSize += delta; saveSettings(); if(currentRendition) currentRendition.themes.fontSize(readerSettings.fontSize + "%"); };
+        document.getElementById('font-family-select').onchange = (e) => { readerSettings.fontFamily = e.target.value; saveSettings(); if(currentRendition) applyRenditionSettings(); };
+        document.getElementById('btn-layout-paged').onclick = () => changeFlow('paginated');
+        document.getElementById('btn-layout-scroll').onclick = () => changeFlow('scrolled-doc');
+        async function changeFlow(flow) { if(readerSettings.flow === flow) return; readerSettings.flow = flow; saveSettings(); applySettingsUI(); if(activeBookId) openBook(activeBookId); }
+        
+        function applyRenditionSettings() {
+            if(!currentRendition) return;
+            const font = readerSettings.fontFamily;
+            currentRendition.themes.register("light", { body: { color: "#000", background: "#fff" } });
+            currentRendition.themes.register("sepia", { body: { color: "#5f4b32", background: "#f5deb3" } });
+            currentRendition.themes.register("dark", { body: { color: "#ccc", background: "#1a1a1a" } });
+            currentRendition.themes.select(readerSettings.theme);
+            currentRendition.themes.fontSize(readerSettings.fontSize + "%");
+            currentRendition.themes.font(font); 
+            const rule = { "font-family": `${font} !important` };
+            if(font.includes("OpenDyslexic")) { currentRendition.themes.default({ "*": rule, "p": rule, "span": rule, "div": rule, "h1": rule, "h2": rule, "h3": rule, "a": rule }); } 
+            else { currentRendition.themes.default({ "p": rule, "span": rule, "div": rule }); }
+            const colors = { light: '#fff', sepia: '#f5deb3', dark: '#1a1a1a' };
+            els.viewer.style.backgroundColor = colors[readerSettings.theme];
+            els.readerSpinner.style.backgroundColor = colors[readerSettings.theme];
+            if(readerSettings.flow === 'scrolled-doc') { els.viewer.classList.add('scrolled'); } else { els.viewer.classList.remove('scrolled'); }
+        }
+
+        els.btnAppearance.onclick = () => { els.appearancePopover.classList.toggle('hidden'); };
+        document.addEventListener('click', (e) => { if (!els.btnAppearance.contains(e.target) && !els.appearancePopover.contains(e.target)) { els.appearancePopover.classList.add('hidden'); } });
+
+        async function loadLibrary() {
+            const allData = await entries();
+            const books = allData.filter(([key]) => key.startsWith('meta-')).map(([key, val]) => val);
+            els.libraryList.innerHTML = '';
+            books.sort((a,b) => b.added - a.added).forEach(book => {
+                const item = document.createElement('div'); item.className = 'sidebar-item group flex gap-2 p-2 rounded cursor-pointer hover:bg-white/5 transition-colors border border-transparent'; let coverHtml = '<div class="w-full h-full bg-gray-700 flex items-center justify-center"><i class="fa-solid fa-book text-gray-500 text-xs"></i></div>'; if (book.coverBlob) { const url = URL.createObjectURL(book.coverBlob); coverHtml = `<img src="${url}" class="w-full h-full object-cover">`; } item.innerHTML = `<div class="w-8 h-12 shrink-0 rounded overflow-hidden shadow-sm border border-obsidian-border/50">${coverHtml}</div><div class="flex-1 min-w-0 flex flex-col justify-center"><h4 class="text-xs font-bold text-gray-300 truncate group-hover:text-white">${book.title}</h4><p class="text-[10px] text-gray-500 truncate">${book.author || 'Unknown'}</p></div><button class="delete-book-btn opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 px-1"><i class="fa-solid fa-trash text-[10px]"></i></button>`; item.onclick = (e) => { if(!e.target.closest('.delete-book-btn')) { document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active')); item.classList.add('active'); openBook(book.id); }}; item.querySelector('.delete-book-btn').onclick = async (e) => { e.stopPropagation(); if(confirm(`Delete "${book.title}"?`)) { await del(`meta-${book.id}`); await del(`blob-${book.id}`); loadLibrary(); }}; els.libraryList.appendChild(item);
+            });
+        }
+
+        async function openBook(id) {
+            if(!checkDependencies()) return; switchView('reader'); activeBookId = id; els.readerSpinner.classList.remove('hidden'); els.viewerPlaceholder.style.display = 'none';
+            try {
+                if (bookObj) bookObj.destroy(); els.viewer.innerHTML = ''; els.viewer.appendChild(els.readerSpinner); els.viewer.appendChild(els.viewerPlaceholder); els.readerToolbar.classList.remove('hidden');
+                const blob = await get(`blob-${id}`); const meta = await get(`meta-${id}`); if (!blob || blob.size === 0) throw new Error("Book file is empty."); els.bookTitle.innerText = meta.title; const buffer = await blob.arrayBuffer(); bookObj = window.ePub(buffer); await new Promise(r => requestAnimationFrame(r));
+                
+                // V28 FIX: Use scrolled-doc manager for stable scrolling
+                const options = { 
+                    width: "100%", height: "100%", 
+                    manager: readerSettings.flow === 'scrolled-doc' ? "default" : "default", 
+                    flow: readerSettings.flow === 'scrolled-doc' ? "scrolled-doc" : "paginated" 
+                };
+                currentRendition = bookObj.renderTo("viewer", options);
+                
+                currentRendition.hooks.content.register((contents) => { const style = contents.document.createElement('style'); style.innerHTML = `@font-face { font-family: 'OpenDyslexic'; src: url('https://unpkg.com/opendyslexic@2.1.0/open-dyslexic-regular.woff') format('woff'); font-weight: normal; font-style: normal; }`; contents.document.head.appendChild(style); });
+                applyRenditionSettings(); await currentRendition.display(); els.readerSpinner.classList.add('hidden'); 
+                currentRendition.on("keyup", (e) => { if (e.keyCode === 37) currentRendition.prev(); if (e.keyCode === 39) currentRendition.next(); });
+            } catch (err) { logger.error("Open Error: " + err.message); els.readerSpinner.classList.add('hidden'); els.viewerPlaceholder.style.display = 'flex'; els.viewerPlaceholder.innerHTML = `<div class="text-center p-8 text-red-400">Error opening book.<br><span class="text-xs text-gray-500">${err.message}</span></div>`; }
+        }
+        
+        // ... (Feed/Import/Proxy Logic) ...
+        document.getElementById('btn-open-add-modal').onclick = () => els.modal.classList.remove('hidden'); document.getElementById('btn-close-modal').onclick = () => els.modal.classList.add('hidden'); document.getElementById('btn-save-feed').onclick = saveFeed; document.getElementById('btn-refresh-lib').onclick = loadLibrary; document.getElementById('btn-import-file').onclick = () => els.fileInput.click(); document.getElementById('prev-page').onclick = () => currentRendition?.prev(); document.getElementById('next-page').onclick = () => currentRendition?.next(); document.getElementById('btn-toggle-logs').onclick = () => els.consolePane.classList.toggle('hidden'); els.authToggle.addEventListener('change', (e) => { if(e.target.checked) { els.authFields.classList.remove('collapsed'); els.authFields.classList.add('expanded'); } else { els.authFields.classList.remove('expanded'); els.authFields.classList.add('collapsed'); } }); els.corsToggle.addEventListener('change', (e) => { if(e.target.checked) { els.proxyFields.classList.remove('collapsed'); els.proxyFields.classList.add('expanded'); } else { els.proxyFields.classList.remove('expanded'); els.proxyFields.classList.add('collapsed'); } }); els.proxySelect.addEventListener('change', (e) => { if(e.target.value === 'custom') els.proxyCustom.classList.remove('hidden'); else els.proxyCustom.classList.add('hidden'); });
+        async function saveFeed() { let proxyUrl = els.proxySelect.value === 'custom' ? els.proxyCustom.value : els.proxySelect.value; const feed = { id: Date.now().toString(), name: els.feedName.value || 'Untitled', url: els.feedUrl.value, user: els.feedUser.value, pass: els.feedPass.value, proxy: els.corsToggle.checked, proxyUrl, auth: els.authToggle.checked }; if(!feed.url) return alert("URL is required"); await update('saved_feeds', (val) => (val || []).concat(feed)); els.modal.classList.add('hidden'); renderFeedsList(); }
+        async function renderFeedsList() { const feeds = await get('saved_feeds') || []; els.feedsList.innerHTML = ''; feeds.forEach(feed => { const item = document.createElement('div'); item.className = 'sidebar-item group flex items-center justify-between p-2 rounded cursor-pointer hover:bg-white/5 transition-colors border border-transparent'; item.innerHTML = `<div class="flex items-center gap-2 overflow-hidden"><i class="fa-solid fa-rss text-gray-500 group-hover:text-white text-xs"></i><span class="text-sm font-medium truncate text-gray-300 group-hover:text-white">${feed.name}</span></div><button class="delete-btn opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 px-2"><i class="fa-solid fa-trash text-xs"></i></button>`; item.onclick = (e) => { if(!e.target.closest('.delete-btn')) initFeedBrowser(feed); }; item.querySelector('.delete-btn').onclick = async (e) => { e.stopPropagation(); if(confirm(`Remove?`)) { await update('saved_feeds', l => l.filter(f => f.id !== feed.id)); renderFeedsList(); }}; els.feedsList.appendChild(item); }); }
+        function initFeedBrowser(feed) { switchView('browser'); activeFeedConfig = feed; browserStack = []; els.browserTitle.innerText = feed.name; updateBrowserUI(); fetchOpds(feed.url, true); }
+        function updateBrowserUI() { els.browserBack.classList.toggle('hidden', browserStack.length === 0); }
+        els.browserBack.onclick = () => { if(browserStack.length > 0) { browserStack.pop(); const t = browserStack.length > 0 ? browserStack[browserStack.length-1] : {url:activeFeedConfig.url, title:activeFeedConfig.name}; els.browserTitle.innerText = t.title; fetchOpds(t.url, false); updateBrowserUI(); }};
+        async function fetchOpds(url, pushStack=false) { els.feedResults.innerHTML = ''; els.browserSpinner.classList.remove('hidden'); try { const resp = await fetch(getProxiedUrl(url, activeFeedConfig), { headers: getAuthHeaders(activeFeedConfig) }); if(!resp.ok) throw new Error(resp.status); const xml = new DOMParser().parseFromString(await resp.text(), "text/xml"); renderOpdsGrid(xml, url, getAuthHeaders(activeFeedConfig)); if(pushStack) { const titleTag = xml.querySelector('title'); const title = titleTag ? titleTag.textContent : 'Feed'; if(browserStack.length === 0 || browserStack[browserStack.length-1].url !== url) browserStack.push({url, title}); els.browserTitle.innerText = title; } updateBrowserUI(); } catch(e) { logger.error(e.message); els.feedResults.innerHTML = `<div class="col-span-full text-center p-8 text-red-400">Connection Failed: ${e.message}</div>`; } finally { els.browserSpinner.classList.add('hidden'); } }
+        function renderOpdsGrid(xml, baseUrl, headers) {
+             const entries = Array.from(xml.getElementsByTagName('entry')); let validItems = 0;
+             entries.forEach(entry => {
+                 const title = entry.getElementsByTagName('title')[0]?.textContent || 'Untitled'; const links = Array.from(entry.getElementsByTagName('link'));
+                 const epubLink = links.find(l => l.getAttribute('type')?.includes('epub') || l.getAttribute('href')?.endsWith('.epub'))?.getAttribute('href');
+                 const navLink = links.find(l => l.getAttribute('type')?.includes('atom') || l.getAttribute('rel')?.includes('subsection'))?.getAttribute('href');
+                 const coverLink = links.find(l => l.getAttribute('rel')?.includes('image'))?.getAttribute('href'); const absCover = coverLink ? new URL(coverLink, baseUrl).href : null; const coverSrc = absCover ? getProxiedUrl(absCover, activeFeedConfig) : '';
+                 const fileSize = epubLink ? parseInt(links.find(l => l.getAttribute('href') === epubLink).getAttribute('length') || 0) : 0; const sizeMB = fileSize > 0 ? (fileSize / (1024*1024)).toFixed(1) + ' MB' : '';
+                 if(!epubLink && !navLink) return; validItems++;
+                 const card = document.createElement('div'); card.className = 'group flex flex-col bg-obsidian-card rounded-lg overflow-hidden border border-obsidian-border/50 hover:border-obsidian-accent cursor-pointer shadow-md';
+                 if(epubLink) { const absEpub = new URL(epubLink, baseUrl).href; const imgHtml = absCover ? `<img data-src="${coverSrc}" class="w-full h-full object-cover opacity-50 transition-opacity duration-500 book-cover-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">` : '<i class="fa-solid fa-book-open text-3xl text-gray-600"></i>'; card.innerHTML = `<div class="relative w-full book-card-cover bg-gray-800 flex items-center justify-center overflow-hidden">${imgHtml}<div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><i class="fa-solid fa-download text-white text-xl"></i></div></div><div class="p-2"><h4 class="text-xs font-bold text-gray-200 line-clamp-2">${title}</h4><div class="flex justify-between mt-1"><span class="text-[9px] text-gray-500">EPUB</span><span class="text-[9px] ${fileSize > 5000000 ? 'text-orange-400' : 'text-gray-500'}">${sizeMB}</span></div></div>`; card.onclick = () => downloadBook(absEpub, title, "Unknown", absCover, Math.random().toString(36), card, headers, fileSize); }
+                 else if(navLink) { const absNav = new URL(navLink, baseUrl).href; card.innerHTML = `<div class="relative w-full aspect-[3/2] bg-obsidian-pane border-b border-obsidian-border/50 flex items-center justify-center"><i class="fa-solid fa-folder text-obsidian-accent/50 text-4xl"></i></div><div class="p-2"><h4 class="text-xs font-bold text-gray-200 truncate">${title}</h4></div>`; card.onclick = () => fetchOpds(absNav, true); }
+                 els.feedResults.appendChild(card); if(card.querySelector('.book-cover-img')) { imageObserver.observe(card.querySelector('.book-cover-img')); }
+             });
+             if(validItems === 0) { els.feedResults.innerHTML = '<div class="col-span-full text-center text-gray-500">No compatible items found.</div>'; }
+             const links = Array.from(xml.getElementsByTagName('link')); const nextLink = links.find(l => l.getAttribute('rel') === 'next');
+             if (nextLink) { const nextUrl = new URL(nextLink.getAttribute('href'), baseUrl).href; const nextCard = document.createElement('div'); nextCard.className = 'group flex flex-col bg-obsidian-pane rounded-lg overflow-hidden border border-obsidian-border hover:border-obsidian-accent cursor-pointer shadow-md justify-center items-center min-h-[200px] col-span-1'; nextCard.innerHTML = `<div class="text-center"><i class="fa-solid fa-arrow-right text-4xl text-obsidian-accent mb-2"></i><h4 class="text-sm font-bold text-white">Next Page</h4></div>`; nextCard.onclick = () => fetchOpds(nextUrl, true); els.feedResults.appendChild(nextCard); }
+        }
+        async function downloadBook(url, title, author, coverUrl, id, card, headers, size) {
+             logger.log(`Downloading ${title}`);
+             try { const resp = await fetch(getProxiedUrl(url, activeFeedConfig), { headers }); if(!resp.ok) throw new Error(resp.status); const blob = await resp.blob(); let coverBlob = null; if(coverUrl) { try { const cResp = await fetch(getProxiedUrl(coverUrl, activeFeedConfig), { headers }); if(cResp.ok) coverBlob = await cResp.blob(); } catch(e) {} } const safeId = btoa(id).substring(0,16); await set(`blob-${safeId}`, blob); await set(`meta-${safeId}`, { id: safeId, title, author, coverBlob, added: Date.now() }); logger.success("Saved!"); loadLibrary(); } catch(e) { logger.error("DL Failed: " + e.message); const isSizeIssue = size > 5000000; if(isSizeIssue && confirm(`Download Failed (likely Proxy limit of 5MB).\n\nFile size is ${Math.round(size/1024/1024)}MB.\n\nClick OK to open direct link.`)) { window.open(url, '_blank'); } }
+        }
+        els.fileInput.onchange = async (e) => { const file = e.target.files[0]; if(!file) return; const id = Math.random().toString(36).substring(7); let title = file.name.replace('.epub', ''); try { const b = window.ePub(await file.arrayBuffer()); const m = await b.loaded.metadata; if(m.title) title = m.title; } catch(e){} await set(`blob-${id}`, file); await set(`meta-${id}`, {id, title, author:'Imported', added:Date.now()}); loadLibrary(); };
+
+        if(checkDependencies()) { initImageObserver(); loadSettings(); loadLibrary(); renderFeedsList(); logger.log("System Ready. V28 (Scrolled-Doc Fix)."); }
+    </script>
+</body>
+</html>
