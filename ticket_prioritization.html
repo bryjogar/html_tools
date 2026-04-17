@@ -35,16 +35,38 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #1e1e1e; }
         ::-webkit-scrollbar-thumb { background: #3c3c3c; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4c4c4c; }
+
+        .zone-area {
+            min-height: 100px;
+            transition: all 0.2s ease;
+        }
         
-        .zone-container { min-height: 60px; transition: background-color 0.2s; }
-        .sortable-ghost { opacity: 0.3; background: #7c3aed !important; }
-        .drag-handle { cursor: grab; padding: 10px; }
-        .drag-handle:active { cursor: grabbing; }
-        
-        /* Grid Table Styling */
-        .grid-row { display: grid; grid-template-columns: 50px 120px 1fr 1fr 1.5fr; align-items: center; }
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #7c3aed !important;
+            border: 2px dashed #7c3aed;
+        }
+
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Specific row layout to mimic a table but allow flexible container dragging */
+        .ticket-grid {
+            display: grid;
+            grid-template-columns: 40px 100px 1fr 1fr 1fr;
+            gap: 12px;
+            align-items: center;
+        }
+
         @media (max-width: 768px) {
-            .grid-row { grid-template-columns: 40px 80px 1fr 1fr; }
+            .ticket-grid {
+                grid-template-columns: 40px 80px 1fr;
+            }
             .hide-mobile { display: none; }
         }
     </style>
@@ -54,45 +76,45 @@
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-fire-flame-curved text-orange-500 text-xl"></i>
-            <h1 class="font-bold tracking-tight text-white">Ticket Heat Map</h1>
+            <h1 class="font-bold tracking-tight text-white">Ticket Heat Map Processor</h1>
         </div>
         <div class="flex items-center gap-4">
-            <label class="cursor-pointer bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-2 rounded text-xs transition-colors flex items-center gap-2">
-                <i class="fa-solid fa-file-csv"></i> Import CSV
+            <label class="cursor-pointer bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-2 rounded text-xs transition-colors flex items-center gap-2 font-sans font-semibold">
+                <i class="fa-solid fa-file-csv"></i> LOAD CSV
                 <input type="file" id="csv-upload" accept=".csv" class="hidden">
             </label>
         </div>
     </header>
 
-    <main class="flex-1 overflow-y-auto p-4 md:p-6">
-        <div class="max-w-6xl mx-auto space-y-4">
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+        <div class="max-w-6xl mx-auto space-y-8">
             
-            <div>
-                <h2 id="header-date" class="text-2xl font-bold text-white mb-1"></h2>
-                <p class="text-sm text-gray-500 italic">Drag tickets directly into the colored zones below.</p>
+            <div class="text-center md:text-left">
+                <h2 id="title-date" class="text-2xl font-bold text-white mb-1"></h2>
+                <p class="text-sm text-gray-500 italic">Drag and drop tickets into the priority zones below.</p>
             </div>
 
-            <div class="grid-row bg-obsidian-pane border border-obsidian-border rounded-t-lg p-2 text-xs uppercase font-bold text-gray-500">
-                <div class="text-center"></div>
-                <div class="px-2">Ticket #</div>
-                <div class="px-2">Summary</div>
-                <div class="px-2">Company</div>
-                <div class="px-2 hide-mobile">Notes</div>
+            <div class="ticket-grid px-4 py-2 text-xs uppercase font-bold text-gray-500 bg-obsidian-pane rounded-t-lg border-x border-t border-obsidian-border">
+                <div class="text-center">#</div>
+                <div>ID</div>
+                <div>Summary</div>
+                <div>Company</div>
+                <div class="hide-mobile">Notes</div>
             </div>
 
-            <div class="border border-obsidian-border rounded-lg overflow-hidden bg-obsidian-pane">
-                <div class="bg-red-600 text-white font-bold text-center py-1.5 text-sm tracking-widest uppercase">Hot</div>
-                <div id="zone-hot" class="zone-container p-1"></div>
+            <div class="rounded-lg border border-obsidian-border bg-obsidian-pane overflow-hidden shadow-2xl">
+                <div class="bg-red-600 text-white font-extrabold text-center py-2 text-sm tracking-[0.2em] uppercase">HOT</div>
+                <div id="hot-zone" class="zone-area p-2 space-y-1"></div>
             </div>
 
-            <div class="border border-obsidian-border rounded-lg overflow-hidden bg-obsidian-pane">
-                <div class="bg-yellow-500 text-black font-bold text-center py-1.5 text-sm tracking-widest uppercase">Warm</div>
-                <div id="zone-warm" class="zone-container p-1"></div>
+            <div class="rounded-lg border border-obsidian-border bg-obsidian-pane overflow-hidden shadow-xl">
+                <div class="bg-yellow-500 text-black font-extrabold text-center py-2 text-sm tracking-[0.2em] uppercase">WARM</div>
+                <div id="warm-zone" class="zone-area p-2 space-y-1"></div>
             </div>
 
-            <div class="border border-obsidian-border rounded-lg overflow-hidden bg-obsidian-pane">
-                <div class="bg-blue-600 text-white font-bold text-center py-1.5 text-sm tracking-widest uppercase">Cold</div>
-                <div id="zone-cold" class="zone-container p-1"></div>
+            <div class="rounded-lg border border-obsidian-border bg-obsidian-pane overflow-hidden shadow-lg">
+                <div class="bg-blue-600 text-white font-extrabold text-center py-2 text-sm tracking-[0.2em] uppercase">COLD</div>
+                <div id="cold-zone" class="zone-area p-2 space-y-1"></div>
             </div>
 
         </div>
@@ -110,14 +132,16 @@
     </footer>
 
     <script>
-        // Set Header Date
-        const now = new Date();
+        // Initialize dynamic title
+        const dateObj = new Date();
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        document.getElementById('header-date').textContent = `Ticket heat map for ${days[now.getDay()]}, ${now.toISOString().split('T')[0]}`;
+        const dayName = days[dateObj.getDay()];
+        const dateStr = dateObj.toISOString().split('T')[0];
+        document.getElementById('title-date').textContent = `Ticket heat map for ${dayName}, ${dateStr}`;
 
         const csvInput = document.getElementById('csv-upload');
 
-        // CSV Processing
+        // Column Mapping Logic
         csvInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -126,51 +150,74 @@
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    renderTickets(results.data);
+                    processCSV(results.data);
                 }
             });
         });
 
-        function renderTickets(data) {
-            const coldZone = document.getElementById('zone-cold');
-            coldZone.innerHTML = ''; // Clear previous
+        function processCSV(data) {
+            const coldZone = document.getElementById('cold-zone');
+            const hotZone = document.getElementById('hot-zone');
+            const warmZone = document.getElementById('warm-zone');
+            
+            // Clear current data
+            coldZone.innerHTML = '';
+            hotZone.innerHTML = '';
+            warmZone.innerHTML = '';
 
             data.forEach(row => {
-                const id = row['Ticket Number'] || row['ID'] || 'N/A';
-                const summary = row['Summary Description'] || row['Summary'] || '';
-                const company = row['Company'] || row['Company_Name'] || '';
+                // Fix for the user's specific headers: "Ticket #" contains a special character sometimes or exact text
+                // We use find to be extremely safe with whitespace
+                const keys = Object.keys(row);
+                const ticketKey = keys.find(k => k.trim().toLowerCase() === 'ticket #') || 
+                                keys.find(k => k.toLowerCase().includes('ticket')) || 
+                                keys[4]; // Fallback to index 4 based on export structure
                 
-                const truncatedSummary = summary.length > 30 ? summary.substring(0, 27) + '...' : summary;
+                const summaryKey = keys.find(k => k.trim().toLowerCase() === 'summary description') || 
+                                 keys.find(k => k.toLowerCase().includes('summary')) || 
+                                 keys[5];
 
-                const div = document.createElement('div');
-                div.className = "grid-row border-b border-obsidian-border/50 hover:bg-white/5 transition-colors group py-2";
-                div.innerHTML = `
-                    <div class="text-center text-gray-600 group-hover:text-obsidian-accent drag-handle">
+                const companyKey = keys.find(k => k.trim().toLowerCase() === 'company') || 
+                                 keys[6];
+
+                const ticketId = row[ticketKey] || 'N/A';
+                const summary = row[summaryKey] || '';
+                const company = row[companyKey] || '';
+
+                // Business Logic: Shorten summary to 30 chars
+                const displaySummary = summary.length > 30 ? summary.substring(0, 27) + '...' : summary;
+
+                const ticketEl = document.createElement('div');
+                ticketEl.className = "ticket-grid bg-obsidian-bg p-3 border border-obsidian-border rounded hover:border-obsidian-accent transition-colors group";
+                ticketEl.innerHTML = `
+                    <div class="text-center text-gray-600 group-hover:text-obsidian-accent drag-handle px-1">
                         <i class="fa-solid fa-grip-vertical"></i>
                     </div>
-                    <div class="px-2 font-mono text-sm">${id}</div>
-                    <div class="px-2 text-sm truncate" title="${summary}">${truncatedSummary}</div>
-                    <div class="px-2 text-sm truncate">${company}</div>
-                    <div class="px-2 hide-mobile">
-                        <input type="text" placeholder="Notes..." class="bg-transparent w-full text-xs text-gray-500 focus:text-obsidian-accent outline-none">
+                    <div class="font-mono text-xs font-bold text-violet-400">${ticketId}</div>
+                    <div class="text-sm truncate pr-2 text-white" title="${summary}">${displaySummary}</div>
+                    <div class="text-sm truncate pr-2">${company}</div>
+                    <div class="hide-mobile">
+                        <input type="text" placeholder="Add notes..." class="bg-transparent border-b border-transparent focus:border-obsidian-accent w-full text-xs text-gray-500 outline-none">
                     </div>
                 `;
-                coldZone.appendChild(div);
+                
+                // All tickets initially go to COLD
+                coldZone.appendChild(ticketEl);
             });
         }
 
-        // Initialize Shared Drag & Drop Groups
-        const zoneIds = ['zone-hot', 'zone-warm', 'zone-cold'];
-        zoneIds.forEach(id => {
+        // Initialize Sortable for each zone
+        const zones = ['hot-zone', 'warm-zone', 'cold-zone'];
+        zones.forEach(id => {
             new Sortable(document.getElementById(id), {
-                group: 'tickets', // This allows dragging between the different containers
+                group: 'tickets', // All 3 zones belong to the same group
                 animation: 150,
                 handle: '.drag-handle',
                 ghostClass: 'sortable-ghost',
-                emptyInsertThreshold: 50 // Makes it easier to drop into empty zones
+                fallbackOnBody: true,
+                swapThreshold: 0.65
             });
         });
     </script>
 </body>
-</html>
 </html>
