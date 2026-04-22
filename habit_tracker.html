@@ -43,9 +43,41 @@
         ::-webkit-scrollbar-thumb:hover { background: #505050; }
 
         .transition-all-300 { transition: all 0.3s ease-in-out; }
+        
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 400px;
+            width: 90%;
+            transform: scale(0.95);
+            transition: transform 0.2s;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans dark">
 
     <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 flex-shrink-0 z-20">
         <div class="flex items-center gap-3">
@@ -111,8 +143,17 @@
         </div>
     </main>
 
-    <footer class="shrink-0 bg-obsidian-pane border-t border-obsidian-border py-3 px-4 text-center text-gray-600 text-sm">
-        <p>Habit Tracker • <span id="currentDate"></span> • Data stored locally</p>
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-4 text-center shrink-0">
+        <p class="text-gray-600 text-xs mb-2">
+            Habit Tracker • <span id="currentDate"></span> • Data stored locally
+        </p>
+        <p class="text-gray-600 text-xs">
+            &copy; 2025 HomeLab Playground. Built with Tailwind CSS.
+        </p>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline mt-2">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
     </footer>
 
     <script>
@@ -257,6 +298,125 @@
         habitNameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') addHabitBtn.click();
         });
+
+        // --- Settings Modal ---
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettings = document.getElementById('closeSettings');
+        const exportBtn = document.getElementById('exportBtn');
+        const importBtn = document.getElementById('importBtn');
+        const importFile = document.getElementById('importFile');
+
+        const clearDataBtn = document.getElementById('clearDataBtn');
+
+        // Open/close modal
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('active');
+        });
+        closeSettings.addEventListener('click', () => {
+            settingsModal.classList.remove('active');
+        });
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('active');
+            }
+        });
+
+        // Export habits as JSON
+        exportBtn.addEventListener('click', () => {
+            const data = {
+                habits,
+                totalScore,
+                exportedAt: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `habits-${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Import habits from JSON file
+        importBtn.addEventListener('click', () => {
+            importFile.click();
+        });
+        importFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (data.habits && Array.isArray(data.habits)) {
+                        if (confirm('Import will replace your current habits. Continue?')) {
+                            habits = data.habits;
+                            totalScore = data.totalScore || 0;
+                            saveHabits();
+                            updateScoreDisplay();
+                            renderHabits();
+                            alert('Habits imported successfully!');
+                        }
+                    } else {
+                        alert('Invalid data format.');
+                    }
+                } catch (err) {
+                    alert('Failed to parse JSON file.');
+                }
+                importFile.value = '';
+            };
+            reader.readAsText(file);
+        });
+
+
+
+        // Clear data (duplicate of existing button)
+        clearDataBtn.addEventListener('click', () => {
+            if (confirm('This will delete ALL habits and reset your score. Are you sure?')) {
+                habits = [];
+                totalScore = 0;
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(SCORE_KEY);
+                updateScoreDisplay();
+                renderHabits();
+                settingsModal.classList.remove('active');
+            }
+        });
     </script>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-obsidian-border">
+                <h2 class="text-white font-semibold"><i class="fa-solid fa-sliders mr-2 text-obsidian-accent"></i>Settings</h2>
+                <button id="closeSettings" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <h3 class="text-white font-medium mb-2">Data Management</h3>
+                    <div class="grid grid-cols-1 gap-2">
+                        <button id="exportBtn" class="w-full py-2 bg-obsidian-border hover:bg-white/10 text-white rounded transition-colors text-sm">
+                            <i class="fa-solid fa-download mr-2"></i>Export Habits (JSON)
+                        </button>
+                        <button id="importBtn" class="w-full py-2 bg-obsidian-border hover:bg-white/10 text-white rounded transition-colors text-sm">
+                            <i class="fa-solid fa-upload mr-2"></i>Import Habits (JSON)
+                        </button>
+                        <input type="file" id="importFile" accept=".json" class="hidden">
+                    </div>
+                </div>
+
+                <div class="border-t border-obsidian-border pt-4">
+                    <button id="clearDataBtn" class="w-full py-2 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded transition-colors text-sm">
+                        <i class="fa-solid fa-trash mr-2"></i>Clear All Data
+                    </button>
+                    <p class="text-xs text-gray-500 mt-2">This will delete all habits and reset your score.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
