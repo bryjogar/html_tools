@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hudu Checklist Creator - HomeLab Playground</title>
+    <link rel="icon" type="image/png" href="https://homelabplayground.com/favicon.png">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        obsidian: {
+                            bg: '#1e1e1e',      // Main background
+                            pane: '#252526',    // Headers/Panels
+                            border: '#3c3c3c',  // Borders
+                            accent: '#7c3aed',  // Violet Primary
+                            text: '#cccccc'     // Standard Text
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4f4f4f;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+
+    <!-- Header Section -->
+    <header class="h-14 bg-obsidian-pane border-b border-obsidian-border flex items-center justify-between px-4 shrink-0 z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-obsidian-accent flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-list-check"></i>
+            </div>
+            <div>
+                <h1 class="text-sm font-semibold text-white tracking-wide">Hudu Checklist Builder</h1>
+                <p class="text-[10px] text-gray-400">Generate embeddable HTML & Markdown task sheets</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="clearAll()" class="p-2 text-xs text-gray-400 hover:text-red-400 rounded hover:bg-white/5 transition-all" title="Clear All Items">
+                <i class="fa-solid fa-trash-can mr-1"></i> <span class="hidden sm:inline">Reset</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+            
+            <!-- Left Panel: Builder Controls -->
+            <div class="lg:col-span-7 flex flex-col gap-4">
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-4 shadow-lg">
+                    <h2 class="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open text-obsidian-accent"></i> Checklist Attributes
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Checklist Title</label>
+                            <input type="text" id="checklistTitle" oninput="updateOutputs()" value="Server Provisioning Checklist" class="w-full bg-[#1e1e1e] border border-obsidian-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Output Style Preset</label>
+                            <select id="stylePreset" onchange="updateOutputs()" class="w-full bg-[#1e1e1e] border border-obsidian-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-obsidian-accent transition-colors">
+                                <option value="modern">Modern Clean (HTML Embed)</option>
+                                <option value="compact">Compact Clean (HTML Embed)</option>
+                                <option value="markdown">Universal Markdown (Standard Copy/Paste)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Task Rows -->
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-4 flex-1 flex flex-col shadow-lg min-h-[350px]">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-medium text-white flex items-center gap-2">
+                            <i class="fa-solid fa-square-check text-obsidian-accent"></i> Tasks & Items
+                        </h2>
+                        <span id="taskCount" class="text-xs bg-[#1e1e1e] border border-obsidian-border px-2 py-0.5 rounded text-gray-400 font-mono">0 Items</span>
+                    </div>
+
+                    <!-- Dynamic list wrapper -->
+                    <div id="itemsContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 mb-4 max-h-[400px] lg:max-h-[none]">
+                        <!-- JS injects nodes here -->
+                    </div>
+
+                    <!-- Quick Add Component -->
+                    <div class="mt-auto border-t border-obsidian-border pt-4">
+                        <form id="addItemForm" onsubmit="handleAddTask(event)" class="flex gap-2">
+                            <input type="text" id="newTaskText" autocomplete="off" placeholder="Add a new procedure or validation step..." class="flex-1 bg-[#1e1e1e] border border-obsidian-border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-obsidian-accent transition-colors">
+                            <button type="submit" class="bg-obsidian-accent hover:bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors shrink-0">
+                                <i class="fa-solid fa-plus"></i> Add
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Code Output / Preview Matrix -->
+            <div class="lg:col-span-5 flex flex-col gap-4">
+                <!-- Visual Live Preview Frame -->
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-4 shadow-lg flex flex-col h-[220px]">
+                    <h2 class="text-sm font-medium text-white mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-eye text-obsidian-accent"></i> Live Render Frame
+                    </h2>
+                    <div class="flex-1 bg-white rounded-lg p-4 overflow-y-auto" id="livePreview">
+                        <!-- Raw dynamic visual mirror context runs here -->
+                    </div>
+                </div>
+
+                <!-- Export Artifact Panel -->
+                <div class="bg-obsidian-pane border border-obsidian-border rounded-xl p-4 shadow-lg flex flex-col flex-1 min-h-[250px]">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-sm font-medium text-white flex items-center gap-2">
+                            <i class="fa-solid fa-code text-obsidian-accent"></i> Target Embed Payload
+                        </h2>
+                        <button onclick="copyGeneratedCode()" class="bg-white/5 hover:bg-violet-500/10 text-xs text-violet-400 border border-obsidian-border hover:border-obsidian-accent/50 px-3 py-1 rounded-md flex items-center gap-1.5 transition-all">
+                            <i id="copyIcon" class="fa-solid fa-copy"></i> <span id="copyText">Copy Payload</span>
+                        </button>
+                    </div>
+                    <div class="flex-1 relative">
+                        <textarea id="outputPayload" readonly class="w-full h-full min-h-[180px] bg-[#1e1e1e] border border-obsidian-border rounded-lg p-3 text-xs font-mono text-emerald-400 focus:outline-none resize-none overflow-y-auto block"></textarea>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer Area -->
+    <footer class="bg-obsidian-pane border-t border-obsidian-border py-3 text-center shrink-0 z-10 flex flex-col md:flex-row justify-center items-center gap-3">
+        <a href="https://homelabplayground.com" class="text-gray-500 hover:text-violet-400 text-xs transition-colors font-sans no-underline">
+            HomeLab Playground
+        </a>
+        <span class="hidden md:block text-obsidian-border mx-1">|</span>
+        <a href="https://www.buymeacoffee.com/bryjogar" target="_blank" class="inline-flex items-center px-3 py-1 bg-obsidian-accent hover:bg-violet-600 text-white text-xs font-sans rounded-full transition-colors no-underline">
+            <i class="fa-solid fa-mug-hot mr-1.5"></i>
+            <span>Support The Tools</span>
+        </a>
+    </footer>
+
+    <!-- Core Runtime Scripts -->
+    <script>
+        // Reactive dataset tracker
+        let items = [
+            { id: 1, text: "Verify DNS records have propagated globally", checked: false },
+            { id: 2, text: "Apply latest hypervisor firmware security updates", checked: false },
+            { id: 3, text: "Validate backup replication target state changes", checked: true },
+            { id: 4, text: "Configure static IP allocations inside target subnet profile", checked: false }
+        ];
+
+        // Bootstrapping engine
+        document.addEventListener('DOMContentLoaded', () => {
+            renderItems();
+        });
+
+        function renderItems() {
+            const container = document.getElementById('itemsContainer');
+            container.innerHTML = '';
+            
+            document.getElementById('taskCount').innerText = `${items.length} ${items.length === 1 ? 'Item' : 'Items'}`;
+
+            if(items.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-center py-12 text-gray-500">
+                        <i class="fa-solid fa-circle-nodes text-3xl mb-2 opacity-40"></i>
+                        <p class="text-xs">No active checklist steps. Add your first item below.</p>
+                    </div>
+                `;
+                updateOutputs();
+                return;
+            }
+
+            items.forEach((item, index) => {
+                const itemRow = document.createElement('div');
+                itemRow.className = "flex items-center gap-2 bg-[#1e1e1e] border border-obsidian-border p-2 rounded-lg group hover:border-gray-600 transition-colors";
+                itemRow.innerHTML = `
+                    <button onclick="toggleItemState(${item.id})" class="text-xs shrink-0 px-1 py-1 text-gray-500 hover:text-violet-400 transition-colors">
+                        <i class="fa-regular ${item.checked ? 'fa-square-check text-emerald-400' : 'fa-square'} text-base"></i>
+                    </button>
+                    <input type="text" value="${escapeHtml(item.text)}" oninput="updateItemText(${item.id}, this.value)" class="flex-1 bg-transparent border-none text-sm text-white focus:outline-none focus:ring-0 py-0.5">
+                    
+                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="moveItem(${index}, -1)" class="p-1 text-xs text-gray-500 hover:text-white rounded hover:bg-white/5" title="Move Up">
+                            <i class="fa-solid fa-chevron-up"></i>
+                        </button>
+                        <button onclick="moveItem(${index}, 1)" class="p-1 text-xs text-gray-500 hover:text-white rounded hover:bg-white/5" title="Move Down">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                        <button onclick="deleteItem(${item.id})" class="p-1 text-xs text-gray-500 hover:text-red-400 rounded hover:bg-white/5" title="Delete Step">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(itemRow);
+            });
+
+            updateOutputs();
+        }
+
+        function handleAddTask(e) {
+            e.preventDefault();
+            const input = document.getElementById('newTaskText');
+            const text = input.value.trim();
+            if(!text) return;
+
+            items.push({
+                id: Date.now(),
+                text: text,
+                checked: false
+            });
+            input.value = '';
+            renderItems();
+            
+            // Auto-scroll list view down
+            const container = document.getElementById('itemsContainer');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function toggleItemState(id) {
+            items = items.map(item => item.id === id ? { ...item, checked: !item.checked } : item);
+            renderItems();
+        }
+
+        function updateItemText(id, newText) {
+            items = items.map(item => item.id === id ? { ...item, text: newText } : item);
+            // Throttle output rendering slightly to maximize structural focus cycles
+            updateOutputs();
+        }
+
+        function deleteItem(id) {
+            items = items.filter(item => item.id !== id);
+            renderItems();
+        }
+
+        function moveItem(index, direction) {
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= items.length) return;
+            
+            const temp = items[index];
+            items[index] = items[targetIndex];
+            items[targetIndex] = temp;
+            renderItems();
+        }
+
+        function clearAll() {
+            if(confirm("Are you sure you want to completely flush the active checklist schema?")) {
+                items = [];
+                document.getElementById('checklistTitle').value = 'Empty Template';
+                renderItems();
+            }
+        }
+
+        // Output Generator Processing Engine
+        function generatePayloads() {
+            const title = document.getElementById('checklistTitle').value || 'Procedural Checklist';
+            const preset = document.getElementById('stylePreset').value;
+
+            if (preset === 'markdown') {
+                let md = `### ${title}\n\n`;
+                items.forEach(i => {
+                    md += `- [${i.checked ? 'x' : ' '}] ${i.text}\n`;
+                });
+                return { code: md, preview: md };
+            }
+
+            // Variable HTML styles for structural injection variants
+            if (preset === 'modern') {
+                let html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 650px; background-color: #ffffff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">\n`;
+                html += `  <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #1f2328; border-b: 1px solid #fbcfb0; padding-bottom: 8px; display: flex; align-items: center; gap: 8px;">📋 ${escapeHtml(title)}</h3>\n`;
+                html += `  <div style="display: flex; flex-direction: column; gap: 10px;">\n`;
+                
+                items.forEach(i => {
+                    html += `    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 14px; color: #3b424e; line-height: 1.4;">\n`;
+                    html += `      <input type="checkbox" ${i.checked ? 'checked' : ''} style="margin-top: 3px; width: 15px; height: 15px; accent-color: #7c3aed; cursor: pointer;">\n`;
+                    html += `      <span style="${i.checked ? 'text-decoration: line-through; color: #8c95a0;' : ''}">${escapeHtml(i.text)}</span>\n`;
+                    html += `    </label>\n`;
+                });
+                
+                html += `  </div>\n`;
+                html += `</div>`;
+                return { code: html, preview: html };
+            }
+
+            if (preset === 'compact') {
+                let html = `<div style="font-family: monospace; max-width: 100%; color: #24292f; line-height: 1.5;">\n`;
+                html += `  <div style="font-weight: bold; background: #f6f8fa; padding: 4px 8px; border-left: 4px solid #7c3aed; margin-bottom: 8px;">[TASK] ${escapeHtml(title).toUpperCase()}</div>\n`;
+                
+                items.forEach(i => {
+                    html += `  <div style="padding: 2px 8px; display: flex; align-items: center; gap: 8px;">\n`;
+                    html += `    <input type="checkbox" ${i.checked ? 'checked' : ''} style="accent-color: #000;">\n`;
+                    html += `    <span style="font-size: 13px; ${i.checked ? 'color: #6a737d; text-decoration: line-through;' : ''}">${escapeHtml(i.text)}</span>\n`;
+                    html += `  </div>\n`;
+                });
+                
+                html += `</div>`;
+                return { code: html, preview: html };
+            }
+        }
+
+        function updateOutputs() {
+            const payloads = generatePayloads();
+            const outputTextArea = document.getElementById('outputPayload');
+            const previewContainer = document.getElementById('livePreview');
+            const preset = document.getElementById('stylePreset').value;
+
+            outputTextArea.value = payloads.code;
+
+            if (preset === 'markdown') {
+                // Basic markdown visual proxy converter for raw pane rendering
+                let htmlPreview = `<div style="color: #333; font-family: sans-serif;"><h3 style="font-weight:bold; margin-bottom:8px;">${escapeHtml(document.getElementById('checklistTitle').value)}</h3>`;
+                items.forEach(i => {
+                    htmlPreview += `<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:14px;">
+                        <input type="checkbox" ${i.checked ? 'checked' : ''} disabled>
+                        <span style="${i.checked ? 'text-decoration: line-through; color: #888;' : ''}">${escapeHtml(i.text)}</span>
+                    </div>`;
+                });
+                htmlPreview += `</div>`;
+                previewContainer.innerHTML = htmlPreview;
+            } else {
+                // If native HTML preset is targeted, run raw sandbox injection directly
+                previewContainer.innerHTML = payloads.preview;
+            }
+        }
+
+        function copyGeneratedCode() {
+            const textarea = document.getElementById('outputPayload');
+            textarea.select();
+            textarea.setSelectionRange(0, 99999); // Universal mobile selection safety harness
+
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                const btnText = document.getElementById('copyText');
+                const btnIcon = document.getElementById('copyIcon');
+                
+                btnText.innerText = "Payload Copied!";
+                btnIcon.className = "fa-solid fa-circle-check text-emerald-400";
+                
+                setTimeout(() => {
+                    btnText.innerText = "Copy Payload";
+                    btnIcon.className = "fa-solid fa-copy";
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to capture local clipboard device write routine:', err);
+            });
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>
