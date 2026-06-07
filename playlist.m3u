@@ -1,133 +1,99 @@
 #EXTM3U
-#EXTINF:-1 radio="true" group-title="Religion/Talk",Ancient Faith Radio - Talk
+#EXTINF:-1 radio="true" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyIjy5st4W_qqukRoy_qeV2kWHzh7_pWL4ZQ&s" group-title="Religion/Talk",Ancient Faith Radio - Talk
 https://ancientfaith.streamguys1.com/talk-source
-#EXTINF:-1 radio="true" group-title="Religion",Ancient Faith Radio - English Music
+#EXTINF:-1 radio="true" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTyIjy5st4W_qqukRoy_qeV2kWHzh7_pWL4ZQ&s" group-title="Religion",Ancient Faith Radio - English Music
 https://ancientfaith.streamguys1.com/ancientfaith3-source
-#EXTINF:-1 radio="true" group-title="Religion/Talk",Orthodox Sentinal
+#EXTINF:-1 radio="true" tvg-logo="https://i.ytimg.com/vi/8-SEMXHXrZI/maxresdefault.jpg" group-title="Religion/Talk",Orthodox Sentinal
 https://s4.radio.co/s36b8a688f/low
 #EXTINF:-1 radio="true" tvg-logo="https://1radionews.com/wp-content/uploads/nprnews.jpg" group-title="News/Talk",NPR News
 https://pd.npr.org/anon.npr-mp3/npr/news/newscast.mp3
-#EXTINF:-1 radio="true" group-title="Classical",Your Classical MPR
+#EXTINF:-1 radio="true" tvg-logo="https://static2.mytuner.mobi/media/tvos_radios/673/classical-mpr.96ea3b77.png" group-title="Classical",Your Classical MPR
 https://cms.stream.publicradio.org/cms.mp3
-#EXTINF:-1 radio="true" group-title="Classical",Classical WRR-101
+#EXTINF:-1 radio="true" tvg-logo="https://www.radio.net/300/wrrclassicaltx.png?version=c2f8d774afb33a838b2640ead7194ed3bb32eade" group-title="Classical",Classical WRR-101
 https://kera.streamguys1.com/wrrlive-aac
-#EXTINF:-1 radio="true" group-title="Chill",Absolute Chillout Radio
+#EXTINF:-1 radio="true" tvg-logo="https://media.tunedradios.com/w_600,h_600,q_40/static/radio/5279/logo/c33bc8738fe12e7b54049a0bc4fdf749.webp" group-title="Chill",Absolute Chillout Radio
 https://ais-edge90-dal03.cdnstream.com/b05055_128mp3
-#EXTINF:-1 radio="true" group-title="OTR",Crime Time Radio
+#EXTINF:-1 radio="true" tvg-logo="https://static.wixstatic.com/media/7d32c5_079dfae6b8f64b869c0e0ec45609236f~mv2.png/v1/fill/w_314,h_313,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/ElevenLabs_image_gpt-image-1-5_Create%20me%20a%20____2026-01-03T22_31_25.png" group-title="OTR",Crime Time Radio
 https://ais-sa3.cdnstream1.com/2609_128.mp3
-#EXTINF:-1 radio="true" group-title="OTR",Roswell UFO Radio
+#EXTINF:-1 radio="true" tvg-logo="https://static-media.streema.com/media/cache/12/60/126018ee2dc0f210965860b9c8d034e5.jpg" group-title="OTR",Roswell UFO Radio
 http://cast1.asurahosting.com:8545/stream
-#EXTINF:-1 radio="true" group-title="Talk",The Ultimate Art Bell
-https://stream.willstare.com:8450/
-#EXTINF:-1 radio="true" group-title="Talk",Advent Radio - Art Bell
-http://eu1.fastcast4u.com:10534/
-#EXTINF:-1 radio="true" group-title="Opera",MRG FM - Opera
-http://listen.mrg.fm:8110/stream1
-#EXTINF:-1 radio="true" group-title="Blues",All Blues Radio
+#EXTINF:-1 radio="true" tvg-logo="https://kuvo-rss.streamguys1.com/kuvo/20240702115619-KUVOShowImage-ALLBLUES.png" group-title="Blues",All Blues Radio
 http://equinox.shoutca.st:8788/
-#EXTINF:-1 radio="true" group-title="Lo-Fi",Lofi 24/7
+#EXTINF:-1 radio="true" tvg-logo="https://www.allradio.net/500/DAUx351AUDMcWElHJOlxg.webp" group-title="Lo-Fi",Lofi 24/7
 https://usa9.fastcast4u.com/proxy/jamz?mp=/1
 #EXTINF:-1 radio="true" group-title="Jazz/Chill",Smooth Chicago
 https://login.webinternetradio.com/955smoothjazzradio
-#EXTINF:-1 radio="true" group-title="Adult Contemporary",99.7 The Storm
+#EXTINF:-1 radio="true" tvg-logo="https://www.radio.net/300/wimi.png?version=6608972514422a18c16b69ba00558ee10fb98896" group-title="Adult Contemporary",99.7 The Storm
 https://audio.pasty.net:8002/wimi
-#EXTINF:-1 radio="true" group-title="Adult Contemporary",92.9 The River
+#EXTINF:-1 radio="true" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/b/ba/929theriver.jpg" group-title="Adult Contemporary",92.9 The River
 https://live.amperwave.net/direct/griffin-kbezfmaac-imc2
-#EXTINF:-1 radio="true" group-title="Adult Contemporary",The Peak
+#EXTINF:-1 radio="true" tvg-logo="https://upload.wikimedia.org/wikipedia/en/thumb/3/36/WXPK-FM_107.1_The_Peak_logo.png/250px-WXPK-FM_107.1_The_Peak_logo.png?utm_source=en.wikipedia.org&utm_campaign=parser&utm_content=thumbnail" group-title="Adult Contemporary",The Peak
 https://us9.maindigitalstream.com/ssl/KPPK
-#EXTINF:-1 radio="true" group-title="Ambient",Perfect Moods
+#EXTINF:-1 radio="true" tvg-logo="https://play-lh.googleusercontent.com/MDFWn56E1ZMWWItB3kwmN1fG50s9o4hOcnsV45z-JnCQ_EVpQdL-S1pLDYpxI2SWCxQ" group-title="Ambient",Perfect Moods
 https://listen.radioking.com/radio/64968/stream/104227
-#EXTINF:-1 radio="true" group-title="Big Band/Swing",Radio Reil - Dieselpunk
+#EXTINF:-1 radio="true" tvg-logo="https://www.radio.net/175/radio-riel-dieselpunk.png?version=bd3a2cd4b263489e3d56e8dcec3ede30f8954279" group-title="Big Band/Swing",Radio Reil - Dieselpunk
 http://streams.radioriel.org:8040/live
-#EXTINF:-1 radio="true" group-title="Big Band/Swing",Cladrite Radio
+#EXTINF:-1 radio="true" tvg-logo="https://pbs.twimg.com/profile_images/610274133/twittercladavatar.jpg" group-title="Big Band/Swing",Cladrite Radio
 https://streaming.live365.com/a43564
-#EXTINF:-1 radio="true" group-title="Bossa",Soma FM - Bossa Beyond
+#EXTINF:-1 radio="true" tvg-logo="https://play-lh.googleusercontent.com/GVH3NxnLYiqPwxLFsj_hiZ5RWnp5rifAAvJIs0PT7y9x1aW4Ku3k7r5bOBwM6joGzg" group-title="Bossa",Soma FM - Bossa Beyond
 https://ice6.somafm.com/bossa-256-mp3
-#EXTINF:-1 radio="true" group-title="Baroque",Organ Magic 16
-http://listen1.outpostradio.com/omagic
-#EXTINF:-1 radio="true" group-title="Christian Rock",Way Loud
+#EXTINF:-1 radio="true" tvg-logo="https://play-lh.googleusercontent.com/xTRQtLuxh_yZxuqhqpmDZ9EC8KursyrQBM64yOUrvvWFrIcJPao8_TQGWS_bEJtF29UNDz8yKlcKA_gMaVs5Hdc" group-title="Christian Rock",Way Loud
 https://ais-sa8.cdnstream1.com/3149_64k.aac
-#EXTINF:-1 radio="true" group-title="Classic Hits",The King
+#EXTINF:-1 radio="true" tvg-logo="https://i1.sndcdn.com/avatars-000190378925-i5g580-t1080x1080.jpg" group-title="Classic Hits",The King
 http://cast5.servcast.net:4299/;
-#EXTINF:-1 radio="true" group-title="Classic Hits",93.7 The River
+#EXTINF:-1 radio="true" tvg-logo="https://i.iheart.com/v3/re/assets.brands/606f25552624531898a83f37" group-title="Classic Hits",93.7 The River
 https://desertmountainbroadcasting.streamguys1.com/KOBB-FM
-#EXTINF:-1 radio="true" group-title="Classic Hits",WASK
+#EXTINF:-1 radio="true" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/8/88/WASK_98.7WASK_logo.png" group-title="Classic Hits",WASK
 https://playerservices.streamtheworld.com/api/livestream-redirect/WASKFMAAC.aac
-#EXTINF:-1 radio="true" group-title="Classic Rock",103.1 The Raven
+#EXTINF:-1 radio="true" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-B0BIGPWNGjEUNUBkg9RXsn18dBNr7rwnRg&s" group-title="Classic Rock",103.1 The Raven
 https://ice23.securenetsystems.net/KRVX
-#EXTINF:-1 radio="true" group-title="Classic Rock",181.fm The Eagle Classics
+#EXTINF:-1 radio="true" tvg-logo="https://www.181.fm/images/station-thumbnails/181-eagle_300.webp" group-title="Classic Rock",181.fm The Eagle Classics
 https://listen.181fm.com/181-eagle_128k.mp3
-#EXTINF:-1 radio="true" group-title="Classic Rock",Lone Star 92.5
+#EXTINF:-1 radio="true" tvg-logo="https://i.iheart.com/v3/re/assets.brands/60bf9ce39a9c93cf48d16a2f" group-title="Classic Rock",Lone Star 92.5
 https://stream.revma.ihrhls.com/zc3379
-#EXTINF:-1 radio="true" group-title="Jazz",The Jazz Station
+#EXTINF:-1 radio="true" tvg-logo="https://upload.wikimedia.org/wikipedia/en/4/40/Jazz_Radio_Logo.png" group-title="Jazz",The Jazz Station
 https://streaming.live365.com/a74112
-#EXTINF:-1 radio="true" group-title="Talk",American Family Radio
-https://mediaserver3.afa.net:8443/talk.mp3
-#EXTINF:-1 radio="true" group-title="Christian",Air 1
+#EXTINF:-1 radio="true" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Air1_logo_2019.svg/1280px-Air1_logo_2019.svg.png" group-title="Christian",Air 1
 https://maestro.emfcdn.com/stream_for/air1/tunein/aac
-#EXTINF:-1 radio="true" group-title="Christian",Way FM
+#EXTINF:-1 radio="true" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6Xh_bNx1S2Eo6MgLkied_pQTw2KXIMkpXCA&s" group-title="Christian",Way FM
 https://ais-sa8.cdnstream1.com/3144_64.aac
-#EXTINF:-1 radio="true" group-title="Christian",The House FM
+#EXTINF:-1 radio="true" tvg-logo="https://cdn-profiles.tunein.com/s67618/images/logog.jpg?t=160278" group-title="Christian",The House FM
 http://klvv-praise.streamguys.us/TheHouse96k
-#EXTINF:-1 radio="true" group-title="Dubstep",Sub FM
-http://orion.shoutca.st:8086/;
-#EXTINF:-1 radio="true" group-title="Soundtrack",Final Fantasy Radio
-http://finalfantasystation.com:8000/stream
-#EXTINF:-1 radio="true" group-title="Easy Listening",Easy 108
+#EXTINF:-1 radio="true" tvg-logo="https://www.radio.net/300/easy108.png?version=98f16bbfbcad8589eac626f90caa021daa5d04f1" group-title="Easy Listening",Easy 108
 http://ingest2.cdnstream1.com:7080/1299_128
-#EXTINF:-1 radio="true" group-title="Electronic",Fleet EDM Radio
-http://fleetradionetwork.com:8001/;
-#EXTINF:-1 radio="true" group-title="Fantasy",Fantasy Radio
-https://stream.laut.fm/fantasyradio
-#EXTINF:-1 radio="true" group-title="Fantasy",Medieval Fantasy
-https://stream.laut.fm/medieval-fantasy
-#EXTINF:-1 radio="true" group-title="Adult Contemporary",WIFM
-https://ice6.securenetsystems.net/WIFM
-#EXTINF:-1 radio="true" group-title="Jazz",2nd Voyage Network Radio
-https://listen.radioking.com/radio/616912/stream/678844
-#EXTINF:-1 radio="true" group-title="Folk",Folk Alley
-https://freshgrass.streamguys1.com/ss1-128mp3
-#EXTINF:-1 radio="true" group-title="Cinematic",Cinematic
+#EXTINF:-1 radio="true" tvg-logo="https://cdn-images-3.listennotes.com/podcasts/cinematic-radio-nTjJQbxy5PR-UglcLWjGDi4.1400x1400.jpg" group-title="Cinematic",Cinematic
 http://hi.streamingsoundtracks.com/;
-#EXTINF:-1 radio="true" group-title="Golden Oldies",Outpost Radio - 57 Chevy
+#EXTINF:-1 radio="true" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRj-06PeXV-oriOcv0qWrEEJfBz7nvwOuIiPA&s" group-title="Golden Oldies",Outpost Radio - 57 Chevy
 http://icecast.opost.com/57chevya874e1916104eb69b571743be17fd86d
-#EXTINF:-1 radio="true" group-title="Rock",Pure Rock US - Americas
+#EXTINF:-1 radio="true" tvg-logo="https://www.radio.net/300/purerockus.png?version=74757f9f49b7e0f37c40adb5670707ee63bc1db4" group-title="Rock",Pure Rock US - Americas
 http://sbouch00.radioca.st:8524/;
-#EXTINF:-1 radio="true" group-title="Country",KSBK
+#EXTINF:-1 radio="true" tvg-logo="https://upload.wikimedia.org/wikipedia/en/8/88/KSPK-FM_Logo.png" group-title="Country",KSBK
 http://stream.kspk.com:8000/live.mp3
-#EXTINF:-1 radio="true" group-title="Country",B 93.9
+#EXTINF:-1 radio="true" tvg-logo="https://cdn-profiles.tunein.com/s22594/images/logoq.jpg?t=162581" group-title="Country",B 93.9
 https://stream.revma.ihrhls.com/zc2906
-#EXTINF:-1 radio="true" group-title="Nature",Intra Nature Radio
+#EXTINF:-1 radio="true" tvg-logo="https://res.cloudinary.com/bshano/image/upload/c_scale,f_auto,w_215/v1622536424/webradio/stations/intra-nature.png" group-title="Nature",Intra Nature Radio
 http://nap.casthost.net:8793/;
-#EXTINF:-1 radio="true" group-title="Nature",Nature Mountain Radio
+#EXTINF:-1 radio="true" tvg-logo="https://media.live365.com/download/c0f48244-aabf-4149-89f5-19f08ed3f1dc.jpg" group-title="Nature",Nature Mountain Radio
 https://streaming.live365.com/a51903
-#EXTINF:-1 radio="true" group-title="OTR",OTR Now - Amazing Tales of Radio
+#EXTINF:-1 radio="true" tvg-logo="https://image.roku.com/developer_channels/prod/6d57afbccf8892a26aa6f16c435bcd059b8b92286c1e6375364424023699abbf.png" group-title="OTR",OTR Now - Amazing Tales of Radio
 http://amoriginal.radioca.st:8462/stream
-#EXTINF:-1 radio="true" group-title="OTR",Suspense Radio
+#EXTINF:-1 radio="true" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSStWqE22ntgUOARnykbAFv9m8iclpuaASJ4A&s" group-title="OTR",Suspense Radio
 https://ais-sa3.cdnstream1.com/2608_128.mp3
-#EXTINF:-1 radio="true" group-title="OTR",Sci-Fi Old Time Radio
+#EXTINF:-1 radio="true" tvg-logo="https://m.media-amazon.com/images/I/41EKvlTJafL._SL240_CATL,225,225_RO112,1,0,0,0,0,0,0,8_.jpg" group-title="OTR",Sci-Fi Old Time Radio
 http://s1.voscast.com:8652/stream
-#EXTINF:-1 radio="true" group-title="Piano",Got Radio - Piano Perfect
+#EXTINF:-1 radio="true" tvg-logo="https://static2.mytuner.mobi/media/tvos_radios/wPAZXQgrCQ.jpg" group-title="Piano",Got Radio - Piano Perfect
 http://gr02.cdnstream.com:8050/;
-#EXTINF:-1 radio="true" group-title="Christian",91.9 The Family
+#EXTINF:-1 radio="true" tvg-logo="https://thefamily.net/wp-content/uploads/2023/07/Family_logo-Registered-mark-Icon600.png" group-title="Christian",91.9 The Family
 https://ice64.securenetsystems.net/WEMI
-#EXTINF:-1 radio="true" group-title="Rock",96 K Rock
+#EXTINF:-1 radio="true" tvg-logo="https://cdn-profiles.tunein.com/s22669/images/logog.png?t=153113" group-title="Rock",96 K Rock
 https://playerservices.streamtheworld.com/api/livestream-redirect/WRXKFMAACHI.aac
-#EXTINF:-1 radio="true" group-title="Rock",Lazer 103.3
+#EXTINF:-1 radio="true" tvg-logo="https://lazer1033.com/wp-content/themes/kazr/img/facebook-og.jpg" group-title="Rock",Lazer 103.3
 https://live.amperwave.net/direct/saga-kazrfmmp3-ibc1
-#EXTINF:-1 radio="true" group-title="Rockabilly",Rockin 626
+#EXTINF:-1 radio="true" tvg-logo="https://static.mytuner.mobi/media/tvos_radios/272/rockin-626.cfd99f59.jpg" group-title="Rockabilly",Rockin 626
 https://usa2.fastcast4u.com/proxy/rgruszcz?mp=/1
-#EXTINF:-1 radio="true" group-title="Soft Rock",B 98
+#EXTINF:-1 radio="true" tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQjKO5fj4y6xSLxM9Fc9fE-U47RsQ8X1DA_CA&s" group-title="Soft Rock",B 98
 https://streaming.live365.com/a29918
-#EXTINF:-1 radio="true" group-title="Variety",Mix 99.5
+#EXTINF:-1 radio="true" tvg-logo="https://i.iheart.com/v3/re/assets.brands/6a1f16720b4551121ed024cb?ops=gravity(%22center%22),contain(1200,675),quality(65)" group-title="Variety",Mix 99.5
 https://stream.revma.ihrhls.com/zc1621
-#EXTINF:-1 radio="true" group-title="Soundtrack",Cinemix Film Music
-http://ks301511.kimsufi.com:8107/;
-#EXTINF:-1 radio="true" group-title="Soundtrack",Got Radio - Soundtracks
-http://gr02.cdnstream.com:8060/
-#EXTINF:-1 radio="true" group-title="Soundtrack",Streaming Soundtracks
-http://lo4.streamingsoundtracks.com/;
-#EXTINF:-1 radio="true" group-title="Viking",Drystan
-https://stream.laut.fm/drystan
-#EXTINF:-1 radio="true" group-title="Weather",NOAA - Dallas
+#EXTINF:-1 radio="true" tvg-logo="https://yt3.googleusercontent.com/ZzC_NmDSYP4IJPG1a75R8SKFYJzmdAE2lNj0Ij7dabKbCN4yOjJxb3cNuAORr2Hv2GsCPYCgcI4=s900-c-k-c0x00ffffff-no-rj" group-title="Weather",NOAA - Dallas
 https://wxradio.org/TX-Dallas-KEC56
