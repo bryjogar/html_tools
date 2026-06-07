@@ -5,7 +5,7 @@ https://ancientfaith.streamguys1.com/talk-source
 https://ancientfaith.streamguys1.com/ancientfaith3-source
 #EXTINF:-1 radio="true" group-title="Religion/Talk",Orthodox Sentinal
 https://s4.radio.co/s36b8a688f/low
-#EXTINF:-1 radio="true" group-title="News/Talk",NPR News
+#EXTINF:-1 radio="true" tvg-logo="https://1radionews.com/wp-content/uploads/nprnews.jpg" group-title="News/Talk",NPR News
 https://pd.npr.org/anon.npr-mp3/npr/news/newscast.mp3
 #EXTINF:-1 radio="true" group-title="Classical",Your Classical MPR
 https://cms.stream.publicradio.org/cms.mp3
