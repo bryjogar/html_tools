@@ -622,9 +622,10 @@ function Set-KioskUserHiveConfiguration {
     try {
         $ErrorActionPreference = 'SilentlyContinue'
 
-        # 2. Redirect User Winlogon Shell using native reg.exe
+        # 2. Redirect User Winlogon Shell using native reg.exe via cmd.exe (preserves inner quotes without CLI parsing corruption)
         $winlogonKey = "HKU\$mountName\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
-        $shellRes = & reg.exe add "$winlogonKey" /v "Shell" /t REG_SZ /d $ShellCommand /f 2>&1
+        $escaped = $ShellCommand.Replace('"', '\"')
+        $shellRes = cmd.exe /c "reg.exe add `"$winlogonKey`" /v Shell /t REG_SZ /d `"$escaped`" /f" 2>&1
         if ($LASTEXITCODE -ne 0) { throw "Failed to set user HKCU Shell in ${winlogonKey}: $shellRes" }
         Write-Ok "HKCU Shell redirected -> $ShellCommand"
 
