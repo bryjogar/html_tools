@@ -673,6 +673,7 @@ function Invoke-SessionEviction {
     param([string]$TargetUser)
     try {
         $quserOutput = & quser 2>$null
+        $global:LASTEXITCODE = 0
         if ($quserOutput) {
             foreach ($line in ($quserOutput -split "`r?`n" | Select-Object -Skip 1)) {
                 $parts = $line.Trim() -split '\s+'
@@ -1098,9 +1099,11 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 switch ($Mode) {
     'Setup' {
         Invoke-KioskSetup
+        exit 0
     }
     'Teardown' {
         Invoke-KioskTeardown
+        exit 0
     }
     'Verify' {
         $ok = Invoke-KioskVerify
