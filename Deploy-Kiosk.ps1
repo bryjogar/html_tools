@@ -622,10 +622,9 @@ function Set-KioskUserHiveConfiguration {
     try {
         $ErrorActionPreference = 'SilentlyContinue'
 
-        # 2. Redirect User Winlogon Shell using native reg.exe (escape inner quotes for CLI argument parser)
+        # 2. Redirect User Winlogon Shell using native reg.exe
         $winlogonKey = "HKU\$mountName\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
-        $escapedShell = $ShellCommand.Replace('"', '\"')
-        $shellRes = & reg.exe add "$winlogonKey" /v "Shell" /t REG_SZ /d "$escapedShell" /f 2>&1
+        $shellRes = & reg.exe add "$winlogonKey" /v "Shell" /t REG_SZ /d $ShellCommand /f 2>&1
         if ($LASTEXITCODE -ne 0) { throw "Failed to set user HKCU Shell in ${winlogonKey}: $shellRes" }
         Write-Ok "HKCU Shell redirected -> $ShellCommand"
 
@@ -766,6 +765,13 @@ function Invoke-KioskSetup {
             Invoke-SessionEviction -TargetUser $Username
             Get-Process -Name 'KioskKeyBlocker','msedge' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             Remove-LocalUser -Name $Username -ErrorAction SilentlyContinue
+            
+            # Clean CIM profile and folder to prevent orphaned .001 profile generation
+            Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
+                Where-Object { $_.LocalPath -like "*\$Username" -or $_.LocalPath -like "*\$Username.*" } |
+                Remove-CimInstance -ErrorAction SilentlyContinue
+            Remove-ProfileFolderAggressive -FolderPath $profileDir | Out-Null
+            
             $userExists = $false
         } else {
             Write-Warn2 "User '$Username' already exists. Updating configuration only (use -Force to reinstall)."
@@ -863,13 +869,13 @@ Start-Process -FilePath '$edgePath' -ArgumentList @(
     '--no-default-browser-check',
     '--disable-pinch',
     '--overscroll-history-navigation=0'
-)
+) -Wait
 "@)
     } else {
         if ($KioskAppArgs) {
-            $launchPs1.Add("Start-Process -FilePath `"$KioskApp`" -ArgumentList '$KioskAppArgs'")
+            $launchPs1.Add("Start-Process -FilePath `"$KioskApp`" -ArgumentList '$KioskAppArgs' -Wait")
         } else {
-            $launchPs1.Add("Start-Process -FilePath `"$KioskApp`"")
+            $launchPs1.Add("Start-Process -FilePath `"$KioskApp`" -Wait")
         }
     }
 
