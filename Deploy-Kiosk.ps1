@@ -614,9 +614,20 @@ function Set-KioskUserHiveConfiguration {
 
     $mountName = "KioskHive_$([System.IO.Path]::GetRandomFileName().Replace('.', ''))"
     
-    # 1. Mount Hive
-    $loadRes = & reg.exe load "HKU\$mountName" "$HivePath" 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "reg.exe load failed for $HivePath. Output: $loadRes" }
+    # 1. Mount Hive (with retry loop to allow User Profile Service / background handles to release)
+    $loaded = $false
+    $loadAttempts = 15
+    $loadRes = $null
+    while ($loadAttempts -gt 0 -and -not $loaded) {
+        $loadRes = & reg.exe load "HKU\$mountName" "$HivePath" 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $loaded = $true
+            break
+        }
+        Start-Sleep -Seconds 1
+        $loadAttempts--
+    }
+    if (-not $loaded) { throw "reg.exe load failed for $HivePath after retries. Output: $loadRes" }
 
     $origEAP = $ErrorActionPreference
     try {
@@ -672,6 +683,11 @@ function Set-KioskUserHiveConfiguration {
 function Invoke-SessionEviction {
     param([string]$TargetUser)
     try {
+        # 1. Forcibly terminate any process running under target user (e.g. wmplayer, edge, etc.)
+        & taskkill.exe /F /FI "USERNAME eq $TargetUser" /IM * 2>&1 | Out-Null
+        $global:LASTEXITCODE = 0
+
+        # 2. Evict active interactive sessions via logoff
         $quserOutput = & quser 2>$null
         $global:LASTEXITCODE = 0
         if ($quserOutput) {
@@ -686,8 +702,30 @@ function Invoke-SessionEviction {
                     }
                 }
             }
-            Start-Sleep -Seconds 2
         }
+
+        # 3. Wait for session to cleanly terminate (up to 10 seconds)
+        $waited = 0
+        while ($waited -lt 10) {
+            $check = & quser 2>$null
+            $global:LASTEXITCODE = 0
+            if (-not $check -or -not ($check -match "(?i)\b$([regex]::Escape($TargetUser))\b")) {
+                break
+            }
+            Start-Sleep -Seconds 1
+            $waited++
+        }
+
+        # 4. Unload any lingering temp hives from interrupted previous runs
+        Get-ChildItem -Path 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue |
+            Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
+            ForEach-Object {
+                & reg.exe unload "HKU\$($_.PSChildName)" 2>&1 | Out-Null
+            }
+        $global:LASTEXITCODE = 0
+
+        # Brief settle time for Windows User Profile Service (ProfSvc) to flush
+        Start-Sleep -Seconds 2
     } catch { }
 }
 
@@ -695,22 +733,26 @@ function Remove-ProfileFolderAggressive {
     param([string]$FolderPath)
     if (-not (Test-Path $FolderPath)) { return $true }
 
-    try {
-        Remove-Item -Path $FolderPath -Recurse -Force -ErrorAction Stop
-        return $true
-    } catch { }
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            Remove-Item -Path $FolderPath -Recurse -Force -ErrorAction Stop
+            return $true
+        } catch { }
 
-    try {
-        cmd.exe /c "rmdir /s /q `"$FolderPath`"" 2>&1 | Out-Null
-        if (-not (Test-Path $FolderPath)) { return $true }
-    } catch { }
+        try {
+            cmd.exe /c "rmdir /s /q `"$FolderPath`"" 2>&1 | Out-Null
+            if (-not (Test-Path $FolderPath)) { return $true }
+        } catch { }
 
-    try {
-        takeown /f "$FolderPath" /r /d y 2>&1 | Out-Null
-        icacls "$FolderPath" /grant "*S-1-5-32-544:F" /t /q 2>&1 | Out-Null
-        Remove-Item -Path $FolderPath -Recurse -Force -ErrorAction Stop
-        return $true
-    } catch { }
+        try {
+            takeown /f "$FolderPath" /r /d y 2>&1 | Out-Null
+            icacls "$FolderPath" /grant "*S-1-5-32-544:F" /t /q 2>&1 | Out-Null
+            Remove-Item -Path $FolderPath -Recurse -Force -ErrorAction Stop
+            return $true
+        } catch { }
+
+        Start-Sleep -Seconds 1
+    }
 
     try {
         Write-Warn2 "Could not delete '$FolderPath' immediately. Scheduling deletion on next reboot."
