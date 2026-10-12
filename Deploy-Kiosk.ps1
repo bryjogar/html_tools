@@ -157,7 +157,7 @@ function Normalize-StringList {
 # Embedded C# Win32 Profile Loader (Replaces KioskCore.dll)
 # ---------------------------------------------------------------------------
 function Add-KioskProfileLoader {
-    if ('Enable.Kiosk.ProfileLoader' -as [type]) { return }
+    if ('Enable.Kiosk.ProfileManager' -as [type]) { return }
     Add-Type -TypeDefinition @'
 using System;
 using System.ComponentModel;
@@ -167,7 +167,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Enable.Kiosk
 {
-    public static class ProfileLoader
+    public static class ProfileManager
     {
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public struct PROFILEINFO
@@ -257,6 +257,11 @@ namespace Enable.Kiosk
                 if (pi.hProfile != IntPtr.Zero) UnloadUserProfile(token, pi.hProfile);
                 CloseHandle(token);
             }
+        }
+
+        public static void LoadProfile(string username, string password)
+        {
+            LoadAndConfigureProfile(username, password, null, null);
         }
     }
 }
@@ -952,24 +957,26 @@ function Invoke-KioskSetup {
         New-LocalUser -Name $Username -Password $secPassword -FullName $Username -AccountNeverExpires -PasswordNeverExpires | Out-Null
         Add-LocalGroupMember -Group 'Users' -Member $Username -ErrorAction SilentlyContinue
 
-        Write-Ok "Baking user profile via Win32 LogonUser + LoadUserProfile..."
-        
-
-        # If no explicit password was supplied, clear the password
-        if (-not $hasPassword) {
-            & net user "$Username" "" /y 2>&1 | Out-Null
-        }
-        # Configure HKCU Shell and policies directly during Win32 profile bake (bypasses reg.exe load completely)
+        Write-Ok "Baking user profile and configuring HKCU via Win32 LogonUser + LoadUserProfile..."
         $shellCmd = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$InstallPath\launch.ps1`""
-        [Enable.Kiosk.ProfileLoader]::LoadAndConfigureProfile($Username, $tempPassword, $shellCmd, ($finalSasOptions -join ','))
+        [Enable.Kiosk.ProfileManager]::LoadAndConfigureProfile($Username, $tempPassword, $shellCmd, ($finalSasOptions -join ','))
 
-        # If no explicit password was supplied, clear the password
+        # If no explicit password was supplied, clear the password now that profile baking is complete
         if (-not $hasPassword) {
             & net user "$Username" "" /y 2>&1 | Out-Null
         }
         Write-Ok "Account created, profile initialized, and HKCU registry configured."
         $script:KioskProfilePreConfigured = $true
         Start-Sleep -Seconds 2
+    }
+
+    # Resolve active profile path from ProfileList (handles host-suffixed folders e.g. Username.HOSTNAME)
+    $activeProfile = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\*' -ErrorAction SilentlyContinue |
+        Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$Username" -or $_.ProfileImagePath -like "*\$Username.*") } |
+        Select-Object -First 1
+    if ($activeProfile -and (Test-Path $activeProfile.ProfileImagePath)) {
+        $profileDir = $activeProfile.ProfileImagePath
+        $hivePath = Join-Path $profileDir 'NTUSER.DAT'
     }
 
     # Verify NTUSER.DAT exists
