@@ -162,6 +162,8 @@ function Add-KioskProfileLoader {
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 
 namespace Enable.Kiosk
 {
@@ -192,7 +194,7 @@ namespace Enable.Kiosk
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr hObject);
 
-        public static void LoadProfile(string username, string password)
+        public static void LoadAndConfigureProfile(string username, string password, string shellCommand, string sasOptionsCsv)
         {
             IntPtr token;
             if (!LogonUser(username, ".", password, 2 /* LOGON32_LOGON_INTERACTIVE */, 0, out token))
@@ -205,6 +207,50 @@ namespace Enable.Kiosk
             {
                 if (!LoadUserProfile(token, ref pi))
                     throw new Win32Exception(Marshal.GetLastWin32Error());
+
+                if (pi.hProfile != IntPtr.Zero)
+                {
+                    SafeRegistryHandle sHandle = new SafeRegistryHandle(pi.hProfile, false);
+                    using (RegistryKey userRoot = RegistryKey.FromHandle(sHandle))
+                    {
+                        if (!string.IsNullOrEmpty(shellCommand))
+                        {
+                            using (RegistryKey winlogon = userRoot.CreateSubKey("Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"))
+                            {
+                                if (winlogon != null)
+                                    winlogon.SetValue("Shell", shellCommand, RegistryValueKind.String);
+                            }
+                        }
+
+                        using (RegistryKey policies = userRoot.CreateSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System"))
+                        {
+                            if (policies != null)
+                            {
+                                string sasLower = (sasOptionsCsv ?? "").ToLowerInvariant();
+                                if (sasLower.Contains("disabletaskmgr"))
+                                    policies.SetValue("DisableTaskMgr", 1, RegistryValueKind.DWord);
+                                else
+                                    try { policies.DeleteValue("DisableTaskMgr"); } catch { }
+
+                                if (sasLower.Contains("disablelockworkstation"))
+                                    policies.SetValue("DisableLockWorkstation", 1, RegistryValueKind.DWord);
+                                else
+                                    try { policies.DeleteValue("DisableLockWorkstation"); } catch { }
+
+                                if (sasLower.Contains("disablechangepassword"))
+                                    policies.SetValue("DisableChangePassword", 1, RegistryValueKind.DWord);
+                                else
+                                    try { policies.DeleteValue("DisableChangePassword"); } catch { }
+                            }
+                        }
+
+                        using (RegistryKey edge = userRoot.CreateSubKey("Software\\Policies\\Microsoft\\Edge"))
+                        {
+                            if (edge != null)
+                                edge.SetValue("HideFirstRunExperience", 1, RegistryValueKind.DWord);
+                        }
+                    }
+                }
             }
             finally
             {
@@ -613,6 +659,13 @@ function Set-KioskUserHiveConfiguration {
         [string]$TargetUsername = $null
     )
 
+    # 0. Clean up any lingering temporary hives left behind by interrupted previous runs
+    Get-ChildItem -Path 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue |
+        Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
+        ForEach-Object {
+            cmd.exe /c "reg.exe unload `"HKU\$($_.PSChildName)`" 2>&1" | Out-Null
+        }
+
     # 1. Determine target root key: check if user hive is already mounted under HKU\<SID>
     $userSid = $null
     $isAlreadyMounted = $false
@@ -620,14 +673,27 @@ function Set-KioskUserHiveConfiguration {
     $needsUnmount = $false
 
     if ($TargetUsername) {
-        $u = Get-LocalUser -Name $TargetUsername -ErrorAction SilentlyContinue
-        if ($u -and $u.SID) {
-            $userSid = $u.SID.Value
-            if (Test-Path "Registry::HKEY_USERS\$userSid") {
-                $isAlreadyMounted = $true
-                $targetRootKey = "HKU\$userSid"
-                Write-Ok "User registry hive is actively mounted at $targetRootKey."
+        # Check ProfileList registry (most authoritative for local profiles)
+        try {
+            $profileList = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'
+            $matched = Get-ItemProperty "$profileList\*" -ErrorAction SilentlyContinue |
+                Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$TargetUsername" -or $_.ProfileImagePath -like "*\$TargetUsername.*") } |
+                Select-Object -First 1
+            if ($matched) {
+                $userSid = $matched.PSChildName
             }
+        } catch { }
+
+        if (-not $userSid) {
+            try {
+                $userSid = (New-Object System.Security.Principal.NTAccount($TargetUsername)).Translate([System.Security.Principal.SecurityIdentifier]).Value
+            } catch { }
+        }
+
+        if ($userSid -and (Test-Path "Registry::HKEY_USERS\$userSid")) {
+            $isAlreadyMounted = $true
+            $targetRootKey = "HKU\$userSid"
+            Write-Ok "User registry hive is actively mounted at $targetRootKey."
         }
     }
 
@@ -676,7 +742,6 @@ function Set-KioskUserHiveConfiguration {
                 Write-Ok "SAS policy: $opt = 1"
             }
             else {
-                # Delete option if previously present (ignoring non-existent error)
                 cmd.exe /c "reg.exe delete `"$policiesKey`" /v `"$opt`" /f 2>&1" | Out-Null
             }
         }
@@ -818,6 +883,12 @@ function Invoke-KioskSetup {
     $finalBgApps = Normalize-StringList $BackgroundApps
 
 
+    
+    # Clean up any lingering temporary hives left behind by interrupted runs
+    Get-ChildItem -Path 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue |
+        Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
+        ForEach-Object { cmd.exe /c "reg.exe unload `"HKU\$($_.PSChildName)`" 2>&1" | Out-Null }
+
     if ($KioskUrl -and $KioskApp) { Write-Fail "Specify -KioskUrl OR -KioskApp, not both."; exit 1 }
     if (-not $KioskUrl -and -not $KioskApp) { Write-Fail "Specify a target via -KioskUrl or -KioskApp."; exit 1 }
 
@@ -882,14 +953,22 @@ function Invoke-KioskSetup {
         Add-LocalGroupMember -Group 'Users' -Member $Username -ErrorAction SilentlyContinue
 
         Write-Ok "Baking user profile via Win32 LogonUser + LoadUserProfile..."
-        [Enable.Kiosk.ProfileLoader]::LoadProfile($Username, $tempPassword)
+        
 
         # If no explicit password was supplied, clear the password
         if (-not $hasPassword) {
             & net user "$Username" "" /y 2>&1 | Out-Null
         }
-        Write-Ok "Account created and profile initialized."
-        # Settle time for Windows User Profile Service (ProfSvc) to flush
+        # Configure HKCU Shell and policies directly during Win32 profile bake (bypasses reg.exe load completely)
+        $shellCmd = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$InstallPath\launch.ps1`""
+        [Enable.Kiosk.ProfileLoader]::LoadAndConfigureProfile($Username, $tempPassword, $shellCmd, ($finalSasOptions -join ','))
+
+        # If no explicit password was supplied, clear the password
+        if (-not $hasPassword) {
+            & net user "$Username" "" /y 2>&1 | Out-Null
+        }
+        Write-Ok "Account created, profile initialized, and HKCU registry configured."
+        $script:KioskProfilePreConfigured = $true
         Start-Sleep -Seconds 2
     }
 
@@ -921,7 +1000,13 @@ function Invoke-KioskSetup {
     # -- 3: Patch Kiosk User Registry (HKCU via Hive Mount) -------------------
     Write-Step "3/6 Kiosk user registry (HKCU isolation via hive mount)"
     $shellValue = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$InstallPath\launch.ps1`""
-    Set-KioskUserHiveConfiguration -HivePath $hivePath -ShellCommand $shellValue -SasOptions $finalSasOptions -TargetUsername $Username
+    if ($script:KioskProfilePreConfigured) {
+        Write-Ok "HKCU Shell redirected -> $shellValue"
+        Write-Ok "HKCU registry was pre-configured natively during profile initialization."
+    }
+    else {
+        Set-KioskUserHiveConfiguration -HivePath $hivePath -ShellCommand $shellValue -SasOptions $finalSasOptions -TargetUsername $Username
+    }
 
     # -- 4: Generate Launch Files (launch.ps1) --------------------------------
     Write-Step "4/6 Generating launch files"
