@@ -609,73 +609,105 @@ function Set-KioskUserHiveConfiguration {
     param(
         [string]$HivePath,
         [string]$ShellCommand,
-        [string[]]$SasOptions
+        [string[]]$SasOptions,
+        [string]$TargetUsername = $null
     )
 
-    $mountName = "KioskHive_$([System.IO.Path]::GetRandomFileName().Replace('.', ''))"
-    
-    # 1. Mount Hive (with retry loop to allow User Profile Service / background handles to release)
-    $loaded = $false
-    $loadAttempts = 15
-    $loadRes = $null
-    while ($loadAttempts -gt 0 -and -not $loaded) {
-        $loadRes = & reg.exe load "HKU\$mountName" "$HivePath" 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            $loaded = $true
-            break
+    # 1. Determine target root key: check if user hive is already mounted under HKU\<SID>
+    $userSid = $null
+    $isAlreadyMounted = $false
+    $targetRootKey = $null
+    $needsUnmount = $false
+
+    if ($TargetUsername) {
+        $u = Get-LocalUser -Name $TargetUsername -ErrorAction SilentlyContinue
+        if ($u -and $u.SID) {
+            $userSid = $u.SID.Value
+            if (Test-Path "Registry::HKEY_USERS\$userSid") {
+                $isAlreadyMounted = $true
+                $targetRootKey = "HKU\$userSid"
+                Write-Ok "User registry hive is actively mounted at $targetRootKey."
+            }
         }
-        Start-Sleep -Seconds 1
-        $loadAttempts--
     }
-    if (-not $loaded) { throw "reg.exe load failed for $HivePath after retries. Output: $loadRes" }
+
+    if (-not $isAlreadyMounted) {
+        $mountName = "KioskHive_$([System.IO.Path]::GetRandomFileName().Replace('.', ''))"
+        $targetRootKey = "HKU\$mountName"
+        $needsUnmount = $true
+
+        # Mount Hive with retry loop via cmd.exe to prevent PowerShell 5.1 $ErrorActionPreference='Stop' terminating errors
+        $loaded = $false
+        $loadAttempts = 15
+        $loadRes = $null
+        while ($loadAttempts -gt 0 -and -not $loaded) {
+            [System.GC]::Collect()
+            [System.GC]::WaitForPendingFinalizers()
+            $loadRes = cmd.exe /c "reg.exe load `"$targetRootKey`" `"$HivePath`" 2>&1"
+            if ($LASTEXITCODE -eq 0) {
+                $loaded = $true
+                break
+            }
+            Start-Sleep -Seconds 1
+            $loadAttempts--
+        }
+        if (-not $loaded) {
+            $errText = if ($loadRes) { $loadRes -join ' ' } else { 'Unknown error' }
+            throw "reg.exe load failed for $HivePath after retries. Output: $errText"
+        }
+    }
 
     $origEAP = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'SilentlyContinue'
 
-        # 2. Redirect User Winlogon Shell using native reg.exe via cmd.exe (preserves inner quotes without CLI parsing corruption)
-        $winlogonKey = "HKU\$mountName\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
+        # 2. Redirect User Winlogon Shell using native reg.exe via cmd.exe (preserves inner quotes)
+        $winlogonKey = "$targetRootKey\Software\Microsoft\Windows NT\CurrentVersion\Winlogon"
         $escaped = $ShellCommand.Replace('"', '\"')
-        $shellRes = cmd.exe /c "reg.exe add `"$winlogonKey`" /v Shell /t REG_SZ /d `"$escaped`" /f" 2>&1
-        if ($LASTEXITCODE -ne 0) { throw "Failed to set user HKCU Shell in ${winlogonKey}: $shellRes" }
+        $shellRes = cmd.exe /c "reg.exe add `"$winlogonKey`" /v Shell /t REG_SZ /d `"$escaped`" /f 2>&1"
+        if ($LASTEXITCODE -ne 0) { throw "Failed to set user HKCU Shell in ${winlogonKey}: $($shellRes -join ' ')" }
         Write-Ok "HKCU Shell redirected -> $ShellCommand"
 
         # 3. Configure Ctrl+Alt+Del SAS Policies
-        $policiesKey = "HKU\$mountName\Software\Microsoft\Windows\CurrentVersion\Policies\System"
+        $policiesKey = "$targetRootKey\Software\Microsoft\Windows\CurrentVersion\Policies\System"
         foreach ($opt in @('DisableTaskMgr', 'DisableLockWorkstation', 'DisableChangePassword')) {
             if ($SasOptions -contains $opt) {
-                & reg.exe add "$policiesKey" /v "$opt" /t REG_DWORD /d 1 /f 2>&1 | Out-Null
+                cmd.exe /c "reg.exe add `"$policiesKey`" /v `"$opt`" /t REG_DWORD /d 1 /f 2>&1" | Out-Null
                 Write-Ok "SAS policy: $opt = 1"
             }
             else {
                 # Delete option if previously present (ignoring non-existent error)
-                & reg.exe delete "$policiesKey" /v "$opt" /f 2>&1 | Out-Null
+                cmd.exe /c "reg.exe delete `"$policiesKey`" /v `"$opt`" /f 2>&1" | Out-Null
             }
         }
 
         # 4. Suppress Microsoft Edge First Run Experience in User Hive
-        $edgeKey = "HKU\$mountName\Software\Policies\Microsoft\Edge"
-        & reg.exe add "$edgeKey" /v "HideFirstRunExperience" /t REG_DWORD /d 1 /f 2>&1 | Out-Null
+        $edgeKey = "$targetRootKey\Software\Policies\Microsoft\Edge"
+        cmd.exe /c "reg.exe add `"$edgeKey`" /v HideFirstRunExperience /t REG_DWORD /d 1 /f 2>&1" | Out-Null
         Write-Ok "Suppressed Edge First Run Experience in user policies."
     }
     finally {
-        $ErrorActionPreference = $origEAP
-        # Release memory and unmount hive cleanly
-        [System.GC]::Collect()
-        [System.GC]::WaitForPendingFinalizers()
+        # Keep error handling safe during cleanup
+        $ErrorActionPreference = 'SilentlyContinue'
+        if ($needsUnmount) {
+            # Release memory and unmount hive cleanly
+            [System.GC]::Collect()
+            [System.GC]::WaitForPendingFinalizers()
 
-        $unmounted = $false
-        for ($i = 0; $i -lt 10; $i++) {
-            & reg.exe unload "HKU\$mountName" 2>&1 | Out-Null
-            if ($LASTEXITCODE -eq 0) { $unmounted = $true; break }
-            Start-Sleep -Milliseconds 300
+            $unmounted = $false
+            for ($i = 0; $i -lt 10; $i++) {
+                cmd.exe /c "reg.exe unload `"$targetRootKey`" 2>&1" | Out-Null
+                if ($LASTEXITCODE -eq 0) { $unmounted = $true; break }
+                Start-Sleep -Milliseconds 300
+            }
+            if ($unmounted) {
+                Write-Ok "User registry hive unmounted cleanly."
+            }
+            else {
+                Write-Warn2 "Could not unmount $targetRootKey immediately (will unmount upon reboot)."
+            }
         }
-        if ($unmounted) {
-            Write-Ok "User registry hive unmounted cleanly."
-        }
-        else {
-            Write-Warn2 "Could not unmount HKU\$mountName immediately (will unmount upon reboot)."
-        }
+        $ErrorActionPreference = $origEAP
     }
 }
 
@@ -857,6 +889,8 @@ function Invoke-KioskSetup {
             & net user "$Username" "" /y 2>&1 | Out-Null
         }
         Write-Ok "Account created and profile initialized."
+        # Settle time for Windows User Profile Service (ProfSvc) to flush
+        Start-Sleep -Seconds 2
     }
 
     # Verify NTUSER.DAT exists
@@ -887,7 +921,7 @@ function Invoke-KioskSetup {
     # -- 3: Patch Kiosk User Registry (HKCU via Hive Mount) -------------------
     Write-Step "3/6 Kiosk user registry (HKCU isolation via hive mount)"
     $shellValue = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$InstallPath\launch.ps1`""
-    Set-KioskUserHiveConfiguration -HivePath $hivePath -ShellCommand $shellValue -SasOptions $finalSasOptions
+    Set-KioskUserHiveConfiguration -HivePath $hivePath -ShellCommand $shellValue -SasOptions $finalSasOptions -TargetUsername $Username
 
     # -- 4: Generate Launch Files (launch.ps1) --------------------------------
     Write-Step "4/6 Generating launch files"
@@ -1115,31 +1149,45 @@ function Invoke-KioskVerify {
         $allPassed = $false
     }
 
-    # 4. Check HKCU Shell in NTUSER.DAT
+    # 4. Check HKCU Shell in User Registry Hive
+    $userShell = $null
     $hivePath = Join-Path (Join-Path $env:SystemDrive 'Users') "$Username\NTUSER.DAT"
-    if (Test-Path $hivePath) {
+    $userSid = if ($user -and $user.SID) { $user.SID.Value } else { $null }
+
+    if ($userSid -and (Test-Path "Registry::HKEY_USERS\$userSid")) {
+        $userShell = (Get-ItemProperty -Path "Registry::HKEY_USERS\$userSid\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name Shell -ErrorAction SilentlyContinue).Shell
+    }
+    elseif (Test-Path $hivePath) {
         $mountName = "AuditHive_$([System.IO.Path]::GetRandomFileName().Replace('.', ''))"
-        $loaded = (& reg.exe load "HKU\$mountName" "$hivePath" 2>&1)
+        $loadRes = cmd.exe /c "reg.exe load `"HKU\$mountName`" `"$hivePath`" 2>&1"
         if ($LASTEXITCODE -eq 0) {
             try {
                 $userShell = (Get-ItemProperty -Path "Registry::HKEY_USERS\$mountName\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name Shell -ErrorAction SilentlyContinue).Shell
-                if ($userShell -like '*launch.ps1*') {
-                    if (-not $Quiet) { Write-Ok "Kiosk HKCU Shell correctly configured" }
-                }
-                else {
-                    if (-not $Quiet) { Write-Fail "Kiosk HKCU Shell mismatch: '$userShell'" }
-                    $allPassed = $false
-                }
             }
             finally {
                 [System.GC]::Collect()
                 [System.GC]::WaitForPendingFinalizers()
-                & reg.exe unload "HKU\$mountName" 2>&1 | Out-Null
+                cmd.exe /c "reg.exe unload `"HKU\$mountName`" 2>&1" | Out-Null
             }
         }
     }
+
+    if ($userShell) {
+        if ($userShell -like '*launch.ps1*') {
+            if (-not $Quiet) { Write-Ok "Kiosk HKCU Shell correctly configured" }
+        }
+        else {
+            if (-not $Quiet) { Write-Fail "Kiosk HKCU Shell mismatch: '$userShell'" }
+            $allPassed = $false
+        }
+    }
     else {
-        if (-not $Quiet) { Write-Fail "NTUSER.DAT not found on disk ($hivePath)" }
+        if (-not (Test-Path $hivePath) -and (-not $userSid -or -not (Test-Path "Registry::HKEY_USERS\$userSid"))) {
+            if (-not $Quiet) { Write-Fail "NTUSER.DAT not found on disk ($hivePath)" }
+        }
+        else {
+            if (-not $Quiet) { Write-Fail "Could not read HKCU Shell from user hive" }
+        }
         $allPassed = $false
     }
 
