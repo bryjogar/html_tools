@@ -130,8 +130,8 @@ $ErrorActionPreference = 'Stop'
 # UI & Output Helpers
 # ---------------------------------------------------------------------------
 function Write-Step { param($Text) Write-Host "[*] $Text" -ForegroundColor White }
-function Write-Ok   { param($Text) Write-Host "    [ok] $Text" -ForegroundColor Green }
-function Write-Warn2{ param($Text) Write-Host "    [!] $Text" -ForegroundColor Yellow }
+function Write-Ok { param($Text) Write-Host "    [ok] $Text" -ForegroundColor Green }
+function Write-Warn2 { param($Text) Write-Host "    [!] $Text" -ForegroundColor Yellow }
 function Write-Fail { param($Text) Write-Host "[X] $Text" -ForegroundColor Red }
 
 # Normalize arrays or comma-separated strings (essential for RMM UI compatibility)
@@ -646,7 +646,8 @@ function Set-KioskUserHiveConfiguration {
             if ($SasOptions -contains $opt) {
                 & reg.exe add "$policiesKey" /v "$opt" /t REG_DWORD /d 1 /f 2>&1 | Out-Null
                 Write-Ok "SAS policy: $opt = 1"
-            } else {
+            }
+            else {
                 # Delete option if previously present (ignoring non-existent error)
                 & reg.exe delete "$policiesKey" /v "$opt" /f 2>&1 | Out-Null
             }
@@ -671,7 +672,8 @@ function Set-KioskUserHiveConfiguration {
         }
         if ($unmounted) {
             Write-Ok "User registry hive unmounted cleanly."
-        } else {
+        }
+        else {
             Write-Warn2 "Could not unmount HKU\$mountName immediately (will unmount upon reboot)."
         }
     }
@@ -718,15 +720,16 @@ function Invoke-SessionEviction {
 
         # 4. Unload any lingering temp hives from interrupted previous runs
         Get-ChildItem -Path 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue |
-            Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
-            ForEach-Object {
-                & reg.exe unload "HKU\$($_.PSChildName)" 2>&1 | Out-Null
-            }
+        Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
+        ForEach-Object {
+            & reg.exe unload "HKU\$($_.PSChildName)" 2>&1 | Out-Null
+        }
         $global:LASTEXITCODE = 0
 
         # Brief settle time for Windows User Profile Service (ProfSvc) to flush
         Start-Sleep -Seconds 2
-    } catch { }
+    }
+    catch { }
 }
 
 function Remove-ProfileFolderAggressive {
@@ -737,19 +740,22 @@ function Remove-ProfileFolderAggressive {
         try {
             Remove-Item -Path $FolderPath -Recurse -Force -ErrorAction Stop
             return $true
-        } catch { }
+        }
+        catch { }
 
         try {
             cmd.exe /c "rmdir /s /q `"$FolderPath`"" 2>&1 | Out-Null
             if (-not (Test-Path $FolderPath)) { return $true }
-        } catch { }
+        }
+        catch { }
 
         try {
             takeown /f "$FolderPath" /r /d y 2>&1 | Out-Null
             icacls "$FolderPath" /grant "*S-1-5-32-544:F" /t /q 2>&1 | Out-Null
             Remove-Item -Path $FolderPath -Recurse -Force -ErrorAction Stop
             return $true
-        } catch { }
+        }
+        catch { }
 
         Start-Sleep -Seconds 1
     }
@@ -764,7 +770,8 @@ function Remove-ProfileFolderAggressive {
         $newOps += ""
         Set-ItemProperty -Path $pendingKey -Name PendingFileRenameOperations -Value $newOps -Type MultiString -Force
         return $false
-    } catch {
+    }
+    catch {
         return $false
     }
 }
@@ -775,8 +782,8 @@ function Remove-ProfileFolderAggressive {
 function Invoke-KioskSetup {
     # Resolve normalized lists
     $finalBlockedKeys = Normalize-StringList $BlockedKeys
-    $finalSasOptions  = Normalize-StringList $DisableSasOptions
-    $finalBgApps      = Normalize-StringList $BackgroundApps
+    $finalSasOptions = Normalize-StringList $DisableSasOptions
+    $finalBgApps = Normalize-StringList $BackgroundApps
 
 
     if ($KioskUrl -and $KioskApp) { Write-Fail "Specify -KioskUrl OR -KioskApp, not both."; exit 1 }
@@ -800,23 +807,24 @@ function Invoke-KioskSetup {
     Write-Step "1/6 Kiosk user account and profile initialization"
     $userExists = [bool](Get-LocalUser -Name $Username -ErrorAction SilentlyContinue)
     $profileDir = Join-Path (Join-Path $env:SystemDrive 'Users') $Username
-    $hivePath   = Join-Path $profileDir 'NTUSER.DAT'
+    $hivePath = Join-Path $profileDir 'NTUSER.DAT'
 
     if ($userExists) {
         if ($Force) {
             Write-Warn2 "User '$Username' exists and -Force was specified. Reinstalling..."
             Invoke-SessionEviction -TargetUser $Username
-            Get-Process -Name 'KioskKeyBlocker','msedge' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Get-Process -Name 'KioskKeyBlocker', 'msedge' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
             Remove-LocalUser -Name $Username -ErrorAction SilentlyContinue
             
             # Clean CIM profile and folder to prevent orphaned .001 profile generation
             Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
-                Where-Object { $_.LocalPath -like "*\$Username" -or $_.LocalPath -like "*\$Username.*" } |
-                Remove-CimInstance -ErrorAction SilentlyContinue
+            Where-Object { $_.LocalPath -like "*\$Username" -or $_.LocalPath -like "*\$Username.*" } |
+            Remove-CimInstance -ErrorAction SilentlyContinue
             Remove-ProfileFolderAggressive -FolderPath $profileDir | Out-Null
             
             $userExists = $false
-        } else {
+        }
+        else {
             Write-Warn2 "User '$Username' already exists. Updating configuration only (use -Force to reinstall)."
         }
     }
@@ -824,7 +832,7 @@ function Invoke-KioskSetup {
     # Clean any orphaned numbered profile folders (e.g. Username.001)
     $profilePattern = "^$([regex]::Escape($Username))(\..*|\.\d+)$"
     $leftovers = Get-ChildItem (Join-Path $env:SystemDrive 'Users') -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match $profilePattern }
+    Where-Object { $_.Name -match $profilePattern }
     foreach ($lo in $leftovers) {
         Write-Warn2 "Purging leftover profile folder: $($lo.FullName)"
         Remove-ProfileFolderAggressive -FolderPath $lo.FullName | Out-Null
@@ -869,7 +877,8 @@ function Invoke-KioskSetup {
         Set-ItemProperty -Path $winlogon -Name ForceAutoLogon -Value '1' -Type String -Force
         if ($Password) {
             Set-ItemProperty -Path $winlogon -Name DefaultPassword -Value $Password -Type String -Force
-        } else {
+        }
+        else {
             Remove-ItemProperty -Path $winlogon -Name DefaultPassword -Force -ErrorAction SilentlyContinue
         }
         Write-Ok "Auto-logon configured in HKLM."
@@ -914,10 +923,12 @@ Start-Process -FilePath '$edgePath' -ArgumentList @(
     '--overscroll-history-navigation=0'
 ) -Wait
 "@)
-    } else {
+    }
+    else {
         if ($KioskAppArgs) {
             $launchPs1.Add("Start-Process -FilePath `"$KioskApp`" -ArgumentList '$KioskAppArgs' -Wait")
-        } else {
+        }
+        else {
             $launchPs1.Add("Start-Process -FilePath `"$KioskApp`" -Wait")
         }
     }
@@ -1001,11 +1012,13 @@ function Invoke-KioskTeardown {
         try {
             Remove-LocalUser -Name $Username -ErrorAction Stop
             Write-Ok "Local user '$Username' removed."
-        } catch {
+        }
+        catch {
             & net user "$Username" /delete /y 2>&1 | Out-Null
             Write-Ok "Local user '$Username' removed via net user."
         }
-    } else {
+    }
+    else {
         Write-Ok "User '$Username' does not exist."
     }
 
@@ -1013,7 +1026,7 @@ function Invoke-KioskTeardown {
     Write-Step "4/5 Removing user profiles and cleaning folders"
     $profilePath = Join-Path (Join-Path $env:SystemDrive 'Users') $Username
     $wmiProfiles = Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
-        Where-Object { $_.LocalPath -like "*\$Username" -or $_.LocalPath -like "*\$Username.*" }
+    Where-Object { $_.LocalPath -like "*\$Username" -or $_.LocalPath -like "*\$Username.*" }
     foreach ($wp in $wmiProfiles) {
         Write-Ok "Removing CIM profile: $($wp.LocalPath)"
         $wp | Remove-CimInstance -ErrorAction SilentlyContinue
@@ -1023,7 +1036,7 @@ function Invoke-KioskTeardown {
     Remove-ProfileFolderAggressive -FolderPath $profilePath | Out-Null
     $pattern = "^$([regex]::Escape($Username))(\..*|\.\d+)$"
     $leftovers = Get-ChildItem (Join-Path $env:SystemDrive 'Users') -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match $pattern }
+    Where-Object { $_.Name -match $pattern }
     foreach ($lo in $leftovers) {
         Write-Ok "Removing leftover folder: $($lo.FullName)"
         Remove-ProfileFolderAggressive -FolderPath $lo.FullName | Out-Null
@@ -1035,7 +1048,8 @@ function Invoke-KioskTeardown {
         try {
             Remove-Item -Path $InstallPath -Recurse -Force -ErrorAction Stop
             Write-Ok "Removed directory $InstallPath"
-        } catch {
+        }
+        catch {
             $sm = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
             $pending = (Get-ItemProperty -Path $sm -Name PendingFileRenameOperations -ErrorAction SilentlyContinue).PendingFileRenameOperations
             $newOps = @("\??\$InstallPath", "")
@@ -1072,7 +1086,8 @@ function Invoke-KioskVerify {
         $full = Join-Path $InstallPath $f
         if (Test-Path $full) {
             if (-not $Quiet) { Write-Ok "File present: $f" }
-        } else {
+        }
+        else {
             if (-not $Quiet) { Write-Fail "MISSING: $full" }
             $allPassed = $false
         }
@@ -1083,16 +1098,19 @@ function Invoke-KioskVerify {
         $hklmShell = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name Shell -ErrorAction SilentlyContinue).Shell
         if ($hklmShell -eq 'explorer.exe') {
             if (-not $Quiet) { Write-Ok "HKLM Shell untouched (explorer.exe)" }
-        } else {
+        }
+        else {
             if (-not $Quiet) { Write-Warn2 "HKLM Shell = '$hklmShell' (expected explorer.exe)" }
         }
-    } catch { }
+    }
+    catch { }
 
     # 3. Check User Account
     $user = Get-LocalUser -Name $Username -ErrorAction SilentlyContinue
     if ($user) {
         if (-not $Quiet) { Write-Ok "User account '$Username' exists" }
-    } else {
+    }
+    else {
         if (-not $Quiet) { Write-Fail "User account '$Username' NOT found" }
         $allPassed = $false
     }
@@ -1107,17 +1125,20 @@ function Invoke-KioskVerify {
                 $userShell = (Get-ItemProperty -Path "Registry::HKEY_USERS\$mountName\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name Shell -ErrorAction SilentlyContinue).Shell
                 if ($userShell -like '*launch.ps1*') {
                     if (-not $Quiet) { Write-Ok "Kiosk HKCU Shell correctly configured" }
-                } else {
+                }
+                else {
                     if (-not $Quiet) { Write-Fail "Kiosk HKCU Shell mismatch: '$userShell'" }
                     $allPassed = $false
                 }
-            } finally {
+            }
+            finally {
                 [System.GC]::Collect()
                 [System.GC]::WaitForPendingFinalizers()
                 & reg.exe unload "HKU\$mountName" 2>&1 | Out-Null
             }
         }
-    } else {
+    }
+    else {
         if (-not $Quiet) { Write-Fail "NTUSER.DAT not found on disk ($hivePath)" }
         $allPassed = $false
     }
@@ -1126,7 +1147,8 @@ function Invoke-KioskVerify {
         Write-Host "======================================================" -ForegroundColor Cyan
         if ($allPassed) {
             Write-Host "  AUDIT RESULT: COMPLIANT" -ForegroundColor Green
-        } else {
+        }
+        else {
             Write-Host "  AUDIT RESULT: NON-COMPLIANT" -ForegroundColor Red
         }
         Write-Host ""
