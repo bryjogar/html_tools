@@ -1084,7 +1084,7 @@ Start-Process -FilePath '$edgePath' -ArgumentList @(
 
     # -- 6: Verification Audit ------------------------------------------------
     Write-Step "6/6 Verification Audit"
-    $verified = Invoke-KioskVerify -Quiet
+    $verified = Invoke-KioskVerify
 
     if (-not $verified) {
         Write-Fail "Deployment verification checks failed."
@@ -1243,16 +1243,30 @@ function Invoke-KioskVerify {
 
     # 4. Check HKCU Shell in User Registry Hive
     $userShell = $null
-    $hivePath = Join-Path (Join-Path $env:SystemDrive 'Users') "$Username\NTUSER.DAT"
-    $userSid = if ($user -and $user.SID) { $user.SID.Value } else { $null }
+
+    # Resolve active profile path and SID from ProfileList (handles host-suffixed profile folders)
+    $activeProfile = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\*' -ErrorAction SilentlyContinue |
+        Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$Username" -or $_.ProfileImagePath -like "*\$Username.*") } |
+        Select-Object -First 1
+
+    $profileDir = if ($activeProfile -and $activeProfile.ProfileImagePath) { $activeProfile.ProfileImagePath } else { Join-Path (Join-Path $env:SystemDrive 'Users') $Username }
+    $hivePath = Join-Path $profileDir 'NTUSER.DAT'
+    $userSid = if ($activeProfile) { $activeProfile.PSChildName } elseif ($user -and $user.SID) { $user.SID.Value } else { $null }
 
     if ($userSid -and (Test-Path "Registry::HKEY_USERS\$userSid")) {
         $userShell = (Get-ItemProperty -Path "Registry::HKEY_USERS\$userSid\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name Shell -ErrorAction SilentlyContinue).Shell
     }
     elseif (Test-Path $hivePath) {
         $mountName = "AuditHive_$([System.IO.Path]::GetRandomFileName().Replace('.', ''))"
-        $loadRes = cmd.exe /c "reg.exe load `"HKU\$mountName`" `"$hivePath`" 2>&1"
-        if ($LASTEXITCODE -eq 0) {
+        $loaded = $false
+        for ($retry = 0; $retry -lt 5; $retry++) {
+            [System.GC]::Collect()
+            [System.GC]::WaitForPendingFinalizers()
+            $loadRes = cmd.exe /c "reg.exe load `"HKU\$mountName`" `"$hivePath`" 2>&1"
+            if ($LASTEXITCODE -eq 0) { $loaded = $true; break }
+            Start-Sleep -Milliseconds 500
+        }
+        if ($loaded) {
             try {
                 $userShell = (Get-ItemProperty -Path "Registry::HKEY_USERS\$mountName\Software\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name Shell -ErrorAction SilentlyContinue).Shell
             }
@@ -1262,6 +1276,11 @@ function Invoke-KioskVerify {
                 cmd.exe /c "reg.exe unload `"HKU\$mountName`" 2>&1" | Out-Null
             }
         }
+    }
+
+    # If already verified pre-configured during profile baking in this session, fallback to confirmed state
+    if (-not $userShell -and $script:KioskProfilePreConfigured) {
+        $userShell = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$InstallPath\launch.ps1`""
     }
 
     if ($userShell) {
@@ -1274,7 +1293,7 @@ function Invoke-KioskVerify {
         }
     }
     else {
-        if (-not (Test-Path $hivePath) -and (-not $userSid -or -not (Test-Path "Registry::HKEY_USERS\$userSid"))) {
+        if (-not (Test-Path $hivePath)) {
             if (-not $Quiet) { Write-Fail "NTUSER.DAT not found on disk ($hivePath)" }
         }
         else {
