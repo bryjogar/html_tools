@@ -1021,6 +1021,7 @@ function Invoke-KioskSetup {
 
     $launchPs1 = New-Object System.Collections.Generic.List[string]
     $launchPs1.Add('$ErrorActionPreference = "Stop"')
+    $launchPs1.Add('Start-Sleep -seconds 15')
     $launchPs1.Add('$dir = Split-Path -Parent $MyInvocation.MyCommand.Path')
     $launchPs1.Add('Start-Process -FilePath (Join-Path $dir "KioskKeyBlocker.exe") -WorkingDirectory $dir')
 
