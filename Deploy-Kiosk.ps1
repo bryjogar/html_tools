@@ -27,14 +27,14 @@
       - Touchscreen & Kiosk Hardening:
         Configures Microsoft Edge full-screen kiosk with touch-hardening flags (--disable-pinch,
         --overscroll-history-navigation=0, --no-first-run) and disables SAS options (Ctrl+Alt+Del).
-      - Robust Lifecycle Management (Setup, Teardown, Verify):
+      - Robust Lifecycle Management (Setup, Remove, Verify):
         Actively evicts active kiosk sessions (quser/logoff), cleans locks, purges leftover
         numbered profiles (e.g. Kiosk.001), and provides an audit/verify mode for RMM compliance.
 
 .PARAMETER Mode
     Operation mode:
       - Setup    : Deploys or updates the kiosk configuration.
-      - Teardown : Fully cleans the kiosk user, user profiles, files, and restores default shell.
+      - Remove : Fully cleans the kiosk user, user profiles, files, and restores default shell.
       - Verify   : Audits and tests the current machine kiosk status (returns exit code 0 or 1).
     Alias: Action. Default: Setup.
 
@@ -91,12 +91,12 @@
 
 .EXAMPLE
     # Completely remove the kiosk and restore default Windows shell:
-    .\Deploy-Kiosk.ps1 -Mode Teardown -Username "Kiosk User"
+    .\Deploy-Kiosk.ps1 -Mode Remove -Username "Kiosk User"
 #>
 
 [CmdletBinding()]
 Param(
-    [ValidateSet('Setup', 'Teardown', 'Verify')]
+    [ValidateSet('Setup', 'Remove', 'Verify')]
     [Alias('Action')]
     [string]$Mode = 'Setup',
 
@@ -1098,17 +1098,17 @@ Start-Process -FilePath '$edgePath' -ArgumentList @(
     Write-Host "======================================================" -ForegroundColor Green
     Write-Host "  Next Step : $(if ($AutoLogon) { 'Reboot endpoint to test auto-logon.' } else { "Log out and sign in as '$Username'." })"
     Write-Host "  Admin Exit: Press $EscapeKey in the kiosk session to log off."
-    Write-Host "  Teardown  : .\Deploy-Kiosk.ps1 -Mode Teardown -Username '$Username'"
+    Write-Host "  Remove  : .\Deploy-Kiosk.ps1 -Mode Remove -Username '$Username'"
     Write-Host ""
 }
 
 # ---------------------------------------------------------------------------
-# Teardown Execution Routine
+# Remove Execution Routine
 # ---------------------------------------------------------------------------
-function Invoke-KioskTeardown {
+function Invoke-KioskRemove {
     Write-Host ""
     Write-Host "======================================================" -ForegroundColor Cyan
-    Write-Host "  Enable Kiosk Teardown" -ForegroundColor Cyan
+    Write-Host "  Enable Kiosk Remove" -ForegroundColor Cyan
     Write-Host "======================================================" -ForegroundColor Cyan
     Write-Host "  Target User : $Username"
     Write-Host "  Target Path : $InstallPath"
@@ -1188,7 +1188,7 @@ function Invoke-KioskTeardown {
 
     Write-Host ""
     Write-Host "======================================================" -ForegroundColor Green
-    Write-Host "  TEARDOWN COMPLETE" -ForegroundColor Green
+    Write-Host "  Remove COMPLETE" -ForegroundColor Green
     Write-Host "======================================================" -ForegroundColor Green
     Write-Host ""
 }
@@ -1332,8 +1332,8 @@ switch ($Mode) {
         Invoke-KioskSetup
         exit 0
     }
-    'Teardown' {
-        Invoke-KioskTeardown
+    'Remove' {
+        Invoke-KioskRemove
         exit 0
     }
     'Verify' {
