@@ -666,10 +666,10 @@ function Set-KioskUserHiveConfiguration {
 
     # 0. Clean up any lingering temporary hives left behind by interrupted previous runs
     Get-ChildItem -Path 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue |
-        Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
-        ForEach-Object {
-            cmd.exe /c "reg.exe unload `"HKU\$($_.PSChildName)`" 2>&1" | Out-Null
-        }
+    Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
+    ForEach-Object {
+        cmd.exe /c "reg.exe unload `"HKU\$($_.PSChildName)`" 2>&1" | Out-Null
+    }
 
     # 1. Determine target root key: check if user hive is already mounted under HKU\<SID>
     $userSid = $null
@@ -684,24 +684,27 @@ function Set-KioskUserHiveConfiguration {
             if ($userObj -and $userObj.SID) {
                 $userSid = $userObj.SID.Value
             }
-        } catch { }
+        }
+        catch { }
 
         if (-not $userSid) {
             try {
                 $userSid = (New-Object System.Security.Principal.NTAccount($TargetUsername)).Translate([System.Security.Principal.SecurityIdentifier]).Value
-            } catch { }
+            }
+            catch { }
         }
 
         if (-not $userSid) {
             try {
                 $profileList = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList'
                 $matched = Get-ItemProperty "$profileList\*" -ErrorAction SilentlyContinue |
-                    Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$TargetUsername" -or $_.ProfileImagePath -like "*\$TargetUsername.*") } |
-                    Select-Object -First 1
+                Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$TargetUsername" -or $_.ProfileImagePath -like "*\$TargetUsername.*") } |
+                Select-Object -First 1
                 if ($matched) {
                     $userSid = $matched.PSChildName
                 }
-            } catch { }
+            }
+            catch { }
         }
 
         if ($userSid) {
@@ -907,8 +910,8 @@ function Invoke-KioskSetup {
 
     # Clean up any lingering temporary hives left behind by interrupted runs
     Get-ChildItem -Path 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue |
-        Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
-        ForEach-Object { cmd.exe /c "reg.exe unload `"HKU\$($_.PSChildName)`" 2>&1" | Out-Null }
+    Where-Object { $_.PSChildName -like 'KioskHive_*' -or $_.PSChildName -like 'AuditHive_*' } |
+    ForEach-Object { cmd.exe /c "reg.exe unload `"HKU\$($_.PSChildName)`" 2>&1" | Out-Null }
 
     if ($KioskUrl -and $KioskApp) { Write-Fail "Specify -KioskUrl OR -KioskApp, not both."; exit 1 }
     if (-not $KioskUrl -and -not $KioskApp) { Write-Fail "Specify a target via -KioskUrl or -KioskApp."; exit 1 }
@@ -944,8 +947,8 @@ function Invoke-KioskSetup {
         
         # Clean CIM profile and folder to prevent orphaned .001 profile generation
         Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
-            Where-Object { $_.LocalPath -like "*\$Username" -or $_.LocalPath -like "*\$Username.*" } |
-            Remove-CimInstance -ErrorAction SilentlyContinue
+        Where-Object { $_.LocalPath -like "*\$Username" -or $_.LocalPath -like "*\$Username.*" } |
+        Remove-CimInstance -ErrorAction SilentlyContinue
         Remove-ProfileFolderAggressive -FolderPath $profileDir | Out-Null
     }
     elseif ($userExists) {
@@ -955,7 +958,7 @@ function Invoke-KioskSetup {
     # Clean any orphaned suffixed profile folders (e.g. Username.001, Username.HOSTNAME)
     $profilePattern = "^$([regex]::Escape($Username))(\..*|\.\d+)$"
     $leftovers = Get-ChildItem (Join-Path $env:SystemDrive 'Users') -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match $profilePattern }
+    Where-Object { $_.Name -match $profilePattern }
     foreach ($lo in $leftovers) {
         Write-Warn2 "Purging leftover profile folder: $($lo.FullName)"
         Remove-ProfileFolderAggressive -FolderPath $lo.FullName | Out-Null
@@ -993,8 +996,8 @@ function Invoke-KioskSetup {
     }
     if (-not $activeProfile) {
         $activeProfile = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\*' -ErrorAction SilentlyContinue |
-            Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$Username" -or $_.ProfileImagePath -like "*\$Username.*") } |
-            Select-Object -First 1
+        Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$Username" -or $_.ProfileImagePath -like "*\$Username.*") } |
+        Select-Object -First 1
     }
     if ($activeProfile -and (Test-Path $activeProfile.ProfileImagePath)) {
         $profileDir = $activeProfile.ProfileImagePath
@@ -1278,8 +1281,8 @@ function Invoke-KioskVerify {
 
     if (-not $activeProfile) {
         $activeProfile = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\*' -ErrorAction SilentlyContinue |
-            Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$Username" -or $_.ProfileImagePath -like "*\$Username.*") } |
-            Select-Object -First 1
+        Where-Object { $_.ProfileImagePath -and ($_.ProfileImagePath -like "*\$Username" -or $_.ProfileImagePath -like "*\$Username.*") } |
+        Select-Object -First 1
         if (-not $userSid -and $activeProfile) {
             $userSid = $activeProfile.PSChildName
         }
@@ -1287,7 +1290,8 @@ function Invoke-KioskVerify {
 
     $profileDir = if ($activeProfile -and $activeProfile.ProfileImagePath -and (Test-Path $activeProfile.ProfileImagePath)) {
         $activeProfile.ProfileImagePath
-    } else {
+    }
+    else {
         Join-Path (Join-Path $env:SystemDrive 'Users') $Username
     }
     $hivePath = Join-Path $profileDir 'NTUSER.DAT'
